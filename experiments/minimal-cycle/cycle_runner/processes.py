@@ -40,10 +40,9 @@ class Process:
     parent: int = 0
     home: str = ""
     cwd: str = ""
-    #: The names of any variables in this process's environment that point at
-    #: the operator's own session. They are stripped before every command, so a
-    #: process that has one anyway means something put it back.
-    session: str = ""
+    #: The session variables in this process's environment, with their values.
+    #: What matters is where a value points, not that the name is present.
+    session: dict[str, str] = field(default_factory=dict)
     #: This process's mount namespace, as `/proc/<pid>/ns/mnt` names it. It is
     #: what tells a process running inside the environment from the host-side
     #: plumbing that launched it — and that plumbing matches this run's paths
@@ -90,22 +89,34 @@ def _read(pid: int, name: str) -> str:
     return raw.replace(b"\0", b" ").decode("utf-8", "replace").strip()
 
 
-#: Variables that point at the operator's screen, keys or message bus.
-SESSION_NAMES = ("WAYLAND_DISPLAY", "XAUTHORITY", "DBUS_SESSION_BUS_ADDRESS")
+#: Variables that can point at the operator's screen, keys or message bus.
+SESSION_NAMES = (
+    "DISPLAY",
+    "WAYLAND_DISPLAY",
+    "XAUTHORITY",
+    "XDG_RUNTIME_DIR",
+    "DBUS_SESSION_BUS_ADDRESS",
+)
 
 
-def _read_environment(pid: int) -> tuple[str, str]:
-    """Return this process's home, and which session variables it carries."""
+def _read_environment(pid: int) -> tuple[str, dict[str, str]]:
+    """Return this process's home, and the session variables it carries.
+
+    The values are kept because presence alone decides nothing: a message bus
+    address under the environment's own runtime directory is the environment's
+    own bus, and a variable of the same name pointing at the operator's is the
+    leak. Nothing exports these values; only what is concluded from them.
+    """
     home = ""
-    carried: list[str] = []
+    carried: dict[str, str] = {}
     for pair in _read(pid, "environ").split(" "):
         if pair.startswith("HOME="):
             home = pair[5:]
             continue
-        for name in SESSION_NAMES:
-            if pair.startswith(f"{name}="):
-                carried.append(f"{name}=")
-    return home, " ".join(carried)
+        name, _, value = pair.partition("=")
+        if name in SESSION_NAMES:
+            carried[name] = value
+    return home, carried
 
 
 def mount_namespace(pid: int | str = "self") -> str:

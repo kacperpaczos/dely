@@ -10,6 +10,7 @@ onto the host's installation.
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import time
 from contextlib import contextmanager
@@ -663,6 +664,12 @@ class _Cycle:
             return self.config.distrobox.gui
         return display_module.VIRTUAL
 
+    def _operator_paths(self) -> tuple[str, ...]:
+        """The operator's own session locations, which nothing of this run may name."""
+        home = Path(self.host_home if self.host_home is not None else Path.home())
+        runtime = f"/run/user/{os.getuid()}"
+        return (runtime, str(home))
+
     def _windows(self) -> tuple[bool, list]:
         """Ask the environment's own screen what is on it."""
         outcome = self.execute(
@@ -681,6 +688,8 @@ class _Cycle:
             if self.adapter.shares_host_processes
             else [],
             host_namespace=processes.mount_namespace(),
+            host_paths=self._operator_paths(),
+            expected_display=self.config.orca.display,
         )
         ok, detail = display_module.verdict(
             mode=mode,

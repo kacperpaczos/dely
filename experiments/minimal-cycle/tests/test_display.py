@@ -64,16 +64,15 @@ class VerdictTest(unittest.TestCase):
 
     def test_a_process_pointing_at_the_operators_session_is_conclusive(self):
         leaking = [
-            processes.Process(
-                pid=42,
-                command="orca-ide",
-                session="WAYLAND_DISPLAY=",
-                namespace="mnt:[2]",
+            (
+                processes.Process(pid=42, command="orca-ide", namespace="mnt:[2]"),
+                ["XDG_RUNTIME_DIR"],
             )
         ]
         ok, why = self.verdict(leaking=leaking)
         self.assertFalse(ok)
         self.assertIn("42", why)
+        self.assertIn("XDG_RUNTIME_DIR", why)
         self.assertIn("re-introduced", why)
 
     def test_asking_for_the_operators_screen_is_not_a_failure(self):
@@ -89,20 +88,79 @@ class VerdictTest(unittest.TestCase):
 
 HOST_NS = "mnt:[4026531832]"
 BOX_NS = "mnt:[4026532999]"
+HOST_PATHS = ("/run/user/1000", "/home/somebody")
+RUN_HOME = "/var/tmp/dely-cycle/state/a-run/home"
 
 
-def process(pid, session="", namespace=BOX_NS):
+def process(pid, session=None, namespace=BOX_NS):
     return processes.Process(
-        pid=pid, command=f"program-{pid}", session=session, namespace=namespace
+        pid=pid,
+        command=f"program-{pid}",
+        session=dict(session or {}),
+        namespace=namespace,
     )
 
 
-class CarryingHostSessionTest(unittest.TestCase):
-    def test_a_process_inside_the_environment_with_a_session_variable_is_returned(self):
-        found = display.carrying_host_session(
-            [process(1), process(2, "WAYLAND_DISPLAY=")], host_namespace=HOST_NS
+def survey(*found, host_namespace=HOST_NS):
+    return display.carrying_host_session(
+        list(found),
+        host_namespace=host_namespace,
+        host_paths=HOST_PATHS,
+        expected_display=":99",
+    )
+
+
+class PointingAtTheOperatorTest(unittest.TestCase):
+    """Presence of a name decides nothing; where the value points does."""
+
+    def judge(self, session):
+        return display.pointing_at_the_operator(
+            session, host_paths=HOST_PATHS, expected_display=":99"
         )
-        self.assertEqual([p.pid for p in found], [2])
+
+    def test_a_message_bus_in_the_environments_own_runtime_is_not_a_leak(self):
+        """The application sets one for itself, under the runtime dir it was given."""
+        self.assertEqual(
+            self.judge({"DBUS_SESSION_BUS_ADDRESS": f"unix:path={RUN_HOME}/.runtime/bus"}),
+            [],
+        )
+
+    def test_a_message_bus_in_the_operators_runtime_is(self):
+        self.assertEqual(
+            self.judge({"DBUS_SESSION_BUS_ADDRESS": "unix:path=/run/user/1000/bus"}),
+            ["DBUS_SESSION_BUS_ADDRESS"],
+        )
+
+    def test_a_runtime_directory_that_is_the_operators_is(self):
+        self.assertEqual(self.judge({"XDG_RUNTIME_DIR": "/run/user/1000"}), ["XDG_RUNTIME_DIR"])
+
+    def test_an_authority_file_in_the_operators_home_is(self):
+        self.assertEqual(
+            self.judge({"XAUTHORITY": "/home/somebody/.Xauthority"}), ["XAUTHORITY"]
+        )
+
+    def test_the_screen_this_run_created_is_not_a_leak(self):
+        self.assertEqual(self.judge({"DISPLAY": ":99"}), [])
+
+    def test_any_other_screen_is(self):
+        self.assertEqual(self.judge({"DISPLAY": ":0"}), ["DISPLAY"])
+
+    def test_a_compositor_socket_name_alone_says_nothing(self):
+        """It is a name, not a path; the runtime directory holding it decides."""
+        self.assertEqual(self.judge({"WAYLAND_DISPLAY": "wayland-0"}), [])
+
+    def test_an_empty_value_is_not_a_leak(self):
+        self.assertEqual(self.judge({"XAUTHORITY": ""}), [])
+
+
+class CarryingHostSessionTest(unittest.TestCase):
+    def test_a_process_inside_the_environment_reaching_the_operator_is_returned(self):
+        found = survey(
+            process(1, {"DISPLAY": ":99"}),
+            process(2, {"XDG_RUNTIME_DIR": "/run/user/1000"}),
+        )
+        self.assertEqual([item[0].pid for item in found], [2])
+        self.assertEqual(found[0][1], ["XDG_RUNTIME_DIR"])
 
     def test_the_plumbing_that_launched_the_environment_is_not_the_environment(self):
         """`distrobox enter` carries this run's home on its command line.
@@ -111,26 +169,23 @@ class CarryingHostSessionTest(unittest.TestCase):
         process. Counting it reports every run as leaking — including the probe
         doing the counting.
         """
-        found = display.carrying_host_session(
-            [process(3, "WAYLAND_DISPLAY=", namespace=HOST_NS)],
-            host_namespace=HOST_NS,
+        found = survey(
+            process(3, {"XDG_RUNTIME_DIR": "/run/user/1000"}, namespace=HOST_NS)
         )
         self.assertEqual(found, [])
 
     def test_a_process_whose_namespace_is_unknown_is_not_counted_either_way(self):
-        found = display.carrying_host_session(
-            [process(4, "WAYLAND_DISPLAY=", namespace="")], host_namespace=HOST_NS
-        )
+        found = survey(process(4, {"XDG_RUNTIME_DIR": "/run/user/1000"}, namespace=""))
         self.assertEqual(found, [])
 
     def test_with_no_namespace_to_compare_against_nothing_is_counted(self):
-        found = display.carrying_host_session(
-            [process(5, "WAYLAND_DISPLAY=")], host_namespace=""
+        found = survey(
+            process(5, {"XDG_RUNTIME_DIR": "/run/user/1000"}), host_namespace=""
         )
         self.assertEqual(found, [])
 
     def test_no_processes_is_no_finding(self):
-        self.assertEqual(display.carrying_host_session([], host_namespace=HOST_NS), [])
+        self.assertEqual(survey(), [])
 
 
 class StrippingTest(unittest.TestCase):

@@ -30,16 +30,21 @@ sandbox.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 #: The modes a configuration may ask for.
 VIRTUAL = "virtual"
 HOST = "host"
 MODES = (VIRTUAL, HOST)
 
-#: Names that point at the operator's own session. A process of this run that
-#: carries one was pointed at their screen.
-HOST_SESSION_NAMES = ("WAYLAND_DISPLAY", "XAUTHORITY", "DBUS_SESSION_BUS_ADDRESS")
+#: Names that can point at the operator's own session.
+HOST_SESSION_NAMES = (
+    "DISPLAY",
+    "WAYLAND_DISPLAY",
+    "XAUTHORITY",
+    "XDG_RUNTIME_DIR",
+    "DBUS_SESSION_BUS_ADDRESS",
+)
 
 WINDOW_SCRIPT = r"""
 set -u
@@ -93,10 +98,45 @@ def named(windows: Iterable[Window], needle: str) -> list[Window]:
     return [window for window in windows if lowered in window.name.lower()]
 
 
+def pointing_at_the_operator(
+    session: Mapping[str, str], *, host_paths: Sequence[str], expected_display: str
+) -> list[str]:
+    """Return the names of this process's variables that reach the operator.
+
+    Presence decides nothing. A message bus address under the environment's own
+    runtime directory is the environment's own bus, and the application sets one
+    for itself; the same name pointing at `/run/user/<uid>` is the leak. So the
+    value is what is judged — where it points, never what it is called.
+
+    `DISPLAY` is the exception, because its value is a screen number rather than
+    a path: anything but the screen this run created reaches another one.
+    """
+    reaching: list[str] = []
+    wanted = [str(path) for path in host_paths if str(path).strip()]
+    for name, value in session.items():
+        if not value:
+            continue
+        if name == "DISPLAY":
+            if expected_display and value != expected_display:
+                reaching.append(name)
+            continue
+        if name == "WAYLAND_DISPLAY":
+            # A socket name, meaningless without the runtime directory that
+            # holds it; that directory is judged on its own line.
+            continue
+        if any(path in value for path in wanted):
+            reaching.append(name)
+    return reaching
+
+
 def carrying_host_session(
-    processes: Sequence[Any], *, host_namespace: str = ""
-) -> list[Any]:
-    """Return the environment's processes that still point at the operator's session.
+    processes: Sequence[Any],
+    *,
+    host_namespace: str = "",
+    host_paths: Sequence[str] = (),
+    expected_display: str = "",
+) -> list[tuple[Any, list[str]]]:
+    """Return the environment's processes that reach the operator, and how.
 
     Only processes *inside* the environment count. The host-side plumbing that
     launches into a container matches this run's paths as well — the run's own
@@ -106,12 +146,18 @@ def carrying_host_session(
 
     The mount namespace is what separates them, rather than a program name.
     """
-    return [
-        process
-        for process in processes
-        if any(f"{name}=" in getattr(process, "session", "") for name in HOST_SESSION_NAMES)
-        and process.inside(host_namespace)
-    ]
+    found: list[tuple[Any, list[str]]] = []
+    for process in processes:
+        if not process.inside(host_namespace):
+            continue
+        reaching = pointing_at_the_operator(
+            getattr(process, "session", {}) or {},
+            host_paths=host_paths,
+            expected_display=expected_display,
+        )
+        if reaching:
+            found.append((process, reaching))
+    return found
 
 
 def appeared(before: Sequence[Window], after: Sequence[Window]) -> list[Window]:
@@ -121,13 +167,17 @@ def appeared(before: Sequence[Window], after: Sequence[Window]) -> list[Window]:
 
 
 def describe(found: Sequence[Any], limit: int = 4) -> str:
-    """Name what was found well enough to act on, without quoting a whole argv."""
+    """Name what was found well enough to act on.
+
+    The variable names are reported and their values are not: a value here is a
+    path in somebody's home, and a run's artifacts are shared.
+    """
     pieces = []
-    for process in found[:limit]:
+    for entry in found[:limit]:
+        process, reaching = entry if isinstance(entry, tuple) else (entry, [])
         pid = getattr(process, "pid", "?")
         command = str(getattr(process, "command", "")).strip()
-        carried = str(getattr(process, "session", "")).strip()
-        pieces.append(f"pid {pid} [{carried or 'nothing named'}] {command[:120]}")
+        pieces.append(f"pid {pid} [{', '.join(reaching) or 'nothing named'}] {command[:120]}")
     if len(found) > limit:
         pieces.append(f"and {len(found) - limit} more")
     return "; ".join(pieces)

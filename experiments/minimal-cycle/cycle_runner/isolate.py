@@ -24,7 +24,7 @@ looking by hand. It is what stops a toolkit finding them by default.
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import Mapping, Sequence
 
 #: Variables whose names begin with these belong to the host's session, not to
 #: the environment's. They are removed before any command runs inside one.
@@ -68,6 +68,25 @@ _SCRIPT = (
     'done; '
     'exec "$@"'
 )
+
+
+def leaks(name: str) -> bool:
+    """Report whether this variable belongs to the operator's own session."""
+    return name in LEAKING_NAMES or any(
+        name.startswith(prefix) for prefix in LEAKING_PREFIXES
+    )
+
+
+def scrubbed(environ: Mapping[str, str]) -> dict[str, str]:
+    """Return this environment without what points at the operator's session.
+
+    Stripping inside the environment is not enough for the command that
+    *creates* one. A container's first process inherits whatever started it, so
+    a box created from an unscrubbed environment holds the operator's display
+    at its root, and everything descending from it that this runner did not
+    launch — an agent's own child, say — inherits it in turn.
+    """
+    return {name: value for name, value in environ.items() if not leaks(name)}
 
 
 def without_host_session(argv: Sequence[str]) -> list[str]:

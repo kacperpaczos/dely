@@ -13,6 +13,7 @@ credentials. That is a refusal, not a default.
 
 from __future__ import annotations
 
+import os
 import shutil
 import tempfile
 from pathlib import Path
@@ -274,10 +275,15 @@ class DistroboxAdapter(BackendAdapter):
         """Create the box from the manifest and prove it exists."""
         self.home_path.mkdir(parents=True, exist_ok=True)
         self.write_manifest()
+        # The box's first process inherits whatever creates it, so this is
+        # created from an environment with the operator's session removed. A
+        # box whose init holds their display socket hands it to everything
+        # descending from it that this runner did not launch.
         created = self.runner(
             [self.binary, "assemble", "create", "--file", str(self.manifest_path)],
             timeout=self.config.timeout_seconds,
             context="host",
+            env=isolate.scrubbed(os.environ),
         )
         if not created.ok:
             raise RuntimeError(

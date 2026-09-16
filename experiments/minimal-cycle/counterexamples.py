@@ -906,6 +906,33 @@ CASES: tuple[Counterexample, ...] = (
         ),
     ),
     Counterexample(
+        name="the-box-is-created-without-the-operators-session",
+        requirement=(
+            "A container's first process inherits whatever created it, so a box "
+            "created from an unscrubbed environment holds the operator's display "
+            "at its root and hands it to everything under it"
+        ),
+        path="cycle_runner/isolate.py",
+        original="    return {name: value for name, value in environ.items() if not leaks(name)}",
+        replacement="    return dict(environ)",
+        instruments=("tests.test_isolate.ScrubbedEnvironmentTest",),
+    ),
+    Counterexample(
+        name="a-variable-leaks-by-where-it-points",
+        requirement=(
+            "The application sets a message bus address for itself under the "
+            "runtime directory the run gave it; the name is the same one the "
+            "operator's carries, and only the value tells them apart"
+        ),
+        path="cycle_runner/display.py",
+        original="        if any(path in value for path in wanted):\n            reaching.append(name)",
+        replacement="        reaching.append(name)",
+        instruments=(
+            "tests.test_display.PointingAtTheOperatorTest",
+            "tests.test_display.CarryingHostSessionTest",
+        ),
+    ),
+    Counterexample(
         name="the-launcher-is-not-the-environment",
         requirement=(
             "`distrobox enter` carries this run's home on its command line and "
@@ -913,8 +940,8 @@ CASES: tuple[Counterexample, ...] = (
             "operator's process; counting it fails every run, the probe included"
         ),
         path="cycle_runner/display.py",
-        original="        and process.inside(host_namespace)",
-        replacement="",
+        original="        if not process.inside(host_namespace):\n            continue",
+        replacement="        if False:\n            continue",
         instruments=("tests.test_display.CarryingHostSessionTest",),
     ),
     Counterexample(

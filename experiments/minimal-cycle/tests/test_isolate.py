@@ -108,3 +108,44 @@ class AdaptersScrubTest(unittest.TestCase):
             self.assertIn("cycle-isolate", " ".join(adapter.runner.seen[-1]))
         finally:
             case.doCleanups()
+
+
+class ScrubbedEnvironmentTest(unittest.TestCase):
+    """The command that creates an environment needs scrubbing too."""
+
+    BASE = {
+        "PATH": "/usr/bin",
+        "HOME": "/home/somebody",
+        "LANG": "en_GB.UTF-8",
+        "WAYLAND_DISPLAY": "wayland-0",
+        "DISPLAY": ":0",
+        "XDG_RUNTIME_DIR": "/run/user/1000",
+        "DBUS_SESSION_BUS_ADDRESS": "unix:path=/run/user/1000/bus",
+        "ORCA_PANE_KEY": "a-pane",
+        "ORCA_AGENT_HOOK_TOKEN": "a-token",
+    }
+
+    def test_the_operators_session_is_removed(self):
+        scrubbed = isolate.scrubbed(self.BASE)
+        for name in (
+            "WAYLAND_DISPLAY",
+            "DISPLAY",
+            "XDG_RUNTIME_DIR",
+            "DBUS_SESSION_BUS_ADDRESS",
+            "ORCA_PANE_KEY",
+            "ORCA_AGENT_HOOK_TOKEN",
+        ):
+            with self.subTest(name=name):
+                self.assertNotIn(name, scrubbed)
+
+    def test_everything_the_command_still_needs_is_kept(self):
+        scrubbed = isolate.scrubbed(self.BASE)
+        self.assertEqual(scrubbed["PATH"], "/usr/bin")
+        self.assertEqual(scrubbed["HOME"], "/home/somebody")
+        self.assertEqual(scrubbed["LANG"], "en_GB.UTF-8")
+
+    def test_a_prefix_covers_a_variable_nobody_listed(self):
+        self.assertNotIn("ORCA_SOMETHING_NEW", isolate.scrubbed({"ORCA_SOMETHING_NEW": "x"}))
+
+    def test_an_empty_environment_scrubs_to_an_empty_one(self):
+        self.assertEqual(isolate.scrubbed({}), {})

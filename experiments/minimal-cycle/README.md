@@ -359,6 +359,13 @@ the table with the tests each row runs. The recorded sweep is in
 | A checkout at the pinned commit is not a skill the agent can read | case `a-checkout-is-not-a-skill-the-agent-can-read` | `evidence/tool-image-with-skills/` |
 | The installed skills are the pinned bytes, not just the right names | case `the-installed-skills-are-the-pinned-bytes` | `evidence/tool-image-with-skills/` |
 | A branch is found where a clone actually keeps it | case `a-branch-is-found-where-a-clone-keeps-it` | `evidence/counterexamples.txt` |
+| A session variable leaks by where its value points, not by its name | case `a-variable-leaks-by-where-it-points` | `evidence/counterexamples.txt` |
+| The plumbing that launched the environment is not the environment | case `the-launcher-is-not-the-environment` | `evidence/counterexamples.txt` |
+| The box is created without the operator's session in its environment | case `the-box-is-created-without-the-operators-session` | `evidence/counterexamples.txt` |
+| A copied credential is not a working login | case `a-copied-file-is-not-a-working-login` | `evidence/replayed-delivery/manifest.json` |
+| An expired login blocks rather than passes | case `an-expired-login-blocks-rather-than-passes` | `evidence/counterexamples.txt` |
+| The auth receipt names no person and no organisation | case `the-receipt-names-no-person` | `evidence/counterexamples.txt` |
+| The reviewer waits on its own message, not the one before it | case `the-reviewer-waits-on-its-own-message` | `evidence/replayed-delivery/` |
 
 ## What no instrument here observes
 

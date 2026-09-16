@@ -1,0 +1,38 @@
+{
+  "id": "489e8f64-8874-41ba-b72c-5e6d56f2a06b",
+  "ok": true,
+  "result": {
+    "runId": "run_bc0193962f3a",
+    "deliveryId": "delivery_805b00e5fd73",
+    "messages": [
+      {
+        "id": "msg_ebe1c4be62bf",
+        "run_id": "run_bc0193962f3a",
+        "delivery_contract": "current_delivery",
+        "from_handle": "term_eb28f24b-c273-4eca-8c4e-1fc634c3dcfd",
+        "to_handle": "run:run_bc0193962f3a",
+        "subject": "evidence.txt created",
+        "body": "I created evidence.txt in the project root containing exactly 'dely-cycle-marker' with no trailing newline. A byte dump confirmed the file holds exactly those 17 bytes. Nothing is left to do; no other files were changed and no tests were run, as the dispatch prompt instructed.",
+        "type": "worker_done",
+        "priority": "normal",
+        "thread_id": null,
+        "payload": "{\"taskId\":\"task_461769540a7a\",\"dispatchId\":\"ctx_ad5288d13ac1\",\"outcome\":\"succeeded\",\"filesModified\":[\"evidence.txt\"]}",
+        "created_at": "2026-09-16T09:12:52Z",
+        "delivered_at": null
+      }
+    ],
+    "count": 1,
+    "replayed": false,
+    "acknowledged": null,
+    "timedOut": false,
+    "cancelled": false,
+    "connectionLost": false,
+    "mutation": {
+      "requestId": "2c54033a-b13a-4660-9cfe-f66fbf3e09d8",
+      "replayed": false
+    }
+  },
+  "_meta": {
+    "runtimeId": "966bf4df-8515-48bf-9ab8-89423190a1d9"
+  }
+}

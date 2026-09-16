@@ -1,0 +1,21 @@
+{
+  "backend": "distrobox",
+  "claim": {
+    "disk_bytes": 8589934592,
+    "memory_mb": 4096,
+    "pids": 2048,
+    "timeout_seconds": 1800,
+    "vcpus": 2
+  },
+  "detail": "this run holds 20260916T091038Z-bbc5e6-39646e78 against a ceiling of 1 active distrobox environment(s); the slot was released",
+  "granted": true,
+  "occupants": [],
+  "policy": {
+    "budget": null,
+    "effective_max_active": 1,
+    "max_active": 1,
+    "parallel": false
+  },
+  "released": true,
+  "status": "OK"
+}

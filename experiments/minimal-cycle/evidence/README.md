@@ -23,6 +23,15 @@ reported `worker_done` with outcome `succeeded`, and an independent check run
 outside that session agreed. `SETTLED`, exported, destroyed.
 `dispatch-completion-wait.json` carries the worker's own message.
 
+### `replayed-delivery/`
+
+The container backend reaching the handoff and stopping there, with both
+dispatches carrying one delivery identifier. A bound Run replays a delivery
+until it is acknowledged, so the reviewer's wait woke on the implementer's
+message and reported that agent's outcome as its own — a review that never ran,
+reporting success. What caught it was the missing verdict artifact, not the
+outcome.
+
 ### `vm-unobserved-turn/`
 
 The machine backend, at the same commit, on the same host, not completing.

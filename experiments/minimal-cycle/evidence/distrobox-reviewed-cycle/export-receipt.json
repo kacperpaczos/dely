@@ -1,0 +1,144 @@
+{
+  "artifacts": [
+    {
+      "path": "admission.json",
+      "sha256": "d43980ee90b7fc72ee2ffe4b0aa3c08b7338006f29df1df9edf718d3e149a19a",
+      "size_bytes": 470
+    },
+    {
+      "path": "auth-receipt.json",
+      "sha256": "39e38a2df0476c9326c392a737dfe0b1e28a38bd026afa10d62c05c5e1001699",
+      "size_bytes": 594
+    },
+    {
+      "path": "backend-status.json",
+      "sha256": "2e3fa2e7b66ce6c892b88691d076c05bff1355114e23ec5f3f0920c771ae11ab",
+      "size_bytes": 1374
+    },
+    {
+      "path": "check.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    {
+      "path": "check.stdout",
+      "sha256": "8993be3c038d3ffb5eb83da72d6fa7a897aad334ebd422cb48a1fc22fa357d86",
+      "size_bytes": 103
+    },
+    {
+      "path": "diff.patch",
+      "sha256": "77d82181227d3ffdbde56de7f6b5e3783e9914d78580ac648cab8e47d9e23fec",
+      "size_bytes": 65
+    },
+    {
+      "path": "dispatch/completion-wait.stdout",
+      "sha256": "8d44a398b528cad9027dd94ae0769feb42cb8ac44dc9101b944518c36eedd735",
+      "size_bytes": 1416
+    },
+    {
+      "path": "dispatch/reviewer-completion-wait.stdout",
+      "sha256": "b0300f42401d90a8985e5d875e59fd9cb1be14983fb50b34e4615fcc51c75e46",
+      "size_bytes": 1649
+    },
+    {
+      "path": "dispatch/reviewer-worker-start.stdout",
+      "sha256": "2f63043aa1b20aab7b664f3461f0842c3197efb0b045498a464edf383ab55b60",
+      "size_bytes": 2324
+    },
+    {
+      "path": "dispatch/run-create.stdout",
+      "sha256": "ebed19e116bfb5b4b73e39011314d502ca555c608611e58e0d22469566b29ad9",
+      "size_bytes": 569
+    },
+    {
+      "path": "dispatch/worker-start.stdout",
+      "sha256": "e2436ae28c69c2f83130f6bfdeb87c65856159ffcfb38841739384c0eaeb6275",
+      "size_bytes": 2324
+    },
+    {
+      "path": "display.json",
+      "sha256": "f66d78a19d93f328672c888a273d686c8cc8895233140e1f3b00ecadce9ba20d",
+      "size_bytes": 662
+    },
+    {
+      "path": "first-run-state.json",
+      "sha256": "51ff6e7ed8149cf4ad3d467cf5f147f21905e8d58c525eaa7bd527dd52fb7bc7",
+      "size_bytes": 611
+    },
+    {
+      "path": "handoff-diff.patch",
+      "sha256": "1702d4bb1449b8295118f8d6c14fb85ad05262f47bf30f5efff22237f98dd88a",
+      "size_bytes": 179
+    },
+    {
+      "path": "host-before.json",
+      "sha256": "65487ba6e17c30e72172a57165c35eab9236f827e992b396691243182575beea",
+      "size_bytes": 2008
+    },
+    {
+      "path": "host-registry-before.json",
+      "sha256": "6fc73503b16be394c0539ab0dc037d85fdc5bcf3d6ddf853b4726c9307636650",
+      "size_bytes": 5729
+    },
+    {
+      "path": "identity/environment-probe.txt",
+      "sha256": "8308e6cc9deeade988e66ad79ba40646b4c8ecdcaea81fcda41095bc0d2ff941",
+      "size_bytes": 1886
+    },
+    {
+      "path": "identity/host-probe.txt",
+      "sha256": "1d490ac3aa102e724bf24be1b45ce58e69a2def4d87ac060a9ce9f35cb455131",
+      "size_bytes": 1668
+    },
+    {
+      "path": "identity/orca-runtime.json",
+      "sha256": "9bbfdffe03640325ca9ea011c83cd28009e989e53b5dfda96d423827f60fbde0",
+      "size_bytes": 3181
+    },
+    {
+      "path": "identity/orca-status.json",
+      "sha256": "86222f82dc556d15cb413be50082d0c6670a8d1d3c0dae8212c695c995a130e7",
+      "size_bytes": 363
+    },
+    {
+      "path": "logs/commands.jsonl",
+      "sha256": "8a9f97102b1682905f81e19c26a39f4a3c30657ef3a65344d405740841c9c482",
+      "size_bytes": 32449
+    },
+    {
+      "path": "logs/runner.log",
+      "sha256": "75c45dafb64bacfcee261c7de3c95af0331d72051a434cb981eeb3c8a130892e",
+      "size_bytes": 4118
+    },
+    {
+      "path": "preflight.json",
+      "sha256": "cf001294a15d21827f09103ed1a6c9b70b3ae575ce52079ac8ac34335bdafea3",
+      "size_bytes": 928
+    },
+    {
+      "path": "review.json",
+      "sha256": "59fe52f5fbb006cd48ac11b8335a67acf0b43f1cf56aa787a71d5800580c3cd0",
+      "size_bytes": 4654
+    },
+    {
+      "path": "run-before-cleanup.json",
+      "sha256": "03f6fdef75f07040542320cbc2047c829e1e4dc7a3d43b073e3e94296cf35eb1",
+      "size_bytes": 70076
+    },
+    {
+      "path": "skills.json",
+      "sha256": "e56ce550b5ebc5cf8a1f7598d28f16210dcababcfbce10b85450d167b15a1fc1",
+      "size_bytes": 1374
+    },
+    {
+      "path": "task-artifact/evidence.txt",
+      "sha256": "08b84ed9a0ffcce4c1802c042afa823ff70a713da509491790bf65fc294ab268",
+      "size_bytes": 17
+    }
+  ],
+  "confirmed_at": "2026-09-16T09:13:11Z",
+  "detail": "27 artifact(s) re-read from the host; 0 unresolved",
+  "missing": [],
+  "receipt_path": "export-receipt.json",
+  "status": "CONFIRMED"
+}

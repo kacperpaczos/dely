@@ -127,9 +127,9 @@ def wait_for_runtime(
 #: learned the hard way. The runtime directory is the environment's own, not
 #: `/run/user/<uid>` — on the container backend that path is the operator's,
 #: mounted in, and it holds the compositor socket. And the toolkit is told to
-#: use X11 outright: left to choose, it found the operator's compositor and
-#: opened a window on their desktop even though this run had given it a
-#: virtual screen of its own.
+#: use the X window system outright: left to choose, it found the operator's
+#: compositor and opened a window on their desktop, even though this run had
+#: given it a virtual screen of its own.
 START_SCRIPT = (
     'export DISPLAY="$1"; shift; '
     'export XDG_RUNTIME_DIR="$HOME/.runtime"; '

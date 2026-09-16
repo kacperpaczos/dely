@@ -1,0 +1,38 @@
+{
+  "id": "6bbaf5eb-d706-48fa-ae16-139c516808bf",
+  "ok": true,
+  "result": {
+    "runId": "run_bc0193962f3a",
+    "deliveryId": "delivery_3644e0fd8549",
+    "messages": [
+      {
+        "id": "msg_d71ebdae3908",
+        "run_id": "run_bc0193962f3a",
+        "delivery_contract": "current_delivery",
+        "from_handle": "term_832effc8-c831-4fc8-93aa-e6f65fa44cd7",
+        "to_handle": "run:run_bc0193962f3a",
+        "subject": "Review done: accept",
+        "body": "I reviewed handoff-diff.patch (sha256 1702d4bb1449b8295118f8d6c14fb85ad05262f47bf30f5efff22237f98dd88a) against the one-file evidence.txt requirement. The diff only adds evidence.txt, and the file holds exactly dely-cycle-marker with no trailing newline; the staged index matches the patch byte for byte. I wrote the verdict (accept) to review-verdict.json with exactly the three required keys, and nothing is left to do.",
+        "type": "worker_done",
+        "priority": "normal",
+        "thread_id": null,
+        "payload": "{\"taskId\":\"task_f88a05bd32fc\",\"dispatchId\":\"ctx_095c48d4a3b6\",\"outcome\":\"succeeded\",\"filesModified\":[\"/var/tmp/dely-cycle/state/20260916T091038Z-bbc5e6-39646e78/home/review-verdict.json\"]}",
+        "created_at": "2026-09-16T09:13:10Z",
+        "delivered_at": null
+      }
+    ],
+    "count": 1,
+    "replayed": false,
+    "acknowledged": "delivery_805b00e5fd73",
+    "timedOut": false,
+    "cancelled": false,
+    "connectionLost": false,
+    "mutation": {
+      "requestId": "469ebcaa-3535-42d0-884a-55d2dedc6528",
+      "replayed": false
+    }
+  },
+  "_meta": {
+    "runtimeId": "966bf4df-8515-48bf-9ab8-89423190a1d9"
+  }
+}

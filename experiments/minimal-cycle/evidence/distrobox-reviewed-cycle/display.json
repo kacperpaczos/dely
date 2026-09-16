@@ -1,0 +1,29 @@
+{
+  "after": [
+    {
+      "id": "1135",
+      "name": ""
+    },
+    {
+      "id": "2097155",
+      "name": "Orca"
+    }
+  ],
+  "appeared": [
+    {
+      "id": "2097155",
+      "name": "Orca"
+    }
+  ],
+  "before": [
+    {
+      "id": "1135",
+      "name": ""
+    }
+  ],
+  "detail": "1 window(s) appeared on the screen this run created that were not there before it started the application, of 2 there now. This is where it rendered; that no process was seen carrying a host session variable is not part of the finding, because the application rewrites its own environment block",
+  "display": ":99",
+  "mode": "virtual",
+  "reachable": true,
+  "status": "OK"
+}

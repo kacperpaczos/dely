@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from . import redact
+from .admission import Budget, Claim, Limits, SEQUENTIAL_MAX_ACTIVE
 
 try:  # pragma: no cover - environment dependent
     import yaml as _DEFAULT_YAML
@@ -235,6 +236,13 @@ class DistroboxConfig:
     extra_mounts: tuple[str, ...] = ()
     provision: tuple[tuple[str, ...], ...] = ()
     accept_host_home_mount: bool = False
+    # The share of the host one box may take. These are declared to the
+    # container manager, so the budget admission checks is the same number the
+    # kernel enforces, not a hope written in a manifest.
+    vcpus: int = 2
+    memory_mb: int = 4096
+    pids: int = 2048
+    disk_bytes: int = 8 * 1024 * 1024 * 1024
 
     def to_document(self) -> dict[str, Any]:
         return {
@@ -243,7 +251,20 @@ class DistroboxConfig:
             "extra_mounts": list(self.extra_mounts),
             "provision": [list(argv) for argv in self.provision],
             "accept_host_home_mount": self.accept_host_home_mount,
+            "vcpus": self.vcpus,
+            "memory_mb": self.memory_mb,
+            "pids": self.pids,
+            "disk_bytes": self.disk_bytes,
         }
+
+    @property
+    def container_limit_flags(self) -> tuple[str, ...]:
+        """The limits as the container manager takes them."""
+        return (
+            f"--cpus={self.vcpus}",
+            f"--memory={self.memory_mb}m",
+            f"--pids-limit={self.pids}",
+        )
 
 
 @dataclass(frozen=True)
@@ -319,9 +340,24 @@ class RunConfig:
     check: CheckConfig
     auth: AuthConfig
     orca: OrcaConfig
+    limits: Limits = field(default_factory=Limits)
     distrobox: DistroboxConfig | None = None
     vm: VmConfig | None = None
     source_path: Path | None = field(default=None, compare=False)
+
+    def claim(self) -> Claim:
+        """What this run asks the host for, in the dimensions admission counts."""
+        section = self.distrobox if self.backend == "distrobox" else self.vm
+        if section is None:
+            return Claim(timeout_seconds=self.timeout_seconds)
+        return Claim(
+            vcpus=section.vcpus,
+            memory_mb=section.memory_mb,
+            pids=getattr(section, "pids", 0),
+            disk_bytes=getattr(section, "disk_bytes", 0)
+            or getattr(section, "overlay_size_bytes", 0),
+            timeout_seconds=self.timeout_seconds,
+        )
 
     def to_document(self) -> dict[str, Any]:
         document: dict[str, Any] = {
@@ -337,6 +373,7 @@ class RunConfig:
             "check": self.check.to_document(),
             "auth": self.auth.to_document(),
             "orca": self.orca.to_document(),
+            "limits": self.limits.to_document(),
         }
         if self.distrobox is not None:
             document["distrobox"] = self.distrobox.to_document()
@@ -361,6 +398,7 @@ _TOP_LEVEL = (
     "check",
     "auth",
     "orca",
+    "limits",
     "distrobox",
     "vm",
 )
@@ -484,6 +522,47 @@ def _provision(document: Mapping[str, Any], where: str) -> tuple[tuple[str, ...]
     return tuple(steps)
 
 
+def _budget(document: Mapping[str, Any]) -> Budget:
+    _reject_unknown(
+        document,
+        ("vcpus", "memory_mb", "pids", "disk_bytes", "timeout_seconds"),
+        "limits.budget",
+    )
+    return Budget(
+        vcpus=_positive_int(document, "vcpus", "limits.budget"),
+        memory_mb=_positive_int(document, "memory_mb", "limits.budget"),
+        pids=_positive_int(document, "pids", "limits.budget"),
+        disk_bytes=_positive_int(document, "disk_bytes", "limits.budget"),
+        timeout_seconds=_positive_int(document, "timeout_seconds", "limits.budget"),
+    )
+
+
+def _limits(document: Mapping[str, Any]) -> Limits:
+    if not document:
+        return Limits()
+    _reject_unknown(document, ("parallel", "max_active", "budget"), "limits")
+    parallel = _flag(document, "parallel", "limits", False)
+    max_active = _positive_int(document, "max_active", "limits", SEQUENTIAL_MAX_ACTIVE)
+    budget_document = _section(document, "budget", required=False)
+    if not parallel and max_active != SEQUENTIAL_MAX_ACTIVE:
+        _fail(
+            f"limits.max_active is {max_active} while limits.parallel is false; "
+            "raising the ceiling is what the switch is for, so set it or leave "
+            f"the ceiling at {SEQUENTIAL_MAX_ACTIVE}"
+        )
+    if parallel and not budget_document:
+        _fail(
+            "limits.parallel is true without limits.budget; an opt-in that names "
+            "no ceiling for cpu, memory, processes, disk and time is an unbounded "
+            "spawn"
+        )
+    return Limits(
+        parallel=parallel,
+        max_active=max_active,
+        budget=_budget(budget_document) if budget_document else None,
+    )
+
+
 def _distrobox(document: Mapping[str, Any]) -> DistroboxConfig:
     _reject_unknown(
         document,
@@ -493,6 +572,10 @@ def _distrobox(document: Mapping[str, Any]) -> DistroboxConfig:
             "extra_mounts",
             "provision",
             "accept_host_home_mount",
+            "vcpus",
+            "memory_mb",
+            "pids",
+            "disk_bytes",
         ),
         "distrobox",
     )
@@ -507,6 +590,12 @@ def _distrobox(document: Mapping[str, Any]) -> DistroboxConfig:
         provision=_provision(document, "distrobox"),
         accept_host_home_mount=_flag(
             document, "accept_host_home_mount", "distrobox", False
+        ),
+        vcpus=_positive_int(document, "vcpus", "distrobox", 2),
+        memory_mb=_positive_int(document, "memory_mb", "distrobox", 4096),
+        pids=_positive_int(document, "pids", "distrobox", 2048),
+        disk_bytes=_positive_int(
+            document, "disk_bytes", "distrobox", 8 * 1024 * 1024 * 1024
         ),
     )
 
@@ -620,6 +709,7 @@ def from_document(document: Mapping[str, Any]) -> RunConfig:
         check=_check(_section(document, "check", required=True), task),
         auth=_auth(_section(document, "auth", required=True)),
         orca=_orca(_section(document, "orca", required=True)),
+        limits=_limits(_section(document, "limits", required=False)),
         distrobox=_distrobox(distrobox_document) if distrobox_document else None,
         vm=_vm(vm_document) if vm_document else None,
     )

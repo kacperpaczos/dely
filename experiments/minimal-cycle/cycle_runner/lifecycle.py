@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from . import (
+    admission,
     auth,
     cleanup,
     firstrun,
@@ -33,7 +34,13 @@ from . import (
 from .adapters.base import BackendAdapter, EnvironmentHandle
 from .config import RunConfig
 from .export import Exporter
-from .result import CheckRecord, CleanupRecord, PhaseRecord, RunResult
+from .result import (
+    AdmissionRecord,
+    CheckRecord,
+    CleanupRecord,
+    PhaseRecord,
+    RunResult,
+)
 from .status import CleanupStatus, ExportStatus, PhaseStatus, RunStatus, exit_code
 
 PHASE_ORDER = (
@@ -186,6 +193,7 @@ class _Cycle:
         self.env_overlay: dict[str, str] = {}
         self.coordinator_handle: str | None = None
         self.host_before: dict[str, Any] = {}
+        self.lease: admission.Lease | None = None
 
     # -- plumbing ---------------------------------------------------------
 
@@ -274,8 +282,53 @@ class _Cycle:
         cleanup_record = self._cleanup(export_record)
         return self._close(export_record, cleanup_record, started)
 
+    def _admit(self) -> bool:
+        """Take this host's slot for the backend, or refuse before creating anything."""
+        claim = self.config.claim()
+        record = AdmissionRecord(
+            backend=self.config.backend,
+            policy=self.config.limits.to_record(),
+            claim=claim.to_document(),
+        )
+        try:
+            self.lease = admission.acquire(
+                root=self.config.state_root,
+                run_id=self.run_id,
+                backend=self.config.backend,
+                limits=self.config.limits,
+                claim=claim,
+            )
+        except admission.AdmissionRefused as refusal:
+            record.status = PhaseStatus.BLOCKED
+            record.detail = redact.text(str(refusal))
+            record.occupants = [item.to_document() for item in refusal.occupants]
+            self.result.admission = record
+            self.blocked_reason = record.detail
+            self.log.say(f"admission refused: {record.detail}")
+            return False
+        record.status = PhaseStatus.OK
+        record.granted = True
+        record.detail = (
+            f"this run holds {self.lease.run_id} against a ceiling of "
+            f"{self.config.limits.effective_max_active} active "
+            f"{self.config.backend} environment(s)"
+        )
+        self.result.admission = record
+        self.log.say(record.detail)
+        return True
+
     def _prepare(self, baseline: Path) -> None:
         with self.phase("prepare"):
+            # Nothing is created before this host has said it has room, so a
+            # refusal costs nothing and leaves nothing to clean up.
+            if not self._admit():
+                self.exporter.write_json(
+                    "admission.json", self.result.admission.to_document()
+                )
+                return
+            self.exporter.write_json(
+                "admission.json", self.result.admission.to_document()
+            )
             self.host_before = self._snapshot_host()
             self.exporter.write_json("host-before.json", self.host_before)
             commit = project.resolve_revision(
@@ -611,6 +664,34 @@ class _Cycle:
             verified=False,
         )
 
+    def _surrender(self, cleanup_record: CleanupRecord) -> None:
+        """Give the slot back, or keep it so the next run meets this one's residue."""
+        if self.lease is None:
+            return
+        confirmed = (
+            cleanup_record.status is CleanupStatus.DESTROYED and self.stop_confirmed
+        )
+        reason = (
+            "cleanup destroyed every per-run resource and the stop was confirmed"
+            if confirmed
+            else (
+                f"cleanup ended as {cleanup_record.status.value} "
+                f"(stop_confirmed={self.stop_confirmed}): {cleanup_record.reason}"
+            )
+        )
+        admission.release(self.lease, confirmed=confirmed, reason=redact.text(reason))
+        self.result.admission.released = confirmed
+        self.result.admission.detail = (
+            self.result.admission.detail
+            + ("; the slot was released" if confirmed else f"; the slot is kept because {reason}")
+        )
+        self.exporter.write_json(
+            "admission.json", self.result.admission.to_document(), required=False
+        )
+        self.log.say(
+            "admission slot released" if confirmed else f"admission slot kept: {reason}"
+        )
+
     def _close(self, export_record, cleanup_record, started: float) -> CycleOutcome:
         with self.phase("close"):
             self.result.finished_at = proc.utc_now()
@@ -625,6 +706,7 @@ class _Cycle:
             )
             self.result.status = run_status
             self.result.failure_classification = classification
+            self._surrender(cleanup_record)
             host_after = self._snapshot_host()
             self.exporter.write_json("host-after.json", host_after, required=False)
             self.exporter.write_json(

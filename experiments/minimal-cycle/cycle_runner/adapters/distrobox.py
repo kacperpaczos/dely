@@ -125,6 +125,12 @@ class DistroboxAdapter(BackendAdapter):
             "start_now=true",
         ]
         lines.extend(f"volume={mount}" for mount in self.mounts)
+        # The share of the host admission counted against the budget is the
+        # same share the container manager is told to enforce, so the ceiling
+        # is a kernel limit rather than a number in a manifest.
+        lines.append(
+            "additional_flags=" + " ".join(self.settings.container_limit_flags)
+        )
         return "\n".join(lines) + "\n"
 
     def write_manifest(self) -> Path:

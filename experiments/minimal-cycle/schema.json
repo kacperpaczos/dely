@@ -1,46 +1,430 @@
 {
-  "title": "dely minimal cycle manifest",
   "description": "Required shape of the manifest one cycle writes to the host. Validated by cycle_runner.manifest, which supports type, required, properties, items, enum, const and pattern.",
-  "type": "object",
-  "required": [
-    "schema_version",
-    "generated_at",
-    "run_id",
-    "backend",
-    "tested_revision",
-    "dely_revision",
-    "environment_id",
-    "status",
-    "started_at",
-    "finished_at",
-    "elapsed_seconds",
-    "timeout_seconds",
-    "failure_classification",
-    "versions",
-    "environment",
-    "config",
-    "artifact_root",
-    "artifacts",
-    "host_before",
-    "host_after",
-    "phases",
-    "identity",
-    "worker",
-    "check",
-    "export",
-    "cleanup",
-    "auth"
-  ],
   "properties": {
-    "schema_version": {"const": 1},
-    "generated_at": {"type": "string"},
-    "run_id": {"type": "string", "pattern": "^\\d{8}T\\d{6}Z-[0-9a-f]{6}-[0-9a-f]{8}$"},
-    "backend": {"type": "string", "enum": ["distrobox", "vm"]},
-    "tested_revision": {"type": "string"},
-    "dely_revision": {"type": "string"},
-    "environment_id": {"type": ["string", "null"]},
+    "admission": {
+      "properties": {
+        "backend": {
+          "type": "string"
+        },
+        "claim": {
+          "type": "object"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "granted": {
+          "type": "boolean"
+        },
+        "occupants": {
+          "type": "array"
+        },
+        "policy": {
+          "properties": {
+            "budget": {
+              "type": [
+                "object",
+                "null"
+              ]
+            },
+            "effective_max_active": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "max_active": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "parallel": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "parallel",
+            "max_active",
+            "effective_max_active"
+          ],
+          "type": "object"
+        },
+        "released": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "OK",
+            "FAILED",
+            "SKIPPED",
+            "TIMEOUT",
+            "BLOCKED"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "granted",
+        "backend",
+        "policy",
+        "claim",
+        "released",
+        "detail"
+      ],
+      "type": "object"
+    },
+    "artifact_root": {
+      "type": "string"
+    },
+    "artifacts": {
+      "items": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "size_bytes",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "auth": {
+      "properties": {
+        "detail": {
+          "type": "string"
+        },
+        "entries": {
+          "type": "array"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "reference": {
+          "type": "string"
+        },
+        "removed_after_run": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "OK",
+            "FAILED",
+            "SKIPPED",
+            "TIMEOUT",
+            "BLOCKED"
+          ],
+          "type": "string"
+        },
+        "target": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "mode",
+        "reference",
+        "status",
+        "removed_after_run",
+        "detail"
+      ],
+      "type": "object"
+    },
+    "backend": {
+      "enum": [
+        "distrobox",
+        "vm"
+      ],
+      "type": "string"
+    },
+    "check": {
+      "properties": {
+        "argv": {
+          "type": "array"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "elapsed_seconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "exit_code": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "expected_marker": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "finished_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "started_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "OK",
+            "FAILED",
+            "SKIPPED",
+            "TIMEOUT",
+            "BLOCKED"
+          ],
+          "type": "string"
+        },
+        "stderr_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stdout_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "argv",
+        "exit_code",
+        "detail"
+      ],
+      "type": "object"
+    },
+    "cleanup": {
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "removed": {
+          "type": "array"
+        },
+        "retained": {
+          "type": "array"
+        },
+        "shared_preserved": {
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "DESTROYED",
+            "RESIDUE",
+            "UNKNOWN"
+          ],
+          "type": "string"
+        },
+        "verified": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "status",
+        "reason",
+        "removed",
+        "retained",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "config": {
+      "type": "object"
+    },
+    "dely_revision": {
+      "type": "string"
+    },
+    "elapsed_seconds": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "environment": {
+      "type": "object"
+    },
+    "environment_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "export": {
+      "properties": {
+        "artifacts": {
+          "type": "array"
+        },
+        "confirmed_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        },
+        "missing": {
+          "type": "array"
+        },
+        "receipt_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "CONFIRMED",
+            "PARTIAL",
+            "FAILED"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "artifacts",
+        "missing",
+        "detail"
+      ],
+      "type": "object"
+    },
+    "failure_classification": {
+      "type": "string"
+    },
+    "finished_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "host_after": {
+      "type": "object"
+    },
+    "host_before": {
+      "type": "object"
+    },
+    "identity": {
+      "properties": {
+        "environment": {
+          "type": "object"
+        },
+        "host": {
+          "type": "object"
+        },
+        "markers": {
+          "type": "array"
+        },
+        "orca_is_host_installation": {
+          "type": "boolean"
+        },
+        "orca_present": {
+          "type": "boolean"
+        },
+        "orca_status_exit_code": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "orca_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "verdict": {
+          "enum": [
+            "ENVIRONMENT",
+            "HOST_FALLBACK",
+            "UNKNOWN"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "verdict",
+        "reason",
+        "host",
+        "environment",
+        "orca_present"
+      ],
+      "type": "object"
+    },
+    "phases": {
+      "items": {
+        "properties": {
+          "commands": {
+            "type": "array"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "OK",
+              "FAILED",
+              "SKIPPED",
+              "TIMEOUT",
+              "BLOCKED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "commands"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "run_id": {
+      "pattern": "^\\d{8}T\\d{6}Z-[0-9a-f]{6}-[0-9a-f]{8}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "started_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "status": {
-      "type": "string",
       "enum": [
         "SETTLED",
         "ERROR",
@@ -49,141 +433,111 @@
         "CLEANUP_FAILED",
         "UNKNOWN",
         "BLOCKED"
-      ]
+      ],
+      "type": "string"
     },
-    "started_at": {"type": ["string", "null"]},
-    "finished_at": {"type": ["string", "null"]},
-    "elapsed_seconds": {"type": ["number", "null"]},
-    "timeout_seconds": {"type": "integer"},
-    "failure_classification": {"type": "string"},
-    "versions": {"type": "object"},
-    "environment": {"type": "object"},
-    "config": {"type": "object"},
-    "artifact_root": {"type": "string"},
-    "artifacts": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["path", "size_bytes", "sha256"],
-        "properties": {
-          "path": {"type": "string"},
-          "size_bytes": {"type": "integer"},
-          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
-        }
-      }
+    "tested_revision": {
+      "type": "string"
     },
-    "host_before": {"type": "object"},
-    "host_after": {"type": "object"},
-    "phases": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["name", "status", "commands"],
-        "properties": {
-          "name": {"type": "string"},
-          "status": {
-            "type": "string",
-            "enum": ["OK", "FAILED", "SKIPPED", "TIMEOUT", "BLOCKED"]
-          },
-          "detail": {"type": "string"},
-          "commands": {"type": "array"}
-        }
-      }
+    "timeout_seconds": {
+      "type": "integer"
     },
-    "identity": {
-      "type": "object",
-      "required": ["verdict", "reason", "host", "environment", "orca_present"],
-      "properties": {
-        "verdict": {
-          "type": "string",
-          "enum": ["ENVIRONMENT", "HOST_FALLBACK", "UNKNOWN"]
-        },
-        "reason": {"type": "string"},
-        "host": {"type": "object"},
-        "environment": {"type": "object"},
-        "markers": {"type": "array"},
-        "orca_present": {"type": "boolean"},
-        "orca_is_host_installation": {"type": "boolean"},
-        "orca_version": {"type": ["string", "null"]},
-        "orca_status_exit_code": {"type": ["integer", "null"]}
-      }
+    "versions": {
+      "type": "object"
     },
     "worker": {
-      "type": "object",
-      "required": ["status", "detail", "commands"],
       "properties": {
-        "status": {
-          "type": "string",
-          "enum": ["OK", "FAILED", "SKIPPED", "TIMEOUT", "BLOCKED"]
+        "agent": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "agent": {"type": ["string", "null"]},
-        "model": {"type": ["string", "null"]},
-        "effort": {"type": ["string", "null"]},
-        "run_id": {"type": ["string", "null"]},
-        "dispatch_id": {"type": ["string", "null"]},
-        "outcome": {"type": ["string", "null"]},
-        "detail": {"type": "string"},
-        "commands": {"type": "array"}
-      }
-    },
-    "check": {
-      "type": "object",
-      "required": ["status", "argv", "exit_code", "detail"],
-      "properties": {
-        "status": {
-          "type": "string",
-          "enum": ["OK", "FAILED", "SKIPPED", "TIMEOUT", "BLOCKED"]
+        "commands": {
+          "type": "array"
         },
-        "argv": {"type": "array"},
-        "exit_code": {"type": ["integer", "null"]},
-        "started_at": {"type": ["string", "null"]},
-        "finished_at": {"type": ["string", "null"]},
-        "elapsed_seconds": {"type": ["number", "null"]},
-        "stdout_path": {"type": ["string", "null"]},
-        "stderr_path": {"type": ["string", "null"]},
-        "expected_marker": {"type": ["string", "null"]},
-        "detail": {"type": "string"}
-      }
-    },
-    "export": {
-      "type": "object",
-      "required": ["status", "artifacts", "missing", "detail"],
-      "properties": {
-        "status": {"type": "string", "enum": ["CONFIRMED", "PARTIAL", "FAILED"]},
-        "confirmed_at": {"type": ["string", "null"]},
-        "receipt_path": {"type": ["string", "null"]},
-        "artifacts": {"type": "array"},
-        "missing": {"type": "array"},
-        "detail": {"type": "string"}
-      }
-    },
-    "cleanup": {
-      "type": "object",
-      "required": ["status", "reason", "removed", "retained", "verified"],
-      "properties": {
-        "status": {"type": "string", "enum": ["DESTROYED", "RESIDUE", "UNKNOWN"]},
-        "reason": {"type": "string"},
-        "removed": {"type": "array"},
-        "retained": {"type": "array"},
-        "shared_preserved": {"type": "array"},
-        "verified": {"type": "boolean"}
-      }
-    },
-    "auth": {
-      "type": "object",
-      "required": ["mode", "reference", "status", "removed_after_run", "detail"],
-      "properties": {
-        "mode": {"type": "string"},
-        "reference": {"type": "string"},
-        "status": {
-          "type": "string",
-          "enum": ["OK", "FAILED", "SKIPPED", "TIMEOUT", "BLOCKED"]
+        "detail": {
+          "type": "string"
         },
-        "target": {"type": ["string", "null"]},
-        "entries": {"type": "array"},
-        "removed_after_run": {"type": "boolean"},
-        "detail": {"type": "string"}
-      }
+        "dispatch_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "effort": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outcome": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "run_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "OK",
+            "FAILED",
+            "SKIPPED",
+            "TIMEOUT",
+            "BLOCKED"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "detail",
+        "commands"
+      ],
+      "type": "object"
     }
-  }
+  },
+  "required": [
+    "admission",
+    "artifact_root",
+    "artifacts",
+    "auth",
+    "backend",
+    "check",
+    "cleanup",
+    "config",
+    "dely_revision",
+    "elapsed_seconds",
+    "environment",
+    "environment_id",
+    "export",
+    "failure_classification",
+    "finished_at",
+    "generated_at",
+    "host_after",
+    "host_before",
+    "identity",
+    "phases",
+    "run_id",
+    "schema_version",
+    "started_at",
+    "status",
+    "tested_revision",
+    "timeout_seconds",
+    "versions",
+    "worker"
+  ],
+  "title": "dely minimal cycle manifest",
+  "type": "object"
 }

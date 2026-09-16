@@ -251,6 +251,29 @@ class DryRunTest(AdapterTestCase):
         self.assertIn(f'HOME={adapter.home_path}', completed.stdout)
         self.assertIn(f"{adapter.home_path}:{adapter.home_path}", completed.stdout)
 
+    def test_the_declared_limits_reach_the_container_manager(self):
+        """A share admission counted has to be one the kernel will enforce.
+
+        Distrobox writes its own `--pids-limit=-1` first. The run's limits have
+        to come after it, because the container manager takes the last one.
+        """
+        adapter = self.make()
+        adapter.write_manifest()
+        completed = subprocess.run(
+            ["distrobox", "assemble", "create", "--dry-run", "--file", str(adapter.manifest_path)],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        rendered = completed.stdout
+        for flag in adapter.settings.container_limit_flags:
+            self.assertIn(flag, rendered, f"{flag} never reached the container manager")
+        self.assertGreater(
+            rendered.index(f"--pids-limit={adapter.settings.pids}"),
+            rendered.index("--pids-limit=-1"),
+            "distrobox's own unlimited pid setting would override the run's",
+        )
+
     def test_distrobox_really_does_mount_the_host_home(self):
         """The property the next test blocks on is observed, not assumed."""
         adapter = self.make()

@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from cycle_runner import config as config_module, ids, lifecycle, status
+from cycle_runner import admission, config as config_module, ids, lifecycle, status
 from tests.fakes import FakeAdapter
 from tests.test_config import minimal_document
 
@@ -476,3 +476,63 @@ class TerminalOutsideTheEnvironmentTest(CycleTestCase):
     def test_nothing_is_dispatched_to_a_terminal_that_is_not_ours(self):
         adapter, _ = self.run_cycle(terminal_answers="workstation")
         self.assertNotIn("worker-start", " ".join(adapter.calls))
+
+
+class AdmissionTest(CycleTestCase):
+    """One environment per backend, and a run that left residue keeps its slot."""
+
+    SECOND_RUN_ID = "20260914T221630Z-abc123-0123abce"
+
+    def cycle(self, run_id, **adapter_options):
+        run_config = self.make_config()
+        adapter = FakeAdapter(
+            self.state / run_id, host_project=self.repo, **adapter_options
+        )
+        return lifecycle.run_cycle(
+            run_config=run_config,
+            adapter=adapter,
+            run_id=run_id,
+            host_home=self.host_home,
+            environ={},
+            tool_versions={"runner": "one"},
+        )
+
+    def leases(self):
+        return admission.read_leases(self.state, "distrobox")
+
+    def test_a_settled_run_takes_a_slot_and_gives_it_back(self):
+        outcome = self.cycle(RUN_ID)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+        record = outcome.run_result.admission
+        self.assertTrue(record.granted)
+        self.assertTrue(record.released)
+        self.assertEqual(self.leases(), [])
+
+    def test_the_slot_is_recorded_as_an_artifact(self):
+        self.cycle(RUN_ID)
+        document = json.loads(
+            self.artifact("admission.json").read_text(encoding="utf-8")
+        )
+        self.assertTrue(document["granted"])
+        self.assertEqual(document["policy"]["effective_max_active"], 1)
+
+    def test_a_run_that_left_residue_keeps_its_slot_and_blocks_the_next(self):
+        first = self.cycle(RUN_ID, stop_confirmed=False)
+        self.assertNotEqual(first.run_result.cleanup.status.value, "DESTROYED")
+        self.assertFalse(first.run_result.admission.released)
+        self.assertEqual([record.state for record in self.leases()], [admission.RETAINED])
+
+        second = self.cycle(self.SECOND_RUN_ID)
+        self.assertEqual(second.run_result.status, status.RunStatus.BLOCKED)
+        self.assertIn("cleanup ended as", second.run_result.admission.detail
+                      + " " + second.run_result.failure_classification)
+
+    def test_a_refused_run_creates_nothing(self):
+        self.cycle(RUN_ID, stop_confirmed=False)
+        outcome = self.cycle(self.SECOND_RUN_ID)
+        names = {
+            phase.name: phase.status.value for phase in outcome.run_result.phases
+        }
+        self.assertEqual(names["create"], "SKIPPED")
+        self.assertIsNone(outcome.run_result.environment_id)
+        self.assertFalse((self.state / self.SECOND_RUN_ID).exists())

@@ -117,6 +117,12 @@ def build(
         }
     )
     document["versions"] = {**dict(run_result.versions), **dict(tool_versions)}
+    # The ceiling that applied is a fact about the configuration, so every
+    # manifest states it — including one for a run that never reached admission.
+    admission_block = dict(document.get("admission") or {})
+    admission_block["policy"] = run_config.limits.to_record()
+    admission_block.setdefault("backend", run_config.backend)
+    document["admission"] = admission_block
     return redact.structure(document)
 
 

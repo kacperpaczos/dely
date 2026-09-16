@@ -256,6 +256,32 @@ class FirstRunRecord:
 
 
 @dataclass
+class AdmissionRecord:
+    """The slot this run was given, and what else held one at the time."""
+
+    status: PhaseStatus = PhaseStatus.SKIPPED
+    granted: bool = False
+    backend: str = ""
+    policy: dict[str, Any] = field(default_factory=dict)
+    claim: dict[str, Any] = field(default_factory=dict)
+    occupants: list[dict[str, Any]] = field(default_factory=list)
+    released: bool = False
+    detail: str = "not attempted"
+
+    def to_document(self) -> dict[str, Any]:
+        return {
+            "status": self.status.value,
+            "granted": self.granted,
+            "backend": self.backend,
+            "policy": dict(self.policy),
+            "claim": dict(self.claim),
+            "occupants": [dict(entry) for entry in self.occupants],
+            "released": self.released,
+            "detail": self.detail,
+        }
+
+
+@dataclass
 class RunResult:
     """One cycle, whatever backend produced it."""
 
@@ -279,6 +305,7 @@ class RunResult:
     cleanup: CleanupRecord = field(default_factory=CleanupRecord)
     auth: AuthRecord = field(default_factory=AuthRecord)
     first_run: FirstRunRecord = field(default_factory=FirstRunRecord)
+    admission: AdmissionRecord = field(default_factory=AdmissionRecord)
 
     def phase(self, name: str) -> PhaseRecord | None:
         for record in self.phases:
@@ -308,6 +335,7 @@ class RunResult:
             "cleanup": self.cleanup.to_document(),
             "auth": self.auth.to_document(),
             "first_run": self.first_run.to_document(),
+            "admission": self.admission.to_document(),
         }
 
 

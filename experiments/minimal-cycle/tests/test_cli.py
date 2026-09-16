@@ -131,3 +131,55 @@ class RunCommandTest(CliTestCase):
         self.assertIn("status", out.lower())
         self.assertIn("artifacts", out)
         self.assertNotEqual(code, 0)
+
+
+class LeaseCommandTest(CliTestCase):
+    """An operator can see which runs hold a slot, and clear one deliberately."""
+
+    RUN_ID = "20260916T101500Z-abcdef-00000001"
+
+    def take(self, config_path, run_id=None, *, pid=1, signature=None):
+        from cycle_runner import admission, config as config_module
+
+        run_config = config_module.load(config_path)
+        return admission.acquire(
+            root=run_config.state_root,
+            run_id=run_id or self.RUN_ID,
+            backend=run_config.backend,
+            limits=run_config.limits,
+            claim=run_config.claim(),
+            pid=pid,
+            prober=lambda _: signature if signature is not None else "live",
+        )
+
+    def test_an_empty_host_reports_no_slot_held(self):
+        code, out, _ = self.invoke(["leases", "--config", str(self.write_config())])
+        self.assertEqual(code, 0)
+        self.assertIn("no environment holds a slot", out)
+
+    def test_a_held_slot_is_listed_with_its_run(self):
+        path = self.write_config()
+        self.take(path)
+        code, out, _ = self.invoke(["leases", "--config", str(path)])
+        self.assertEqual(code, 0)
+        self.assertIn(self.RUN_ID, out)
+        self.assertIn("1 slot(s) occupied against a ceiling of 1", out)
+
+    def test_releasing_a_slot_clears_it(self):
+        path = self.write_config()
+        self.take(path)
+        code, out, _ = self.invoke(
+            ["release", "--config", str(path), "--run-id", self.RUN_ID]
+        )
+        self.assertEqual(code, 0, out)
+        self.assertIn("released", out)
+        code, out, _ = self.invoke(["leases", "--config", str(path)])
+        self.assertIn("no environment holds a slot", out)
+
+    def test_releasing_a_slot_that_does_not_exist_is_refused(self):
+        path = self.write_config()
+        code, _, err = self.invoke(
+            ["release", "--config", str(path), "--run-id", self.RUN_ID]
+        )
+        self.assertEqual(code, status.exit_code(status.RunStatus.BLOCKED))
+        self.assertIn("no lease", err)

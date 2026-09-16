@@ -17,6 +17,7 @@ from typing import Sequence, TextIO
 
 from . import (
     adapters,
+    admission,
     config as config_module,
     ids,
     lifecycle,
@@ -110,6 +111,73 @@ def _run(arguments, stdout: TextIO, stderr: TextIO) -> int:
     return outcome.exit_code
 
 
+def _run_paths(run_config: config_module.RunConfig, run_id: str) -> list[str]:
+    """The paths that belong to one run, named without needing its handle."""
+    return [
+        str(run_config.state_root / run_id),
+        str(run_config.artifact_root / run_id),
+    ]
+
+
+def _leases(arguments, stdout: TextIO, stderr: TextIO) -> int:
+    run_config = _load(arguments.config)
+    backends = (
+        config_module.BACKENDS if arguments.all else (run_config.backend,)
+    )
+    records = [
+        record
+        for backend in backends
+        for record in admission.read_leases(run_config.state_root, backend)
+    ]
+    if arguments.json:
+        print(
+            json.dumps(
+                [record.to_document() for record in records], indent=2, sort_keys=True
+            ),
+            file=stdout,
+        )
+        return 0
+    if not records:
+        print(
+            f"no environment holds a slot on {', '.join(backends)}",
+            file=stdout,
+        )
+        return 0
+    for record in records:
+        print(f"{record.backend:10} {record.state:10} {record.describe()}", file=stdout)
+    occupied = sum(1 for record in records if record.occupies)
+    ceiling = run_config.limits.effective_max_active
+    print(
+        f"{occupied} slot(s) occupied against a ceiling of {ceiling} per backend",
+        file=stdout,
+    )
+    return 0
+
+
+def _release(arguments, stdout: TextIO, stderr: TextIO) -> int:
+    """Clear one lease, once a survey shows nothing of that run is still running."""
+    run_config = _load(arguments.config)
+    backend = arguments.backend or run_config.backend
+    paths = _run_paths(run_config, arguments.run_id)
+    holders = processes.holding(paths)
+    try:
+        admission.clear(
+            root=run_config.state_root,
+            backend=backend,
+            run_id=arguments.run_id,
+            holders=[f"pid {item.pid} {item.command[:80]}" for item in holders],
+        )
+    except admission.AdmissionRefused as refusal:
+        print(f"refused: {refusal}", file=stderr)
+        return exit_code(RunStatus.BLOCKED)
+    print(
+        f"released the {backend} slot held by {arguments.run_id}; "
+        f"no process holds {' or '.join(paths)}",
+        file=stdout,
+    )
+    return 0
+
+
 def _schema(arguments, stdout: TextIO, stderr: TextIO) -> int:
     print(
         json.dumps(manifest.load_schema(), indent=2, sort_keys=True), file=stdout
@@ -138,6 +206,23 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--run-id", help="pin the run identifier instead of minting one")
     run.add_argument("--json", action="store_true")
     run.set_defaults(handler=_run)
+
+    leases = subcommands.add_parser(
+        "leases", help="show which runs hold this host's environment slots"
+    )
+    leases.add_argument("--config", required=True, type=Path)
+    leases.add_argument("--all", action="store_true", help="every backend, not just this one")
+    leases.add_argument("--json", action="store_true")
+    leases.set_defaults(handler=_leases)
+
+    release = subcommands.add_parser(
+        "release",
+        help="clear one slot, after checking that nothing of that run is still running",
+    )
+    release.add_argument("--config", required=True, type=Path)
+    release.add_argument("--run-id", required=True)
+    release.add_argument("--backend", choices=sorted(config_module.BACKENDS))
+    release.set_defaults(handler=_release)
 
     schema = subcommands.add_parser("schema", help="print the manifest schema")
     schema.set_defaults(handler=_schema)

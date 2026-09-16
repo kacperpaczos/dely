@@ -536,6 +536,67 @@ CASES: tuple[Counterexample, ...] = (
         replacement="                if True:",
         instruments=("tests.test_adapter_vm.AddressDiscoveryTest",),
     ),
+    Counterexample(
+        name="the-count-is-taken-under-a-lock",
+        requirement=(
+            "Two runners starting in the same instant both read 'nothing "
+            "active' unless the count is taken under a lock they share"
+        ),
+        path="cycle_runner/admission.py",
+        original="""    def __enter__(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)""",
+        replacement="""    def __enter__(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        return self""",
+        instruments=("tests.test_admission.LockIsAcrossProcessesTest",),
+    ),
+    Counterexample(
+        name="an-orphaned-lease-still-occupies-its-slot",
+        requirement=(
+            "A run whose process died without confirming its cleanup left "
+            "something nobody has looked at; its slot is not free"
+        ),
+        path="cycle_runner/admission.py",
+        original="#: Every state that occupies a slot. Each of them does.\nOCCUPYING = (HELD, RETAINED, ORPHANED, UNREADABLE)",
+        replacement="#: Every state that occupies a slot. Each of them does.\nOCCUPYING = (HELD,)",
+        instruments=("tests.test_admission.AdmissionTest",),
+    ),
+    Counterexample(
+        name="an-unconfirmed-cleanup-keeps-the-slot",
+        requirement=(
+            "A run that ended in residue must stop the next run, not hand it "
+            "the same host to create on top of"
+        ),
+        path="cycle_runner/admission.py",
+        original="    path = Path(lease.path)\n    if confirmed:",
+        replacement="    path = Path(lease.path)\n    if True:",
+        instruments=(
+            "tests.test_admission.AdmissionTest",
+            "tests.test_lifecycle.AdmissionTest",
+        ),
+    ),
+    Counterexample(
+        name="the-budget-counts-what-is-already-running",
+        requirement=(
+            "A budget checked against one run alone is not a budget for the "
+            "host the runs share"
+        ),
+        path="cycle_runner/admission.py",
+        original="            total = claim\n            for record in occupants:\n                total = total.plus(record.claim)",
+        replacement="            total = claim",
+        instruments=("tests.test_admission.AdmissionTest",),
+    ),
+    Counterexample(
+        name="the-switch-is-what-raises-the-ceiling",
+        requirement=(
+            "A ceiling that rises from a number alone lets a configuration "
+            "run many environments without ever opting in"
+        ),
+        path="cycle_runner/admission.py",
+        original="        return self.max_active if self.parallel else SEQUENTIAL_MAX_ACTIVE",
+        replacement="        return self.max_active",
+        instruments=("tests.test_admission.AdmissionTest",),
+    ),
 )
 
 

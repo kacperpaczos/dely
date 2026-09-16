@@ -1,0 +1,61 @@
+{
+  "after": [
+    {
+      "id": "541",
+      "name": ""
+    },
+    {
+      "id": "4194677",
+      "name": ""
+    },
+    {
+      "id": "4194591",
+      "name": "Openbox"
+    },
+    {
+      "id": "4194678",
+      "name": ""
+    },
+    {
+      "id": "6291459",
+      "name": "Orca"
+    },
+    {
+      "id": "4194679",
+      "name": ""
+    }
+  ],
+  "appeared": [
+    {
+      "id": "4194677",
+      "name": ""
+    },
+    {
+      "id": "4194678",
+      "name": ""
+    },
+    {
+      "id": "6291459",
+      "name": "Orca"
+    },
+    {
+      "id": "4194679",
+      "name": ""
+    }
+  ],
+  "before": [
+    {
+      "id": "541",
+      "name": ""
+    },
+    {
+      "id": "4194591",
+      "name": "Openbox"
+    }
+  ],
+  "detail": "4 window(s) appeared on the screen this run created that were not there before it started the application, of 6 there now. This is where it rendered; that no process was seen carrying a host session variable is not part of the finding, because the application rewrites its own environment block",
+  "display": ":0",
+  "mode": "virtual",
+  "reachable": true,
+  "status": "OK"
+}

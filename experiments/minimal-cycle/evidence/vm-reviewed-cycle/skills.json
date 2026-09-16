@@ -1,0 +1,33 @@
+{
+  "detail": "all 3 required skill(s) are present in the environment at the pinned revision",
+  "findings": [
+    {
+      "detail": "present, and the same bytes the pin names",
+      "expected": "f7da0dd40d8681e2b0303fa0fa2f7ee4e36f2eca6495a4af57b92b9857dff732",
+      "kind": "skill",
+      "name": "orchestration",
+      "observed": "f7da0dd40d8681e2b0303fa0fa2f7ee4e36f2eca6495a4af57b92b9857dff732",
+      "ok": true,
+      "where": "/home/cycle/.claude/skills/orchestration/SKILL.md"
+    },
+    {
+      "detail": "present, and the same bytes the pin names",
+      "expected": "b21b9b80475c35996b9c046379b9c9fa788f2d357c9e917befd8ab1b37df2e77",
+      "kind": "skill",
+      "name": "orca-cli",
+      "observed": "b21b9b80475c35996b9c046379b9c9fa788f2d357c9e917befd8ab1b37df2e77",
+      "ok": true,
+      "where": "/home/cycle/.claude/skills/orca-cli/SKILL.md"
+    },
+    {
+      "detail": "checked out at the pinned commit, and all 14 of its skills are where an agent reads them, byte for byte",
+      "expected": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797",
+      "kind": "plugin",
+      "name": "superpowers",
+      "observed": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797",
+      "ok": true,
+      "where": "/opt/dely-cycle/superpowers"
+    }
+  ],
+  "status": "OK"
+}

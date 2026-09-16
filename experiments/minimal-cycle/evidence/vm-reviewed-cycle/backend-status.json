@@ -1,0 +1,62 @@
+{
+  "backend": {
+    "address": "192.168.122.141",
+    "backend": "vm",
+    "base_image": "/var/tmp/dely-cycle/images/tool-image.qcow2",
+    "base_image_sha256": "",
+    "base_volume": "tool-image.qcow2",
+    "connect_uri": "qemu:///system",
+    "domain": "dely-cycle-20260916t093600z-bbc5e6-c9376289",
+    "egress_interface": true,
+    "graphics": "vnc",
+    "listen_address": "127.0.0.1",
+    "network": "default",
+    "pool": "dely-cycle",
+    "provider": "pulumi-libvirt@0.5.4",
+    "stack": "dely-cycle-20260916t093600z-bbc5e6-c9376289",
+    "transport_mac": "52:54:00:e0:c1:74",
+    "video": "virtio"
+  },
+  "description": {
+    "address": "192.168.122.141",
+    "base_image": "/var/tmp/dely-cycle/images/tool-image.qcow2",
+    "base_volume": "tool-image.qcow2",
+    "connect_uri": "qemu:///system",
+    "domain": "dely-cycle-20260916t093600z-bbc5e6-c9376289",
+    "egress": true,
+    "graphics": "vnc",
+    "network": "default",
+    "pool": "dely-cycle",
+    "provider": "pulumi-libvirt@0.5.4",
+    "stack": "/var/tmp/dely-cycle/state/20260916T093600Z-bbc5e6-c9376289/stack",
+    "transport_mac": "52:54:00:e0:c1:74",
+    "video": "virtio"
+  },
+  "environment_id": "dely-cycle-20260916t093600z-bbc5e6-c9376289",
+  "home_path": "/home/cycle",
+  "per_run_resources": [
+    {
+      "identifier": "dely-cycle-20260916t093600z-bbc5e6-c9376289",
+      "kind": "domain"
+    },
+    {
+      "identifier": "/var/tmp/dely-cycle/state/20260916T093600Z-bbc5e6-c9376289",
+      "kind": "path"
+    },
+    {
+      "identifier": "/var/tmp/dely-cycle/images/dely-cycle-20260916t093600z-bbc5e6-c9376289-overlay.qcow2",
+      "kind": "volume"
+    },
+    {
+      "identifier": "/var/tmp/dely-cycle/images/dely-cycle-20260916t093600z-bbc5e6-c9376289-seed.iso",
+      "kind": "volume"
+    }
+  ],
+  "project_path": "/home/cycle/project",
+  "shared_resources": [
+    {
+      "identifier": "/var/tmp/dely-cycle/images/tool-image.qcow2",
+      "kind": "image"
+    }
+  ]
+}

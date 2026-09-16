@@ -1,0 +1,14 @@
+{
+  "detail": "1 allowlisted entry(s) copied into the per-run home with owner-only permissions",
+  "entries": [
+    ".claude/.credentials.json"
+  ],
+  "mode": "existing_login",
+  "observed": {},
+  "reference": "workshop-host-login",
+  "removed_after_run": false,
+  "status": "BLOCKED",
+  "target": "/home/cycle",
+  "verified": false,
+  "verify_detail": "the agent did not answer whether it is signed in before the deadline"
+}

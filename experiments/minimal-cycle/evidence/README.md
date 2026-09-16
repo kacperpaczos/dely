@@ -32,13 +32,27 @@ message and reported that agent's outcome as its own — a review that never ran
 reporting success. What caught it was the missing verdict artifact, not the
 outcome.
 
+### `vm-reviewed-cycle/`
+
+The machine backend completing, `SETTLED` in 153 seconds: a per-run libvirt
+domain over an overlay on the preserved tool image, two dispatches with two
+agent terminals and two deliveries under one Run, a reviewer that named the
+diff it read, and an independent check that agreed. It also carries the path
+that found what had been stopping it.
+
+### `vm-processor-control/`
+
+The same configuration with the processor put back the way it was, and nothing
+else changed: `BLOCKED` again. The guest's default processor is `QEMU Virtual
+CPU version 2.5+`, whose flags stop at `sse2`.
+
 ### `vm-unobserved-turn/`
 
-The machine backend, at the same commit, on the same host, not completing.
-Domain created, distinct kernel proved, Orca ready, coordinator terminal open,
-dispatch made — and the worker's turn never observed.
-`dispatch-worker-terminal.txt` is what the agent's terminal actually held.
-This is where the work currently stops, and it is not a green run.
+The machine backend before the cause was found: domain created, distinct kernel
+proved, Orca ready, coordinator terminal open, dispatch made — and the worker's
+turn never observed. Kept because it is the same failure seen from far away,
+and because what it ruled out was all correct; what it could not see was that
+one command was not returning.
 
 ### `tool-image-with-skills/`
 
@@ -118,7 +132,9 @@ implementation. A row reporting `GREEN` would be a row proving nothing.
 
 ## What none of this shows
 
-A second, different task. A run on any host but this one. A completed cycle on
-the machine backend. Isolation on the container backend: it mounts the host
-home, shares the host's PID namespace and the host's Wayland socket, and the
-runner records that rather than claiming otherwise.
+A second, different task. A run on any host but this one. Isolation on the
+container backend: it mounts the operator's home, shares their process table
+and mounts the directories holding their display sockets, and the runner
+records that rather than claiming otherwise. And whether the agent that spins
+on a processor without those flags would ever finish — the probe meant to
+answer that was itself cut short.

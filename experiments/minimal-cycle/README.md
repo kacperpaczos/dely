@@ -359,6 +359,9 @@ the table with the tests each row runs. The recorded sweep is in
 | A checkout at the pinned commit is not a skill the agent can read | case `a-checkout-is-not-a-skill-the-agent-can-read` | `evidence/tool-image-with-skills/` |
 | The installed skills are the pinned bytes, not just the right names | case `the-installed-skills-are-the-pinned-bytes` | `evidence/tool-image-with-skills/` |
 | A branch is found where a clone actually keeps it | case `a-branch-is-found-where-a-clone-keeps-it` | `evidence/counterexamples.txt` |
+| A full cycle completes on the container backend, review and all | `./run-cycle run` on this host | `evidence/distrobox-reviewed-cycle/` |
+| A full cycle completes on the machine backend | `./run-cycle run` on this host | `evidence/vm-reviewed-cycle/` |
+| The guest's processor is the reason, tested both ways | the same run with `cpu_mode: default` | `evidence/vm-processor-control/` |
 | A session variable leaks by where its value points, not by its name | case `a-variable-leaks-by-where-it-points` | `evidence/counterexamples.txt` |
 | The plumbing that launched the environment is not the environment | case `the-launcher-is-not-the-environment` | `evidence/counterexamples.txt` |
 | The box is created without the operator's session in its environment | case `the-box-is-created-without-the-operators-session` | `evidence/counterexamples.txt` |

@@ -46,7 +46,24 @@ before its deadline, where the same command with the same token answers on the
 host in about a second. That measurement was interrupted before it returned an
 exit code, so it is a lead and not a finding.
 
+## What it turned out to be
+
+That lead was the right one, and the reason it could not be closed here is that
+it was being watched from too far away. Every observation on this page holds;
+none of them could see that *one command was not returning*.
+
+What found it was asking the agent a question it had to answer — whether it was
+signed in — and, when it did not, looking at the process rather than guessing:
+running rather than waiting, no descendants, no open sockets. The domain had
+never said anything about its processor, so the emulator had been giving it
+`QEMU Virtual CPU version 2.5+`, whose flags stop at `sse2`.
+
+`../vm-reviewed-cycle/` is the same backend completing once the guest is given
+this machine's processor; `../vm-processor-control/` puts it back and shows it
+blocking again.
+
 ## What this does not show
 
 That the machine backend cannot work, or that the agent is at fault. It shows
-one guest, on one host, where the agent was launched and never spoke.
+one guest, on one host, where the agent was launched and never spoke — and it
+is kept because the same failure looks like this from a distance.

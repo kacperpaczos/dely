@@ -1,0 +1,252 @@
+{
+  "captured_at": "2026-09-16T09:38:33Z",
+  "collection_sizes": {
+    "automations": 0,
+    "folderWorkspaces": 0,
+    "projectGroups": 0,
+    "projectHostSetups": 6,
+    "projects": 6,
+    "repos": 6,
+    "settings": 192,
+    "sshTargets": 0,
+    "ui": 97,
+    "worktreeMeta": 11,
+    "worktreeMetaByIdentity": 0
+  },
+  "entries_naming_this_run": [],
+  "file_count": 38,
+  "files": [
+    {
+      "name": "account-session-mutation.json",
+      "names_this_run": 0,
+      "path_digest": "b62fee92331dcd00",
+      "size_bytes": 205
+    },
+    {
+      "name": "account-session.json.enc",
+      "names_this_run": 0,
+      "path_digest": "bf681242a2976fcd",
+      "size_bytes": 1114
+    },
+    {
+      "name": "active-view.json",
+      "names_this_run": 0,
+      "path_digest": "dd9c707306af18e5",
+      "size_bytes": 26
+    },
+    {
+      "name": "browser-host-client-identity.json",
+      "names_this_run": 0,
+      "path_digest": "d595efe3ad02f8ad",
+      "size_bytes": 75
+    },
+    {
+      "name": "browser-session-meta.json",
+      "names_this_run": 0,
+      "path_digest": "5dac5b6279ac25c6",
+      "size_bytes": 165
+    },
+    {
+      "name": "orca-data.json",
+      "names_this_run": 0,
+      "path_digest": "288f60e7586de76a",
+      "size_bytes": 69411
+    },
+    {
+      "name": "orca-data.json.bak.0",
+      "names_this_run": 0,
+      "path_digest": "2fe6991bb4bc03a9",
+      "size_bytes": 67367
+    },
+    {
+      "name": "orca-data.json.bak.1",
+      "names_this_run": 0,
+      "path_digest": "bb90cb34e0bc5886",
+      "size_bytes": 68269
+    },
+    {
+      "name": "orca-data.json.bak.2",
+      "names_this_run": 0,
+      "path_digest": "f0341477900781b4",
+      "size_bytes": 61768
+    },
+    {
+      "name": "orca-data.json.bak.3",
+      "names_this_run": 0,
+      "path_digest": "6722af70be72543e",
+      "size_bytes": 65438
+    },
+    {
+      "name": "orca-data.json.bak.4",
+      "names_this_run": 0,
+      "path_digest": "d0562e35ff40ba4c",
+      "size_bytes": 65438
+    },
+    {
+      "name": "orca-github-cache.json",
+      "names_this_run": 0,
+      "path_digest": "7e7e14883a4905db",
+      "size_bytes": 1180
+    },
+    {
+      "name": "orca-secret-protection.json",
+      "names_this_run": 0,
+      "path_digest": "85148a3f3548bcf9",
+      "size_bytes": 24
+    },
+    {
+      "name": "orchestration.db",
+      "names_this_run": 0,
+      "path_digest": "104714bcbf8a7655",
+      "size_bytes": 454656
+    },
+    {
+      "name": "orchestration.db-wal",
+      "names_this_run": 0,
+      "path_digest": "a2355586bbf5809f",
+      "size_bytes": 90672
+    },
+    {
+      "name": "orca-profile-index.json",
+      "names_this_run": 0,
+      "path_digest": "7f0f60b4e7445fa1",
+      "size_bytes": 671
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "7df4c52d8052320d",
+      "size_bytes": 176
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "096033b505491fec",
+      "size_bytes": 133
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "c62247f2f0e2eefe",
+      "size_bytes": 140
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "9902d6cdd626447d",
+      "size_bytes": 128
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "e266e6d7e26b8bfa",
+      "size_bytes": 171
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "2524d1c936554d6c",
+      "size_bytes": 171
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "ee75ee621801f33f",
+      "size_bytes": 138
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "c0f9f261bebf33c3",
+      "size_bytes": 165
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "4eb1cc23b2689121",
+      "size_bytes": 135
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "e3b5639ade37f68b",
+      "size_bytes": 188
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "59e17b0bc20a1477",
+      "size_bytes": 165
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "41dea81d59d42525",
+      "size_bytes": 137
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "3dce950608bc2bed",
+      "size_bytes": 169
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "2a6e449d4e03162e",
+      "size_bytes": 164
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "a72dd99f3714368f",
+      "size_bytes": 165
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "e1149604744aeb6e",
+      "size_bytes": 167
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "011511b38a701710",
+      "size_bytes": 170
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "c94075a914866d60",
+      "size_bytes": 170
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "a91e8c53db817027",
+      "size_bytes": 159
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "4367ef710b93450a",
+      "size_bytes": 159
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "16400ee95cc7a86f",
+      "size_bytes": 159
+    },
+    {
+      "name": "meta.json",
+      "names_this_run": 0,
+      "path_digest": "301341e80d272134",
+      "size_bytes": 176
+    }
+  ],
+  "home_digest": "8fda3821c06d512d",
+  "markers_searched": 5,
+  "present": true,
+  "unreadable": []
+}

@@ -453,9 +453,12 @@ class _Cycle:
                 # An agent that says nothing has said nothing about why. These
                 # are the questions whose answers separate the causes, each one
                 # bounded so the diagnosis cannot hang the way the agent did.
+                # Longer than the longest question inside it, or the
+                # question with room to finish gets cut off and cannot answer
+                # whether the agent is stuck or merely very slow.
                 diagnosis = self.execute(
                     auth.diagnosis_argv(),
-                    timeout=min(180, self.config.timeout_seconds),
+                    timeout=min(420, self.config.timeout_seconds),
                 )
                 record.commands.append(diagnosis.to_record())
                 self.exporter.write_text(

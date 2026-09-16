@@ -42,13 +42,23 @@ REQUIRED_TOOLS = ("qemu-img", "virsh", "ssh", "scp")
 #: Added to the generated domain so the guest can reach the internet without
 #: the host's forwarding path, which a firewall or a virtual private network
 #: may refuse. A user-mode interface is served by qemu itself.
-EGRESS_XSLT = """<?xml version="1.0" encoding="utf-8"?>
+#: The provider models a domain's devices but not its processor, and this
+#: runner reaches the rest of the domain XML the way it already reaches the
+#: extra interface: through the transform libvirt applies to the generated
+#: document.
+XSLT_HEADER = """<?xml version="1.0" encoding="utf-8"?>
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
   <xsl:output method="xml" indent="yes"/>
   <xsl:template match="@*|node()">
     <xsl:copy><xsl:apply-templates select="@*|node()"/></xsl:copy>
   </xsl:template>
-  <xsl:template match="/domain/devices">
+"""
+
+XSLT_FOOTER = "</xsl:stylesheet>\n"
+
+#: A second interface, handled by the emulator itself, so the guest reaches the
+#: internet on a host whose bridged traffic does not leave.
+EGRESS_TEMPLATE = """  <xsl:template match="/domain/devices">
     <xsl:copy>
       <xsl:apply-templates select="@*|node()"/>
       <interface type="user">
@@ -57,8 +67,36 @@ EGRESS_XSLT = """<?xml version="1.0" encoding="utf-8"?>
       </interface>
     </xsl:copy>
   </xsl:template>
-</xsl:stylesheet>
 """
+
+#: Without this the emulator picks a conservative processor model of its own.
+#: Two templates because the generated document may or may not already carry
+#: one: the first replaces it, the second adds it when it is absent.
+CPU_TEMPLATE = """  <xsl:template match="/domain/cpu">
+    <cpu mode="{cpu_mode}" check="none"/>
+  </xsl:template>
+  <xsl:template match="/domain">
+    <xsl:copy>
+      <xsl:apply-templates select="@*|node()"/>
+      <xsl:if test="not(cpu)">
+        <cpu mode="{cpu_mode}" check="none"/>
+      </xsl:if>
+    </xsl:copy>
+  </xsl:template>
+"""
+
+
+def render_domain_xslt(*, egress_mac: str = "", cpu_mode: str = "") -> str:
+    """Return the transform for everything the provider does not model."""
+    pieces = []
+    if egress_mac:
+        pieces.append(EGRESS_TEMPLATE.format(egress_mac=egress_mac))
+    if cpu_mode and cpu_mode != "default":
+        pieces.append(CPU_TEMPLATE.format(cpu_mode=cpu_mode))
+    if not pieces:
+        return ""
+    return XSLT_HEADER + "".join(pieces) + XSLT_FOOTER
+
 
 PROGRAM_TEMPLATE = '''"""Per-run domain for one dely minimal cycle.
 
@@ -85,7 +123,7 @@ MEMORY_MB = {memory_mb!r}
 VCPUS = {vcpus!r}
 OVERLAY_SIZE_BYTES = {overlay_size_bytes!r}
 QEMU_AGENT = {qemu_agent!r}
-EGRESS_XSLT = {egress_xslt!r}
+DOMAIN_XSLT = {egress_xslt!r}
 
 overlay = libvirt.Volume(
     "overlay",
@@ -128,7 +166,7 @@ domain = libvirt.Domain(
         libvirt.DomainConsoleArgs(type="pty", target_port="0", target_type="serial")
     ],
     video=libvirt.DomainVideoArgs(type=VIDEO),
-    xml=libvirt.DomainXmlArgs(xslt=EGRESS_XSLT),
+    xml=libvirt.DomainXmlArgs(xslt=DOMAIN_XSLT),
 )
 
 pulumi.export("domain_name", domain.name)
@@ -307,9 +345,12 @@ class VmAdapter(BackendAdapter):
             transport_mac=self.transport_mac, egress_mac=self.egress_mac
         )
 
-    def render_egress_xslt(self) -> str:
-        """Render the transform that adds the user-mode interface."""
-        return EGRESS_XSLT.format(egress_mac=self.egress_mac)
+    def render_domain_xslt(self) -> str:
+        """Return this run's transform for the generated domain document."""
+        return render_domain_xslt(
+            egress_mac=self.egress_mac if self.settings.egress else "",
+            cpu_mode=self.settings.cpu_mode,
+        )
 
     def render_program(self) -> str:
         """Render the Pulumi program for this run's domain."""
@@ -329,7 +370,7 @@ class VmAdapter(BackendAdapter):
             vcpus=self.settings.vcpus,
             overlay_size_bytes=self.settings.overlay_size_bytes,
             qemu_agent=self.settings.qemu_agent,
-            egress_xslt=self.render_egress_xslt() if self.settings.egress else "",
+            egress_xslt=self.render_domain_xslt(),
         )
 
     def render_project(self) -> str:

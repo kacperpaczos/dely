@@ -238,6 +238,9 @@ DEFAULT_SKILL_ROOTS = (".agents/skills", ".claude/skills")
 #: Which screen an environment's application is pointed at.
 GUI_MODES = ("virtual", "host")
 
+#: What processor a guest is given. `default` leaves it to the emulator.
+CPU_MODES = ("host-passthrough", "host-model", "default")
+
 
 @dataclass(frozen=True)
 class PinnedSkill:
@@ -373,6 +376,10 @@ class VmConfig:
     ssh_port: int = 22
     address_timeout_seconds: int = 600
     egress: bool = True
+    # The processor the guest is given. `host-passthrough` is this machine's
+    # own; `default` leaves the emulator to choose a conservative model of its
+    # own, which is what it does when nothing says otherwise.
+    cpu_mode: str = "host-passthrough"
     qemu_agent: bool = False
     provision: tuple[tuple[str, ...], ...] = ()
 
@@ -399,6 +406,7 @@ class VmConfig:
             "ssh_port": self.ssh_port,
             "address_timeout_seconds": self.address_timeout_seconds,
             "egress": self.egress,
+            "cpu_mode": self.cpu_mode,
             "qemu_agent": self.qemu_agent,
             "provision": [list(argv) for argv in self.provision],
         }
@@ -797,6 +805,7 @@ def _vm(document: Mapping[str, Any]) -> VmConfig:
             "ssh_port",
             "address_timeout_seconds",
             "egress",
+            "cpu_mode",
             "qemu_agent",
             "provision",
         ),
@@ -814,6 +823,11 @@ def _vm(document: Mapping[str, Any]) -> VmConfig:
         or any(character not in "0123456789abcdef" for character in digest)
     ):
         _fail("field vm.base_image_sha256 must be a lowercase content digest")
+    cpu_mode = _text(document, "cpu_mode", "vm", "host-passthrough")
+    if cpu_mode not in CPU_MODES:
+        _fail(
+            f"vm.cpu_mode must be one of {', '.join(CPU_MODES)}, got {cpu_mode!r}"
+        )
     venv = Path(_text(document, "venv", "vm"))
     if not venv.is_absolute():
         _fail("field vm.venv must be an absolute path to the pinned environment")
@@ -843,6 +857,7 @@ def _vm(document: Mapping[str, Any]) -> VmConfig:
             document, "address_timeout_seconds", "vm", 600
         ),
         egress=_flag(document, "egress", "vm", True),
+        cpu_mode=cpu_mode,
         qemu_agent=_flag(document, "qemu_agent", "vm", False),
         provision=_provision(document, "vm"),
     )

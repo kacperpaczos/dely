@@ -136,7 +136,7 @@ class InterfaceTest(VmTestCase):
 
     def test_the_transform_adds_a_user_mode_interface_with_that_address(self):
         adapter = self.make()
-        transform = adapter.render_egress_xslt()
+        transform = adapter.render_domain_xslt()
         self.assertIn('<interface type="user">', transform)
         self.assertIn(adapter.egress_mac, transform)
 

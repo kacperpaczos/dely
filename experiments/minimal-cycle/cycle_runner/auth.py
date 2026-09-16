@@ -247,6 +247,18 @@ cat /tmp/cycle-hang.out 2>/dev/null | head -5
 say "claude auth status with the message bus refused rather than started"
 DBUS_SESSION_BUS_ADDRESS="disabled:" timeout 60 claude auth status --json 2>&1 \
     || printf 'exit %s\n' "$?"
+
+# The process was seen running rather than waiting, with nothing open and
+# nothing spawned, so the remaining question is whether it is stuck or merely
+# slow. This is the same command with room to finish, and the time it took.
+say "the processor this guest was given"
+lscpu 2>/dev/null | grep -iE "^(model name|vendor id|virtuali|flags)" | cut -c1-200 || true
+say "claude auth status with room to finish"
+start=$(date +%s)
+timeout 240 claude auth status --json > /tmp/cycle-slow.out 2>&1
+status=$?
+printf 'exit %s after %ss\n' "$status" "$(( $(date +%s) - start ))"
+head -3 /tmp/cycle-slow.out 2>/dev/null
 """
 
 

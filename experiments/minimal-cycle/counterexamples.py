@@ -539,6 +539,18 @@ CASES: tuple[Counterexample, ...] = (
         instruments=("tests.test_adapter_vm.AddressDiscoveryTest",),
     ),
     Counterexample(
+        name="a-branch-is-found-where-a-clone-keeps-it",
+        requirement=(
+            "A checkout cloned while its origin was on another branch has the "
+            "wanted branch only under remotes/, and naming it plainly finds "
+            "nothing"
+        ),
+        path="cycle_runner/project.py",
+        original='    return (revision, f"origin/{revision}")',
+        replacement="    return (revision,)",
+        instruments=("tests.test_project.RemoteTrackingRevisionTest",),
+    ),
+    Counterexample(
         name="the-count-is-taken-under-a-lock",
         requirement=(
             "Two runners starting in the same instant both read 'nothing "

@@ -183,3 +183,78 @@ class InitialiseRepositoryTest(unittest.TestCase):
     def test_the_commit_is_not_attributed_to_a_person(self):
         joined = " ".join(" ".join(argv) for argv in project.initialise_repository_commands("/p"))
         self.assertIn("dely-cycle", joined)
+
+
+class CandidateRefsTest(unittest.TestCase):
+    """A clone with no working tree keeps its branches under `remotes/`."""
+
+    def test_a_plain_name_is_tried_locally_first(self):
+        self.assertEqual(project.candidate_refs("main"), ("main", "origin/main"))
+
+    def test_a_name_that_already_says_origin_is_taken_as_given(self):
+        self.assertEqual(project.candidate_refs("origin/main"), ("origin/main",))
+
+    def test_a_branch_with_a_slash_is_tried_both_ways(self):
+        self.assertEqual(
+            project.candidate_refs("someone/a-branch"),
+            ("someone/a-branch", "origin/someone/a-branch"),
+        )
+
+    def test_a_commit_is_tried_as_itself_first(self):
+        self.assertEqual(project.candidate_refs("abc1234")[0], "abc1234")
+
+    def test_nothing_named_is_nothing_tried(self):
+        self.assertEqual(project.candidate_refs("  "), ())
+
+
+class RemoteTrackingRevisionTest(unittest.TestCase):
+    """A checkout whose origin was on another branch has no local `main`.
+
+    This is the shape the host's own project checkout is in: it was cloned
+    while its origin sat on a feature branch, so `main` exists there only as
+    `origin/main` and naming it plainly resolves to nothing.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        origin = self.root / "origin"
+        origin.mkdir()
+        run = lambda *a: subprocess.run(
+            ["git", "-C", str(origin), *a], check=True, capture_output=True
+        )
+        run("init", "-q", "-b", "main")
+        run("config", "user.email", "a@b.invalid")
+        run("config", "user.name", "a")
+        (origin / "readme.md").write_text("hello\n", encoding="utf-8")
+        run("add", "-A")
+        run("commit", "-q", "-m", "one")
+        # The origin is left on another branch, so the clone's own branch is
+        # that one and `main` arrives only as a remote-tracking ref.
+        run("checkout", "-q", "-b", "someone/work")
+        self.clone = self.root / "clone"
+        subprocess.run(
+            ["git", "clone", "-q", "--no-checkout", str(origin), str(self.clone)],
+            check=True,
+            capture_output=True,
+        )
+
+    def test_the_local_name_alone_would_not_resolve(self):
+        with self.assertRaises(project.ProjectError):
+            project._git(self.clone, "rev-parse", "--verify", "main^{commit}")
+
+    def test_the_revision_resolves_through_the_remote_tracking_branch(self):
+        commit = project.resolve_revision(self.clone, "main")
+        self.assertEqual(len(commit), 40)
+
+    def test_a_revision_that_names_nothing_says_what_was_tried(self):
+        with self.assertRaises(project.ProjectError) as error:
+            project.resolve_revision(self.clone, "no-such-branch")
+        self.assertIn("no-such-branch", str(error.exception))
+        self.assertIn("origin/no-such-branch", str(error.exception))
+
+    def test_the_export_works_from_such_a_clone(self):
+        destination = self.root / "out"
+        project.export_revision(self.clone, "main", destination)
+        self.assertEqual((destination / "readme.md").read_text(), "hello\n")

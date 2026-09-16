@@ -41,12 +41,40 @@ def _git(source: Path, *arguments: str) -> str:
     return completed.stdout
 
 
+def candidate_refs(revision: str) -> tuple[str, ...]:
+    """Return the refs a revision may name, in the order git would be asked.
+
+    A clone made without a working tree has its branches under `remotes/`, so
+    `main` names nothing there while `origin/main` names the branch. Asking for
+    the plain name first keeps a commit, a tag and a local branch exact; the
+    remote-tracking name is tried only when the plain one resolves to nothing.
+    A name that could be either resolves to the local one, as it does in git.
+    """
+    revision = revision.strip()
+    if not revision:
+        return ()
+    if revision.startswith("origin/") or "/" in revision.split("/", 1)[0]:
+        return (revision,)
+    return (revision, f"origin/{revision}")
+
+
 def resolve_revision(source: Path, revision: str) -> str:
     """Resolve a revision to the commit it names."""
     source = Path(source)
     if not source.is_dir():
         raise ProjectError(f"project source is not a directory: {source}")
-    return _git(source, "rev-parse", "--verify", f"{revision}^{{commit}}").strip()
+    tried = candidate_refs(revision)
+    if not tried:
+        raise ProjectError("no revision was named")
+    last: ProjectError | None = None
+    for candidate in tried:
+        try:
+            return _git(source, "rev-parse", "--verify", f"{candidate}^{{commit}}").strip()
+        except ProjectError as error:
+            last = error
+    raise ProjectError(
+        f"no revision in {source} is named by any of {', '.join(tried)}: {last}"
+    )
 
 
 def export_revision(source: Path, revision: str, destination: Path) -> str:

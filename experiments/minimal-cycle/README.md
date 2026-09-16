@@ -352,6 +352,13 @@ the table with the tests each row runs. The recorded sweep is in
 | The reviewer's verdict is tied to the diff it was handed | case `the-reviewer-answered-about-this-diff` | `evidence/counterexamples.txt` |
 | A diff that moved under the review invalidates the verdict | case `the-diff-did-not-move-under-the-review` | `evidence/counterexamples.txt` |
 | The captured diff includes the file the task creates | case `the-capture-includes-a-file-that-is-new` | `evidence/counterexamples.txt` |
+| The operator's compositor is not reachable by default | case `the-operators-compositor-is-not-reachable-by-default` | `evidence/counterexamples.txt` |
+| The runtime directory is the environment's own, not the operator's | case `the-runtime-directory-is-the-environments-own` | `evidence/counterexamples.txt` |
+| A window on this run's own screen is what says where the application went | case `a-window-on-this-screen-is-the-evidence` | `evidence/counterexamples.txt` |
+| A screen that did not answer establishes nothing | case `an-unreachable-screen-says-nothing` | `evidence/counterexamples.txt` |
+| A checkout at the pinned commit is not a skill the agent can read | case `a-checkout-is-not-a-skill-the-agent-can-read` | `evidence/tool-image-with-skills/` |
+| The installed skills are the pinned bytes, not just the right names | case `the-installed-skills-are-the-pinned-bytes` | `evidence/tool-image-with-skills/` |
+| A branch is found where a clone actually keeps it | case `a-branch-is-found-where-a-clone-keeps-it` | `evidence/counterexamples.txt` |
 
 ## What no instrument here observes
 

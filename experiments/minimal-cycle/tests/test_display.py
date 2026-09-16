@@ -63,7 +63,14 @@ class VerdictTest(unittest.TestCase):
         self.assertIn("did not answer", why)
 
     def test_a_process_pointing_at_the_operators_session_is_conclusive(self):
-        leaking = [processes.Process(pid=42, command="orca-ide", session="WAYLAND_DISPLAY=")]
+        leaking = [
+            processes.Process(
+                pid=42,
+                command="orca-ide",
+                session="WAYLAND_DISPLAY=",
+                namespace="mnt:[2]",
+            )
+        ]
         ok, why = self.verdict(leaking=leaking)
         self.assertFalse(ok)
         self.assertIn("42", why)
@@ -80,18 +87,50 @@ class VerdictTest(unittest.TestCase):
         self.assertIn("rewrites its own environment block", why)
 
 
+HOST_NS = "mnt:[4026531832]"
+BOX_NS = "mnt:[4026532999]"
+
+
+def process(pid, session="", namespace=BOX_NS):
+    return processes.Process(
+        pid=pid, command=f"program-{pid}", session=session, namespace=namespace
+    )
+
+
 class CarryingHostSessionTest(unittest.TestCase):
-    def test_a_process_with_a_session_variable_is_returned(self):
+    def test_a_process_inside_the_environment_with_a_session_variable_is_returned(self):
         found = display.carrying_host_session(
-            [
-                processes.Process(pid=1, command="a", session=""),
-                processes.Process(pid=2, command="b", session="WAYLAND_DISPLAY="),
-            ]
+            [process(1), process(2, "WAYLAND_DISPLAY=")], host_namespace=HOST_NS
         )
         self.assertEqual([p.pid for p in found], [2])
 
+    def test_the_plumbing_that_launched_the_environment_is_not_the_environment(self):
+        """`distrobox enter` carries this run's home on its command line.
+
+        It also carries the operator's session, because it *is* the operator's
+        process. Counting it reports every run as leaking — including the probe
+        doing the counting.
+        """
+        found = display.carrying_host_session(
+            [process(3, "WAYLAND_DISPLAY=", namespace=HOST_NS)],
+            host_namespace=HOST_NS,
+        )
+        self.assertEqual(found, [])
+
+    def test_a_process_whose_namespace_is_unknown_is_not_counted_either_way(self):
+        found = display.carrying_host_session(
+            [process(4, "WAYLAND_DISPLAY=", namespace="")], host_namespace=HOST_NS
+        )
+        self.assertEqual(found, [])
+
+    def test_with_no_namespace_to_compare_against_nothing_is_counted(self):
+        found = display.carrying_host_session(
+            [process(5, "WAYLAND_DISPLAY=")], host_namespace=""
+        )
+        self.assertEqual(found, [])
+
     def test_no_processes_is_no_finding(self):
-        self.assertEqual(display.carrying_host_session([]), [])
+        self.assertEqual(display.carrying_host_session([], host_namespace=HOST_NS), [])
 
 
 class StrippingTest(unittest.TestCase):

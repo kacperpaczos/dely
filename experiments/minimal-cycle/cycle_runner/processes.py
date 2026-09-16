@@ -44,6 +44,15 @@ class Process:
     #: the operator's own session. They are stripped before every command, so a
     #: process that has one anyway means something put it back.
     session: str = ""
+    #: This process's mount namespace, as `/proc/<pid>/ns/mnt` names it. It is
+    #: what tells a process running inside the environment from the host-side
+    #: plumbing that launched it — and that plumbing matches this run's paths
+    #: too, because the run's own paths are on its command line.
+    namespace: str = ""
+
+    def inside(self, host_namespace: str) -> bool:
+        """Report whether this process runs in an environment of its own."""
+        return bool(self.namespace) and bool(host_namespace) and self.namespace != host_namespace
 
     def names(self, path: str) -> bool:
         """Report whether this process is tied to the given path."""
@@ -97,6 +106,14 @@ def _read_environment(pid: int) -> tuple[str, str]:
             if pair.startswith(f"{name}="):
                 carried.append(f"{name}=")
     return home, " ".join(carried)
+
+
+def mount_namespace(pid: int | str = "self") -> str:
+    """Return the mount namespace of a process, or the empty string."""
+    try:
+        return os.readlink(PROC_ROOT / str(pid) / "ns" / "mnt")
+    except OSError:
+        return ""
 
 
 def _read_parent(pid: int) -> int:
@@ -187,6 +204,7 @@ def _live_processes() -> list[Process]:
                 home=home,
                 cwd=cwd,
                 session=session,
+                namespace=mount_namespace(pid),
             )
         )
     return found

@@ -663,7 +663,8 @@ class _Cycle:
         leaking = display_module.carrying_host_session(
             processes.holding([str(self.config.state_root / self.run_id)])
             if self.adapter.shares_host_processes
-            else []
+            else [],
+            host_namespace=processes.mount_namespace(),
         )
         ok, detail = display_module.verdict(
             mode=mode,

@@ -157,3 +157,30 @@ class ParentWithoutAMarkerTest(unittest.TestCase):
             processes.Process(pid=2, command="a child of the runner", parent=os.getpid()),
         ])
         self.assertEqual(processes.holding([], lister=table.lister, roots=[os.getpid()]), [])
+
+
+class MountNamespaceTest(unittest.TestCase):
+    """What tells a process inside the environment from the plumbing outside it."""
+
+    HOST = "mnt:[4026531832]"
+    BOX = "mnt:[4026532999]"
+
+    def test_a_different_namespace_is_inside(self):
+        self.assertTrue(process(1, "a").__class__(pid=1, command="a", namespace=self.BOX).inside(self.HOST))
+
+    def test_the_same_namespace_is_not(self):
+        self.assertFalse(
+            processes.Process(pid=1, command="a", namespace=self.HOST).inside(self.HOST)
+        )
+
+    def test_an_unknown_namespace_is_not_claimed_either_way(self):
+        self.assertFalse(processes.Process(pid=1, command="a").inside(self.HOST))
+        self.assertFalse(
+            processes.Process(pid=1, command="a", namespace=self.BOX).inside("")
+        )
+
+    def test_this_process_reports_a_namespace_on_this_host(self):
+        self.assertTrue(processes.mount_namespace().startswith("mnt:["))
+
+    def test_a_process_that_is_gone_reports_nothing(self):
+        self.assertEqual(processes.mount_namespace(999999999), "")

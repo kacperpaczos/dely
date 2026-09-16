@@ -93,12 +93,24 @@ def named(windows: Iterable[Window], needle: str) -> list[Window]:
     return [window for window in windows if lowered in window.name.lower()]
 
 
-def carrying_host_session(processes: Sequence[Any]) -> list[Any]:
-    """Return the run's processes that still point at the operator's session."""
+def carrying_host_session(
+    processes: Sequence[Any], *, host_namespace: str = ""
+) -> list[Any]:
+    """Return the environment's processes that still point at the operator's session.
+
+    Only processes *inside* the environment count. The host-side plumbing that
+    launches into a container matches this run's paths as well — the run's own
+    home is on its command line — and it carries the operator's session because
+    it is the operator's process. Counting those reports every run as leaking,
+    including the probe that is doing the counting.
+
+    The mount namespace is what separates them, rather than a program name.
+    """
     return [
         process
         for process in processes
         if any(f"{name}=" in getattr(process, "session", "") for name in HOST_SESSION_NAMES)
+        and process.inside(host_namespace)
     ]
 
 

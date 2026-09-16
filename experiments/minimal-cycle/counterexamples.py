@@ -867,6 +867,18 @@ CASES: tuple[Counterexample, ...] = (
         ),
     ),
     Counterexample(
+        name="the-launcher-is-not-the-environment",
+        requirement=(
+            "`distrobox enter` carries this run's home on its command line and "
+            "the operator's session in its environment, because it is the "
+            "operator's process; counting it fails every run, the probe included"
+        ),
+        path="cycle_runner/display.py",
+        original="        and process.inside(host_namespace)",
+        replacement="",
+        instruments=("tests.test_display.CarryingHostSessionTest",),
+    ),
+    Counterexample(
         name="an-unreachable-screen-says-nothing",
         requirement=(
             "A screen that did not answer cannot report the window that is not "

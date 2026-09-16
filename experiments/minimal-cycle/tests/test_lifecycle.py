@@ -863,3 +863,45 @@ class PluginSkillsReachTheAgentTest(SkillsGateTest):
         outcome = self.cycle(**answers)
         self.assertEqual(outcome.run_result.status, status.RunStatus.BLOCKED)
         self.assertIn("2 of this checkout's 14 skills", outcome.run_result.skills.detail)
+
+
+class AuthWorksTest(CycleTestCase):
+    """The bootstrap copied something; whether it works is a separate question."""
+
+    def cycle(self, **adapter_options):
+        adapter = FakeAdapter(
+            self.state / RUN_ID, host_project=self.repo, **adapter_options
+        )
+        return lifecycle.run_cycle(
+            run_config=self.make_config(),
+            adapter=adapter,
+            run_id=RUN_ID,
+            host_home=self.host_home,
+            environ={},
+            tool_versions={"runner": "one"},
+        )
+
+    def test_a_signed_in_agent_is_recorded_beside_the_bootstrap(self):
+        outcome = self.cycle()
+        record = outcome.run_result.auth
+        self.assertTrue(record.verified)
+        self.assertIn("signed in through claude.ai", record.verify_detail)
+        self.assertNotEqual(record.detail, record.verify_detail)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+
+    def test_the_receipt_names_no_person_and_no_organisation(self):
+        self.cycle()
+        raw = self.artifact("auth-receipt.json").read_text(encoding="utf-8")
+        for absent in ("email", "orgName", "orgId", "example.invalid"):
+            self.assertNotIn(absent, raw)
+
+    def test_an_agent_that_is_not_signed_in_blocks_the_run(self):
+        outcome = self.cycle(signed_in=False)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.BLOCKED)
+        self.assertEqual(outcome.run_result.phase("task").status.value, "SKIPPED")
+        self.assertIn("expired", outcome.run_result.failure_classification)
+
+    def test_an_agent_that_gives_no_answer_blocks_the_run(self):
+        outcome = self.cycle(signed_in=None)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.BLOCKED)
+        self.assertIn("no readable answer", outcome.run_result.auth.verify_detail)

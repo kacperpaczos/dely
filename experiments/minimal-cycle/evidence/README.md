@@ -31,6 +31,33 @@ dispatch made — and the worker's turn never observed.
 `dispatch-worker-terminal.txt` is what the agent's terminal actually held.
 This is where the work currently stops, and it is not a green run.
 
+### `tool-image-with-skills/`
+
+The image the machine backend runs, and what went into it: node from a pinned
+tarball, Orca and Claude Code at pinned versions and digests, Superpowers at a
+pinned commit with all fourteen of its skills, and Orca's own `orchestration`
+and `orca-cli` verified against the digests Orca's bundled manifest records.
+The build fails if any of those digests disagree.
+
+## What had to be measured before it could be built
+
+### `skill-install-probe/`
+
+What the documented skill install actually does, run in a throwaway container.
+Three things came out of it: Ubuntu's node 18 cannot run the skills command
+line at all, the agent name `orca skills install` passes is one that command
+rejects, and what it does install hashes to exactly what Orca's own manifest
+records.
+
+### `plugin-cli-hangs-in-the-guest/`
+
+`claude plugin marketplace add` given ten minutes in the machine backend's
+guest, with stdin closed: no output, no return, deadline. The same command
+answers in under a second in a container with a terminal attached, without one,
+with Orca installed, as root and as an ordinary user; memory and disk in the
+guest were fine. Why is not established, and the file says so. Nothing depends
+on that command any more.
+
 ## Earlier runs, kept because each one moved a rail
 
 ### `preflight-distrobox.txt`, `preflight-vm.txt`

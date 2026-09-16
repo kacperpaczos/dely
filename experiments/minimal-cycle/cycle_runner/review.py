@@ -83,7 +83,10 @@ these keys, and nothing else:
       "reason": "<one sentence>"
     }}
 
-Get the digest with `sha256sum {diff_path}`. Then report `worker_done`.
+Get the digest with `sha256sum {diff_path}`.
+
+Do not change the diff, the project, or anything else. When the verdict file
+exists with exactly those three keys, report that you are done.
 """
 
 

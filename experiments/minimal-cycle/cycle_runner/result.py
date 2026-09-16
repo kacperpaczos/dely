@@ -229,6 +229,12 @@ class AuthRecord:
     target: str | None = None
     entries: list[str] = field(default_factory=list)
     removed_after_run: bool = False
+    #: Whether the environment's own agent reports itself signed in. Copying a
+    #: file and the file working are different claims, so they are different
+    #: fields; `detail` is the bootstrap's and `verify_detail` is this one's.
+    verified: bool = False
+    observed: dict[str, Any] = field(default_factory=dict)
+    verify_detail: str = "not attempted"
     detail: str = "not attempted"
 
     def to_document(self) -> dict[str, Any]:
@@ -239,6 +245,9 @@ class AuthRecord:
             "target": self.target,
             "entries": list(self.entries),
             "removed_after_run": self.removed_after_run,
+            "verified": self.verified,
+            "observed": dict(self.observed),
+            "verify_detail": self.verify_detail,
             "detail": self.detail,
         }
 

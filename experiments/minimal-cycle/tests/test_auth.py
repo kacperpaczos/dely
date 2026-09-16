@@ -181,3 +181,50 @@ class HelperTest(unittest.TestCase):
             json.loads(settings.read_text(encoding="utf-8"))["apiKeyHelper"],
             "/usr/local/bin/fetch-key --quiet",
         )
+
+
+class VerifyTest(unittest.TestCase):
+    """Copying a file and the file working are different claims."""
+
+    def test_only_the_non_identifying_fields_are_kept(self):
+        kept = auth.read_status(
+            '{"loggedIn": true, "authMethod": "claude.ai", "apiProvider": "firstParty",'
+            ' "subscriptionType": "max", "email": "a@b.invalid", "orgId": "x",'
+            ' "orgName": "n", "configDirectory": "/home/somebody/.claude"}'
+        )
+        self.assertEqual(
+            kept,
+            {
+                "loggedIn": True,
+                "authMethod": "claude.ai",
+                "apiProvider": "firstParty",
+                "subscriptionType": "max",
+            },
+        )
+
+    def test_an_unreadable_answer_is_no_answer(self):
+        self.assertEqual(auth.read_status("something went wrong\n"), {})
+
+    def test_a_signed_in_agent_is_the_second_receipt(self):
+        works, detail = auth.judge_status(
+            ok=True, timed_out=False, status={"loggedIn": True, "authMethod": "claude.ai"}
+        )
+        self.assertTrue(works)
+        self.assertIn("claude.ai", detail)
+
+    def test_an_agent_that_is_not_signed_in_is_blocked_not_assumed(self):
+        works, detail = auth.judge_status(
+            ok=True, timed_out=False, status={"loggedIn": False}
+        )
+        self.assertFalse(works)
+        self.assertIn("absent, expired or not what this agent reads", detail)
+
+    def test_no_answer_at_all_is_not_a_pass(self):
+        works, detail = auth.judge_status(ok=False, timed_out=False, status={})
+        self.assertFalse(works)
+        self.assertIn("nothing here knows if the bootstrap worked", detail)
+
+    def test_a_deadline_is_not_a_pass(self):
+        works, detail = auth.judge_status(ok=False, timed_out=True, status={})
+        self.assertFalse(works)
+        self.assertIn("before the deadline", detail)

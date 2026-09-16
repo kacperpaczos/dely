@@ -436,10 +436,26 @@ class _Cycle:
             )
             self.result.auth = auth_record
             self.env_overlay = dict(overlay)
+            if auth_record.status is not PhaseStatus.BLOCKED:
+                # Copying a file and the file working are different claims, and
+                # only the environment's own agent can answer the second one.
+                auth_record = auth.verify(
+                    adapter=self.adapter,
+                    record=auth_record,
+                    timeout=min(120, self.config.timeout_seconds),
+                    env=self.env_overlay,
+                )
+                self.result.auth = auth_record
             self.exporter.write_json("auth-receipt.json", auth_record.to_document())
+            self.log.say(f"auth: {auth_record.verify_detail}")
             if auth_record.status is PhaseStatus.BLOCKED:
                 record.status = PhaseStatus.BLOCKED
-                self.blocked_reason = auth_record.detail
+                self.blocked_reason = (
+                    auth_record.verify_detail
+                    if auth_record.verified is False and auth_record.observed is not None
+                    and auth_record.verify_detail != "not attempted"
+                    else auth_record.detail
+                )
                 return
             # Auth declares what it wants in the per-run settings; this writes
             # that file, so it runs after auth rather than before it.

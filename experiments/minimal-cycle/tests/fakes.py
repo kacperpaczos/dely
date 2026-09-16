@@ -132,6 +132,7 @@ class FakeAdapter(BackendAdapter):
         reviewer_reads_another_diff: bool = False,
         one_dispatch_for_both: bool = False,
         display_unreachable: bool = False,
+        signed_in: bool | None = True,
         window_appears: bool = True,
         plugin_answers: Mapping[str, tuple[str, str]] | None = None,
         plugin_installed: Mapping[str, tuple[int, int]] | None = None,
@@ -143,6 +144,7 @@ class FakeAdapter(BackendAdapter):
         self.reviewer_reads_another_diff = reviewer_reads_another_diff
         self.one_dispatch_for_both = one_dispatch_for_both
         self.display_unreachable = display_unreachable
+        self.signed_in = signed_in
         self.window_appears = window_appears
         self.plugin_answers = dict(plugin_answers or {})
         self.plugin_installed = dict(plugin_installed or {})
@@ -373,6 +375,25 @@ class FakeAdapter(BackendAdapter):
             self.calls.append("orca-start")
             self.app_started = True
             return self._outcome(argv, 0, "display ready after 0s\nstarted 1786\n", "")
+        if tuple(argv[:3]) == ("claude", "auth", "status"):
+            self.calls.append("auth-status")
+            if self.signed_in is None:
+                return self._outcome(argv, 1, "", "not a readable answer")
+            return self._outcome(
+                argv,
+                0,
+                json.dumps(
+                    {
+                        "loggedIn": self.signed_in,
+                        "authMethod": "claude.ai",
+                        "apiProvider": "firstParty",
+                        # Present in the real answer and deliberately not kept.
+                        "email": "somebody@example.invalid",
+                        "orgName": "somebody's organisation",
+                    }
+                ),
+                "",
+            )
         if tuple(argv[:2]) == ("orca", "status"):
             self.calls.append("orca-status")
             up = self.orca_present and self.runtime_ready and self.app_started

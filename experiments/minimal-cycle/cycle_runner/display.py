@@ -120,6 +120,19 @@ def appeared(before: Sequence[Window], after: Sequence[Window]) -> list[Window]:
     return [window for window in after if window.identifier not in known]
 
 
+def describe(found: Sequence[Any], limit: int = 4) -> str:
+    """Name what was found well enough to act on, without quoting a whole argv."""
+    pieces = []
+    for process in found[:limit]:
+        pid = getattr(process, "pid", "?")
+        command = str(getattr(process, "command", "")).strip()
+        carried = str(getattr(process, "session", "")).strip()
+        pieces.append(f"pid {pid} [{carried or 'nothing named'}] {command[:120]}")
+    if len(found) > limit:
+        pieces.append(f"and {len(found) - limit} more")
+    return "; ".join(pieces)
+
+
 def verdict(
     *,
     mode: str,
@@ -142,11 +155,10 @@ def verdict(
             "window on their desktop is what was asked for"
         )
     if leaking:
-        listed = ", ".join(str(getattr(item, "pid", item)) for item in leaking)
         return False, (
-            "processes of this run still carry a variable pointing at the "
-            f"operator's session ({listed}); something re-introduced it after it "
-            "was stripped"
+            "processes inside this environment still carry a variable pointing "
+            "at the operator's session, so something re-introduced it after it "
+            "was stripped: " + describe(leaking)
         )
     if not reachable:
         return False, (

@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Mapping
+from typing import Any, Mapping
 
 from .adapters.base import BackendAdapter, EnvironmentHandle
 from .config import RunConfig
@@ -135,6 +135,90 @@ def bootstrap(
     if mode == "short_lived_token":
         return _short_lived_token(run_config, handle, environ)
     return _api_key_helper(run_config, adapter, handle)
+
+
+#: The command that asks the agent, in the environment, whether it is signed in.
+#: It reads whatever the bootstrap put there, so it answers the question the
+#: bootstrap receipt cannot: not "was a file copied" but "does it work".
+STATUS_ARGV = ("claude", "auth", "status", "--json")
+
+#: The only fields kept from that answer. The rest names a person and an
+#: organisation, and a run's artifacts are shared.
+STATUS_FIELDS = ("loggedIn", "authMethod", "apiProvider", "subscriptionType")
+
+
+def read_status(stdout: str) -> dict[str, Any]:
+    """Return the non-identifying part of the agent's own answer."""
+    for candidate in (stdout.strip(), *stdout.splitlines()):
+        text = candidate.strip()
+        if not text.startswith("{"):
+            continue
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, Mapping):
+            return {
+                name: parsed[name] for name in STATUS_FIELDS if name in parsed
+            }
+    return {}
+
+
+def judge_status(
+    *, ok: bool, timed_out: bool, status: Mapping[str, Any]
+) -> tuple[bool, str]:
+    """Say whether what the bootstrap put there actually signs the agent in."""
+    if timed_out:
+        return False, (
+            "the agent did not answer whether it is signed in before the deadline"
+        )
+    if not status:
+        return False, (
+            "the agent gave no readable answer about whether it is signed in, so "
+            "nothing here knows if the bootstrap worked"
+        )
+    if not status.get("loggedIn"):
+        return False, (
+            "the agent in the environment is not signed in; what the bootstrap "
+            "put there is absent, expired or not what this agent reads"
+        )
+    method = status.get("authMethod") or "an unnamed method"
+    return True, (
+        f"the agent in the environment reports itself signed in through {method}"
+    )
+
+
+def verify(
+    *,
+    adapter: BackendAdapter,
+    record: AuthRecord,
+    timeout: float = 120.0,
+    env: Mapping[str, str] | None = None,
+) -> AuthRecord:
+    """Ask the environment's own agent whether the bootstrap actually worked.
+
+    This is deliberately a second receipt. Copying a file and the file working
+    are different claims, and a run that only ever showed the first one has not
+    shown the second.
+    """
+    if record.status is not PhaseStatus.OK:
+        return record
+    outcome = adapter.execute(
+        list(STATUS_ARGV),
+        timeout=timeout,
+        env=dict(env or {}),
+        extra_values=tuple(value for value in (env or {}).values() if value),
+    )
+    status = read_status(outcome.stdout)
+    works, detail = judge_status(
+        ok=outcome.ok, timed_out=outcome.timed_out, status=status
+    )
+    record.verified = works
+    record.observed = dict(status)
+    record.verify_detail = detail
+    if not works:
+        record.status = PhaseStatus.BLOCKED
+    return record
 
 
 def teardown(

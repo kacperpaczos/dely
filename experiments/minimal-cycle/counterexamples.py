@@ -867,6 +867,45 @@ CASES: tuple[Counterexample, ...] = (
         ),
     ),
     Counterexample(
+        name="a-copied-file-is-not-a-working-login",
+        requirement=(
+            "A bootstrap receipt says a file was copied; whether the agent in "
+            "the environment is signed in is a different claim"
+        ),
+        path="cycle_runner/lifecycle.py",
+        original="            if auth_record.status is not PhaseStatus.BLOCKED:\n                # Copying a file and the file working are different claims, and\n                # only the environment's own agent can answer the second one.",
+        replacement="            if False:",
+        instruments=("tests.test_lifecycle.AuthWorksTest",),
+    ),
+    Counterexample(
+        name="an-expired-login-blocks-rather-than-passes",
+        requirement=(
+            "An agent that answers 'not signed in' has told the run everything "
+            "it needs to stop"
+        ),
+        path="cycle_runner/auth.py",
+        original='    if not status.get("loggedIn"):',
+        replacement="    if False:",
+        instruments=(
+            "tests.test_auth.VerifyTest",
+            "tests.test_lifecycle.AuthWorksTest",
+        ),
+    ),
+    Counterexample(
+        name="the-receipt-names-no-person",
+        requirement=(
+            "The agent's own answer carries an email address, an organisation "
+            "and a home directory, and a run's artifacts are shared"
+        ),
+        path="cycle_runner/auth.py",
+        original='                name: parsed[name] for name in STATUS_FIELDS if name in parsed',
+        replacement="                name: value for name, value in parsed.items()",
+        instruments=(
+            "tests.test_auth.VerifyTest",
+            "tests.test_lifecycle.AuthWorksTest",
+        ),
+    ),
+    Counterexample(
         name="the-launcher-is-not-the-environment",
         requirement=(
             "`distrobox enter` carries this run's home on its command line and "

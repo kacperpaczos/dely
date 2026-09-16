@@ -4,9 +4,10 @@ One Python runner drives one minimal proof cycle on a disposable environment,
 through one of two backends, and answers a single narrow question:
 
 > Can a fresh environment be created, driven through Orca to one Claude Code
-> worker on a clean copy of a project, checked independently, exported to the
-> host, and destroyed — without losing the evidence and without quietly falling
-> back onto the host?
+> worker on a clean copy of a project, handed to a second agent that reviews
+> what the first one wrote, checked independently, exported to the host, and
+> destroyed — without losing the evidence, without quietly falling back onto
+> the host, and without leaving anything of itself on it?
 
 It is not a benchmark, not an evaluation of a model or of a tester, and not a
 task matrix. It measures plumbing.
@@ -31,10 +32,31 @@ the alternative rather than parsing half a document.
 
 ## Running it
 
+Once per host:
+
 ```bash
 cd experiments/minimal-cycle
-./run-cycle preflight --config /path/to/config.yaml
-./run-cycle run --config /path/to/config.yaml
+host/prepare-host                  # pinned pulumi, local state, image, pool, project source
+host/packer/build-tool-image       # the machine backend's tool image, ~15 minutes
+```
+
+Then, for either backend, with the shipped configuration as it stands:
+
+```bash
+./run-cycle preflight --config config.distrobox.example.yaml
+./run-cycle run       --config config.distrobox.example.yaml
+```
+
+The examples carry no placeholders. A test holds them to the versions
+`host/versions.json` pins, so an example cannot drift away from the host it was
+prepared for.
+
+Two more commands exist for when a run does not end cleanly:
+
+```bash
+./run-cycle leases        --config <config>   # which run holds this host's slot
+./run-cycle release       --config <config> --run-id <id>
+./run-cycle host-registry --config <config>   # what the operator's own Orca knows
 ```
 
 `preflight` reports, fact by fact, whether this host can run the configured
@@ -52,7 +74,7 @@ python3 -m unittest discover -s tests -t . -v
 ## The cycle
 
 ```
-prepare -> create -> bootstrap -> identity -> task -> check
+prepare -> create -> bootstrap -> identity -> task -> review -> check
         -> collect -> export -> cleanup -> close
 ```
 
@@ -70,6 +92,38 @@ host and inside the environment. A result that carries no environment marker and
 repeats the host's own name, machine identity and home is a host fallback, and a
 host fallback stops the run. So does finding no Orca inside the environment: the
 run is blocked, never redirected to the host's installation.
+
+Three more gates were added after runs on this host went wrong in ways nothing
+would have caught.
+
+**Nothing is created before this host says it has room.** One environment per
+backend, counted under a lock two separate runners share, so two starting at the
+same instant cannot both read "nothing active". A run whose process died before
+confirming its cleanup keeps its slot, and so does one that ended in residue:
+the next run is refused until somebody has looked. Parallel runs are possible,
+but only as a switch with a ceiling and a budget for cpu, memory, processes,
+disk and time, and the container manager is told the same numbers the budget
+counts.
+
+**The skills the configuration pins have to actually be there.** After
+provisioning, the runner asks the environment where each `SKILL.md` is and what
+it hashes to, and compares. An install that fetched what was current instead of
+what was pinned, or landed where the agent never looks, blocks the run.
+
+**The environment must not register itself into the operator's own Orca.** The
+host's registry is searched for this run's identifier, container or domain and
+per-run paths — as bytes, so a repository entry, a worktree, the record that a
+terminal exists and a row in the orchestration store are all caught the same
+way. An entry naming the run makes the cleanup residue. Nothing here removes
+it: it is in somebody's own profile.
+
+**The review is a second agent, not a second pane.** When the implementer
+settles, Control captures the diff inside the environment, takes its digest, and
+starts a separate dispatch under the same Run whose prompt names the diff and
+nothing else. The two dispatches must carry different identifiers and different
+agent terminals; the digest must be unchanged when the review returns; and the
+reviewer must report that digest. Layout, focus and panel position are not
+consulted, because they show nothing about whose session is whose.
 
 ## Statuses
 
@@ -94,6 +148,12 @@ $artifact_root/<run_id>/
   backend-status.json        the environment and its declared resources
   auth-receipt.json          the method and its status, never its material
   first-run-state.json       the questions the agent was answered, by name
+  admission.json             the slot this run held, and what else held one
+  skills.json                each required skill, where it was and what it hashed to
+  review.json                the handoff: the diff, the two agents, the verdict
+  handoff-diff.patch         the diff the reviewer was given
+  host-registry-before.json  the operator's own Orca registry, before
+  host-registry-after.json   and after, with the question it was searched for
   dispatch/                  each orchestration reply, redacted, as the plane sent it
   host-before.json           the host before the run
   host-after.json            the host after it, and what changed
@@ -271,6 +331,27 @@ the table with the tests each row runs. The recorded sweep is in
 | A coordinator terminal has to say which machine it is on | case `the-terminal-says-which-machine-it-is-on` | `evidence/distrobox-settled-cycle/` |
 | A run whose processes are still on the host is residue, not destroyed | case `a-process-left-running-is-residue` | `evidence/counterexamples.txt` |
 | The survey matches this run's paths, never a program name | case `the-survey-matches-a-path-not-a-program` | `evidence/counterexamples.txt` |
+| Two runners starting together do not both get the slot | case `the-count-is-taken-under-a-lock` | `evidence/counterexamples.txt` |
+| A lease whose owner is gone still occupies its slot | case `an-orphaned-lease-still-occupies-its-slot` | `evidence/counterexamples.txt` |
+| A run that ended in residue blocks the next one | case `an-unconfirmed-cleanup-keeps-the-slot` | `evidence/counterexamples.txt` |
+| The budget sums across the runs already holding a slot | case `the-budget-counts-what-is-already-running` | `evidence/counterexamples.txt` |
+| Only the switch raises the ceiling, never a number alone | case `the-switch-is-what-raises-the-ceiling` | `evidence/counterexamples.txt` |
+| The host registry is searched for this run, and searching for nothing proves nothing | case `the-registry-is-searched-for-this-run` | `evidence/counterexamples.txt` |
+| A registry file that cannot be read is not a clean one | case `a-registry-that-cannot-be-read-is-not-clean` | `evidence/counterexamples.txt` |
+| A terminal transcript is not a registration | case `scrollback-is-not-a-registration` | `evidence/counterexamples.txt` |
+| An entry naming the run in the operator's registry is residue | case `a-registry-entry-naming-the-run-is-residue` | `evidence/counterexamples.txt` |
+| A named skill is not a present skill | case `a-named-skill-is-not-a-present-skill` | `evidence/counterexamples.txt` |
+| A skill is pinned by its bytes, not by its name | case `a-skill-is-pinned-by-its-bytes` | `evidence/counterexamples.txt` |
+| A probe the environment never answered is not a pass | case `an-unanswered-skill-is-not-a-present-one` | `evidence/counterexamples.txt` |
+| A missing pinned skill blocks the run before the dispatch | case `a-missing-skill-blocks-the-run` | `evidence/counterexamples.txt` |
+| An image nothing pins is not a verified image | case `an-unpinned-image-is-not-a-verified-one` | `evidence/counterexamples.txt` |
+| The shipped configurations run as they stand | case `the-examples-carry-no-placeholders` | `evidence/counterexamples.txt` |
+| The container example installs what its own configuration requires | case `the-container-example-installs-what-it-requires` | `evidence/counterexamples.txt` |
+| One dispatch answering twice is not two agents | case `two-panes-are-not-two-agents` | `evidence/counterexamples.txt` |
+| Identifiers the plane never gave do not establish separateness | case `an-unnamed-dispatch-is-not-a-separate-one` | `evidence/counterexamples.txt` |
+| The reviewer's verdict is tied to the diff it was handed | case `the-reviewer-answered-about-this-diff` | `evidence/counterexamples.txt` |
+| A diff that moved under the review invalidates the verdict | case `the-diff-did-not-move-under-the-review` | `evidence/counterexamples.txt` |
+| The captured diff includes the file the task creates | case `the-capture-includes-a-file-that-is-new` | `evidence/counterexamples.txt` |
 
 ## What no instrument here observes
 

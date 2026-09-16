@@ -71,19 +71,33 @@ test "$(git -C /opt/dely-cycle/superpowers rev-parse HEAD)" = "${SUPERPOWERS_REV
 bounded() {
   seconds="$1"
   shift
+  log="$(mktemp)"
   echo "--- running (limit ${seconds}s): $*"
-  if timeout --signal=TERM --kill-after=30 "${seconds}" "$@" < /dev/null; then
-    echo "--- done: $1"
+  # `if cmd; then ... fi` leaves $? at the *if statement's* status, which is 0
+  # when the condition was false. Reading it there reports every failure as a
+  # success, so the status is taken directly from the command.
+  set +e
+  timeout --signal=TERM --kill-after=30 "${seconds}" "$@" < /dev/null > "${log}" 2>&1
+  status=$?
+  set -e
+  sed 's/^/    | /' "${log}"
+  rm -f "${log}"
+  if [ "${status}" -eq 0 ]; then
+    echo "--- done: $*"
     return 0
   fi
-  status=$?
   if [ "${status}" -eq 124 ]; then
-    echo "gave up after ${seconds}s waiting for: $*" >&2
+    echo "gave up after ${seconds}s: $*" >&2
   else
     echo "exited ${status}: $*" >&2
   fi
   return "${status}"
 }
+
+# What the guest had to work with when these ran, so a failure with no message
+# can still be read afterwards.
+free -m || true
+df -h / || true
 
 bounded 600 claude plugin marketplace add /opt/dely-cycle/superpowers
 bounded 600 claude plugin install superpowers@superpowers-dev --yes

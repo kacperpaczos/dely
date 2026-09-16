@@ -217,6 +217,26 @@
     },
     "cleanup": {
       "properties": {
+        "host_registry": {
+          "properties": {
+            "after": {
+              "type": "object"
+            },
+            "before": {
+              "type": "object"
+            },
+            "clean": {
+              "type": "boolean"
+            },
+            "difference": {
+              "type": "object"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
         "reason": {
           "type": "string"
         },
@@ -242,10 +262,11 @@
         }
       },
       "required": [
-        "status",
+        "host_registry",
         "reason",
         "removed",
         "retained",
+        "status",
         "verified"
       ],
       "type": "object"

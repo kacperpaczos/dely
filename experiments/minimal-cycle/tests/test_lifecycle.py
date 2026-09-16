@@ -536,3 +536,103 @@ class AdmissionTest(CycleTestCase):
         self.assertEqual(names["create"], "SKIPPED")
         self.assertIsNone(outcome.run_result.environment_id)
         self.assertFalse((self.state / self.SECOND_RUN_ID).exists())
+
+
+class HostRegistryTest(CycleTestCase):
+    """An environment that registers itself into the operator's Orca is residue."""
+
+    def profile_path(self):
+        directory = self.host_home / ".config/orca/profiles/local-default"
+        directory.mkdir(parents=True, exist_ok=True)
+        return directory / "orca-data.json"
+
+    def write_registry(self, repos):
+        self.profile_path().write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "repos": [{"path": path} for path in repos],
+                    "settings": {},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    def test_a_clean_registry_leaves_the_run_settled(self):
+        self.write_registry(["/home/someone/unrelated"])
+        _, outcome = self.run_cycle()
+        self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+        registry = outcome.run_result.cleanup.host_registry
+        self.assertTrue(registry["clean"], registry["reason"])
+
+    def test_an_entry_naming_this_run_makes_the_cleanup_residue(self):
+        """The box reached the host's application and registered its copy there."""
+
+        class RegisteringAdapter(FakeAdapter):
+            def __init__(inner, *args, profile, **options):
+                super().__init__(*args, **options)
+                inner.profile = profile
+
+            def create(inner):
+                handle = super().create()
+                inner.profile.write_text(
+                    json.dumps(
+                        {
+                            "schemaVersion": 1,
+                            "repos": [{"path": handle.project_path}],
+                            "settings": {},
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                return handle
+
+        self.write_registry([])
+        run_config = self.make_config()
+        adapter = RegisteringAdapter(
+            self.state / RUN_ID, host_project=self.repo, profile=self.profile_path()
+        )
+        outcome = lifecycle.run_cycle(
+            run_config=run_config,
+            adapter=adapter,
+            run_id=RUN_ID,
+            host_home=self.host_home,
+            environ={},
+            tool_versions={"runner": "one"},
+        )
+        self.assertEqual(
+            outcome.run_result.cleanup.status.value,
+            "RESIDUE",
+            outcome.run_result.cleanup.reason,
+        )
+        self.assertNotEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+        self.assertIn("operator's own Orca", outcome.run_result.cleanup.reason)
+        self.assertIn("their decision", outcome.run_result.cleanup.reason)
+
+    def test_that_residue_keeps_the_admission_slot(self):
+        self.write_registry([])
+        outcome = None
+
+        class RegisteringAdapter(FakeAdapter):
+            def create(inner):
+                handle = super().create()
+                (self.host_home / ".config/orca/profiles/local-default"
+                 / "orca-data.json").write_text(
+                    json.dumps({"repos": [{"path": handle.home_path}], "settings": {}}),
+                    encoding="utf-8",
+                )
+                return handle
+
+        outcome = lifecycle.run_cycle(
+            run_config=self.make_config(),
+            adapter=RegisteringAdapter(self.state / RUN_ID, host_project=self.repo),
+            run_id=RUN_ID,
+            host_home=self.host_home,
+            environ={},
+            tool_versions={"runner": "one"},
+        )
+        self.assertFalse(outcome.run_result.admission.released)
+        self.assertEqual(
+            [record.state for record in admission.read_leases(self.state, "distrobox")],
+            [admission.RETAINED],
+        )

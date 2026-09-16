@@ -13,7 +13,7 @@ import json
 import tempfile
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -23,6 +23,7 @@ from . import (
     cleanup,
     firstrun,
     hostinfo,
+    hostregistry,
     manifest,
     orca,
     probe,
@@ -194,6 +195,7 @@ class _Cycle:
         self.coordinator_handle: str | None = None
         self.host_before: dict[str, Any] = {}
         self.lease: admission.Lease | None = None
+        self.registry_before: dict[str, Any] = {}
 
     # -- plumbing ---------------------------------------------------------
 
@@ -220,6 +222,26 @@ class _Cycle:
             PhaseRecord(name=name, status=PhaseStatus.SKIPPED, detail=detail)
         )
         self.log.say(f"phase {name} skipped: {detail}")
+
+    def _run_markers(self) -> tuple[str, ...]:
+        """Every name that belongs to this run and to nothing else.
+
+        These are what the operator's own Orca registry is searched for. A
+        repository, a worktree, a terminal archive or an orchestration row that
+        carries one of them was written by this run into somebody else's
+        application.
+        """
+        markers = [self.run_id, str(self.config.state_root / self.run_id)]
+        if self.handle is not None:
+            markers.extend(
+                [self.handle.environment_id, self.handle.home_path, self.handle.project_path]
+            )
+        planned = self.adapter.plan_handle()
+        if planned is not None:
+            markers.append(planned.environment_id)
+        return tuple(
+            dict.fromkeys(str(marker) for marker in markers if str(marker).strip())
+        )
 
     def _snapshot_host(self) -> dict[str, Any]:
         return hostinfo.snapshot(
@@ -331,6 +353,12 @@ class _Cycle:
             )
             self.host_before = self._snapshot_host()
             self.exporter.write_json("host-before.json", self.host_before)
+            self.registry_before = hostregistry.fingerprint(
+                self.host_home, markers=self._run_markers()
+            )
+            self.exporter.write_json(
+                "host-registry-before.json", self.registry_before
+            )
             commit = project.resolve_revision(
                 self.config.project.source, self.config.project.revision
             )
@@ -634,6 +662,7 @@ class _Cycle:
                 survey=self.survey,
                 started=[self.app_pid] if self.app_pid else [],
             )
+            record = self._check_host_registry(record)
             self.result.cleanup = record
             phase_record.status = (
                 PhaseStatus.OK
@@ -642,6 +671,40 @@ class _Cycle:
             )
             phase_record.detail = record.reason
             return record
+
+    def _check_host_registry(self, record: CleanupRecord) -> CleanupRecord:
+        """Ask whether the environment wrote itself into the operator's own Orca.
+
+        The environment has its own profile and its own home, but nothing makes
+        that true: a container inherits the host's session, and an application
+        that reaches the host's socket registers into the host's registry. An
+        entry naming this run is this run's residue, sitting somewhere cleanup
+        must not reach — so it is reported, never removed.
+        """
+        after = hostregistry.fingerprint(self.host_home, markers=self._run_markers())
+        clean, reason = hostregistry.verdict(after)
+        document = {
+            "clean": clean,
+            "reason": reason,
+            "before": self.registry_before,
+            "after": after,
+            "difference": hostregistry.difference(self.registry_before, after),
+        }
+        record.host_registry = document
+        self.exporter.write_json("host-registry-after.json", after, required=False)
+        self.log.say(f"host registry: {reason}")
+        if clean:
+            return record
+        return replace(
+            record,
+            status=CleanupStatus.RESIDUE,
+            reason=(
+                f"{record.reason}; {reason}. Nothing here removes an entry from "
+                "the operator's own registry, so it needs their decision"
+            ).lstrip("; "),
+            verified=False,
+            host_registry=document,
+        )
 
     def _cleanup_without_a_handle(self) -> CleanupRecord:
         """Report what a run that never got a handle may still have left."""

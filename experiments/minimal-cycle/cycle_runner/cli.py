@@ -18,6 +18,7 @@ from typing import Sequence, TextIO
 from . import (
     adapters,
     admission,
+    hostregistry,
     config as config_module,
     ids,
     lifecycle,
@@ -178,6 +179,42 @@ def _release(arguments, stdout: TextIO, stderr: TextIO) -> int:
     return 0
 
 
+def _host_registry(arguments, stdout: TextIO, stderr: TextIO) -> int:
+    """Report what the operator's own Orca registry holds for this runner's runs.
+
+    A run's own artifacts answer this for that run. This answers it for the
+    host as a whole, which is what shows an entry an earlier run left behind.
+    """
+    run_config = _load(arguments.config)
+    markers = [str(run_config.state_root)]
+    markers.extend(arguments.marker or [])
+    report = hostregistry.fingerprint(None, markers=markers)
+    if arguments.json:
+        print(json.dumps(report, indent=2, sort_keys=True), file=stdout)
+        return 0
+    print(f"registry files: {report['file_count']}", file=stdout)
+    for name, size in sorted((report.get("collection_sizes") or {}).items()):
+        print(f"  {name:24} {size}", file=stdout)
+    naming = report.get("entries_naming_this_run") or []
+    if not naming:
+        print(
+            "no registry file names anything under "
+            + ", ".join(markers),
+            file=stdout,
+        )
+        return 0
+    print("", file=stdout)
+    print("these registry files name this runner's per-run paths:", file=stdout)
+    for entry in naming:
+        print(f"  {entry['name']:28} {entry['names_this_run']} occurrence(s)", file=stdout)
+    print(
+        "\nNothing here removes them: they are in the operator's own profile and "
+        "only they can decide.",
+        file=stdout,
+    )
+    return exit_code(RunStatus.BLOCKED)
+
+
 def _schema(arguments, stdout: TextIO, stderr: TextIO) -> int:
     print(
         json.dumps(manifest.load_schema(), indent=2, sort_keys=True), file=stdout
@@ -223,6 +260,17 @@ def build_parser() -> argparse.ArgumentParser:
     release.add_argument("--run-id", required=True)
     release.add_argument("--backend", choices=sorted(config_module.BACKENDS))
     release.set_defaults(handler=_release)
+
+    registry = subcommands.add_parser(
+        "host-registry",
+        help="report whether the operator's own Orca registry names this runner's runs",
+    )
+    registry.add_argument("--config", required=True, type=Path)
+    registry.add_argument(
+        "--marker", action="append", help="an extra string to search the registry for"
+    )
+    registry.add_argument("--json", action="store_true")
+    registry.set_defaults(handler=_host_registry)
 
     schema = subcommands.add_parser("schema", help="print the manifest schema")
     schema.set_defaults(handler=_schema)

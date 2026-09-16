@@ -597,6 +597,50 @@ CASES: tuple[Counterexample, ...] = (
         replacement="        return self.max_active",
         instruments=("tests.test_admission.AdmissionTest",),
     ),
+    Counterexample(
+        name="the-registry-is-searched-for-this-run",
+        requirement=(
+            "A host registry nobody looked in is not a host registry the "
+            "environment stayed out of"
+        ),
+        path="cycle_runner/hostregistry.py",
+        original='    if not after.get("markers_searched"):',
+        replacement='    if False:',
+        instruments=("tests.test_hostregistry.FailsClosedTest",),
+    ),
+    Counterexample(
+        name="a-registry-that-cannot-be-read-is-not-clean",
+        requirement=(
+            "A file the runner could not open is the one place an escaped "
+            "registration would hide"
+        ),
+        path="cycle_runner/hostregistry.py",
+        original="    except OSError:\n        # A file that cannot be read cannot be shown to be clean.\n        return -1",
+        replacement="    except OSError:\n        return 0",
+        instruments=("tests.test_hostregistry.FailsClosedTest",),
+    ),
+    Counterexample(
+        name="scrollback-is-not-a-registration",
+        requirement=(
+            "A terminal transcript holds the run identifier because the run "
+            "printed it; counting that would fail every run started from Orca"
+        ),
+        path="cycle_runner/hostregistry.py",
+        original='    (".config/orca/terminal-history", ("meta.json",)),',
+        replacement='    (".config/orca/terminal-history", None),',
+        instruments=("tests.test_hostregistry.CleanHostTest",),
+    ),
+    Counterexample(
+        name="a-registry-entry-naming-the-run-is-residue",
+        requirement=(
+            "An environment that registered itself into the operator's own "
+            "application left something behind, wherever it sits"
+        ),
+        path="cycle_runner/lifecycle.py",
+        original="            record = self._check_host_registry(record)",
+        replacement="            self._check_host_registry(record)",
+        instruments=("tests.test_lifecycle.HostRegistryTest",),
+    ),
 )
 
 

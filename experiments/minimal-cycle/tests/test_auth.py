@@ -234,19 +234,40 @@ class DiagnosisTest(unittest.TestCase):
     """An agent that says nothing has said nothing about why."""
 
     def test_every_question_is_bounded(self):
-        """The diagnosis must not hang the way the thing it diagnoses did."""
+        """The diagnosis must not hang the way the thing it diagnoses did.
+
+        A command is bounded two ways: a deadline in front of it, or being put
+        in the background and killed. `ip route` reads the kernel's own table
+        and returns.
+        """
         lines = [
             line.strip()
             for line in auth.DIAGNOSIS_SCRIPT.splitlines()
-            if line.strip().startswith(("claude", "curl", "getent", "ip "))
+            if line.strip().startswith(("claude", "curl", "getent", "ip ", "NODE_", "DBUS_"))
         ]
         self.assertTrue(lines)
+        backgrounded = 0
         for line in lines:
             with self.subTest(line=line):
+                if line.endswith("&"):
+                    backgrounded += 1
+                    continue
                 self.assertTrue(
                     line.startswith("ip ") or "timeout " in line,
                     f"unbounded command in the diagnosis: {line}",
                 )
+        if backgrounded:
+            self.assertIn(
+                'kill "$hung"',
+                auth.DIAGNOSIS_SCRIPT,
+                "a command was backgrounded and never killed",
+            )
+
+    def test_the_hung_process_is_looked_at_rather_than_guessed_about(self):
+        """What it reached for and what it is blocked in, not a hypothesis."""
+        for needed in ("wchan", "descendants", "/proc/$hung/fd"):
+            with self.subTest(needed=needed):
+                self.assertIn(needed, auth.DIAGNOSIS_SCRIPT)
 
     def test_it_separates_the_causes_it_is_meant_to(self):
         for needed in ("claude --version", "ip route", "getent hosts", "curl"):

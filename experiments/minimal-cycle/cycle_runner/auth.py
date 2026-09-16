@@ -201,11 +201,52 @@ say "default routes"
 ip route show default 2>&1 || printf 'no ip command\n'
 say "name resolution"
 timeout 15 getent hosts api.anthropic.com 2>&1 || printf 'exit %s\n' "$?"
-say "reachability"
+say "reachability, either family"
 timeout 20 curl -sS -o /dev/null -w 'http %{http_code} in %{time_total}s\n' \
+    https://api.anthropic.com/ 2>&1 || printf 'exit %s\n' "$?"
+say "reachability over the fourth family"
+timeout 20 curl -4 -sS -o /dev/null -w 'http %{http_code} in %{time_total}s\n' \
+    https://api.anthropic.com/ 2>&1 || printf 'exit %s\n' "$?"
+say "reachability over the sixth family"
+timeout 20 curl -6 -sS -o /dev/null -w 'http %{http_code} in %{time_total}s\n' \
     https://api.anthropic.com/ 2>&1 || printf 'exit %s\n' "$?"
 say "claude auth status again, bounded"
 timeout 30 claude auth status --json 2>&1 || printf 'exit %s\n' "$?"
+
+# Rather than guess what it is waiting for, start it and look. The descendants
+# name what it reached for, and the kernel wait channel names what it is
+# blocked in.
+say "what it is doing while it does not answer"
+claude auth status --json > /tmp/cycle-hang.out 2>&1 &
+hung=$!
+sleep 25
+if kill -0 "$hung" 2>/dev/null; then
+    printf 'still running after 25s as pid %s\n' "$hung"
+    ps -o pid,ppid,stat,wchan:28,args -p "$hung" 2>&1 || true
+    printf -- '-- its descendants --\n'
+    ps -eo pid,ppid,stat,wchan:28,args 2>/dev/null | awk -v root="$hung" '
+        NR == 1 { next }
+        { parent[$1] = $2; line[$1] = $0 }
+        END {
+            for (p in parent) {
+                q = p
+                for (i = 0; i < 40 && q != 1 && q != ""; i++) {
+                    if (parent[q] == root) { print line[p]; break }
+                    q = parent[q]
+                }
+            }
+        }' || true
+    printf -- '-- open sockets it holds --\n'
+    ls -l "/proc/$hung/fd" 2>/dev/null | grep -c socket || true
+    kill "$hung" 2>/dev/null || true
+else
+    printf 'it answered within 25s after all\n'
+fi
+cat /tmp/cycle-hang.out 2>/dev/null | head -5
+
+say "claude auth status with the message bus refused rather than started"
+DBUS_SESSION_BUS_ADDRESS="disabled:" timeout 60 claude auth status --json 2>&1 \
+    || printf 'exit %s\n' "$?"
 """
 
 

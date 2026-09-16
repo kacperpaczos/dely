@@ -95,6 +95,16 @@ def build() -> int:
             print("BLOCK  packer init failed:", initialised.stderr.strip()[-400:])
             return 1
 
+        node = VERSIONS["tool_image"]["contents"]["node"]
+        superpowers = next(
+            entry for entry in VERSIONS["skills"]["plugins"]
+            if entry["name"] == "superpowers"
+        )
+        skill_digests = " ".join(
+            f"{entry['name']}={entry['skill_md_sha256']}"
+            for entry in VERSIONS["skills"]["bundled"]["entries"]
+        )
+
         argv = [
             "packer", "build",
             "-var", f"base_image={base}",
@@ -106,6 +116,11 @@ def build() -> int:
             "-var", f"orca_url={orca['url']}",
             "-var", f"orca_sha256={orca['sha256']}",
             "-var", f"claude_code_version={claude['version']}",
+            "-var", f"node_version={node['version']}",
+            "-var", f"node_sha256={node['sha256']}",
+            "-var", f"superpowers_repository={superpowers['repository']}",
+            "-var", f"superpowers_revision={superpowers['revision']}",
+            "-var", f"skill_digests={skill_digests}",
             str(HERE / "tool-image.pkr.hcl"),
         ]
         print("running packer; this takes a while", flush=True)

@@ -641,6 +641,89 @@ CASES: tuple[Counterexample, ...] = (
         replacement="            self._check_host_registry(record)",
         instruments=("tests.test_lifecycle.HostRegistryTest",),
     ),
+    Counterexample(
+        name="a-named-skill-is-not-a-present-skill",
+        requirement=(
+            "An install that says it succeeded, in a directory the agent never "
+            "looks in, is indistinguishable from no install at all"
+        ),
+        path="cycle_runner/skills.py",
+        original='    if where == MISSING:\n        finding.detail = "no SKILL.md for this skill anywhere the agent looks"\n        return finding',
+        replacement='    if where == MISSING:\n        finding.ok = True\n        return finding',
+        instruments=(
+            "tests.test_skills.JudgementTest",
+            "tests.test_lifecycle.SkillsGateTest",
+        ),
+    ),
+    Counterexample(
+        name="a-skill-is-pinned-by-its-bytes",
+        requirement=(
+            "`skills add` fetches what is current; only the digest tells that "
+            "apart from what was pinned"
+        ),
+        path="cycle_runner/skills.py",
+        original="    if digest != expected:",
+        replacement="    if False:",
+        instruments=(
+            "tests.test_skills.JudgementTest",
+            "tests.test_lifecycle.SkillsGateTest",
+        ),
+    ),
+    Counterexample(
+        name="an-unanswered-skill-is-not-a-present-one",
+        requirement=(
+            "A probe the environment never answered leaves the question open, "
+            "which is not the same as a pass"
+        ),
+        path="cycle_runner/skills.py",
+        original='    if answer is None:\n        finding.detail = "the environment did not answer for this skill"\n        return finding',
+        replacement='    if answer is None:\n        finding.ok = True\n        return finding',
+        instruments=("tests.test_skills.JudgementTest",),
+    ),
+    Counterexample(
+        name="a-missing-skill-blocks-the-run",
+        requirement=(
+            "A run that goes on to dispatch a worker without the skills it was "
+            "pinned to reports on something else than what was configured"
+        ),
+        path="cycle_runner/lifecycle.py",
+        original="        if self.result.skills.status is PhaseStatus.BLOCKED:",
+        replacement="        if False:",
+        instruments=("tests.test_lifecycle.SkillsGateTest",),
+    ),
+    Counterexample(
+        name="an-unpinned-image-is-not-a-verified-one",
+        requirement=(
+            "With nothing saying what the image should hash to, computing its "
+            "digest establishes nothing"
+        ),
+        path="cycle_runner/adapters/vm.py",
+        original="                    ok=bool(expected) and observed == expected,",
+        replacement="                    ok=True,",
+        instruments=("tests.test_adapter_vm.BaseImageDigestTest",),
+    ),
+    Counterexample(
+        name="the-examples-carry-no-placeholders",
+        requirement=(
+            "One documented command means the shipped configuration runs as it "
+            "stands, not after the reader guesses what to substitute"
+        ),
+        path="config.distrobox.example.yaml",
+        original="  container_prefix: dely-cycle",
+        replacement="  container_prefix: replace-with-your-prefix",
+        instruments=("tests.test_examples_are_runnable.NoPlaceholdersTest",),
+    ),
+    Counterexample(
+        name="the-container-example-installs-what-it-requires",
+        requirement=(
+            "A container image carries no Orca and no skills; an empty "
+            "provision list cannot put them there"
+        ),
+        path="config.distrobox.example.yaml",
+        original="  provision:\n    - [\"sh\", \"-c\", \"set -eu; export DEBIAN_FRONTEND=noninteractive;",
+        replacement="  provision: []\n  unused:\n    - [\"sh\", \"-c\", \"set -eu; export DEBIAN_FRONTEND=noninteractive;",
+        instruments=("tests.test_examples_are_runnable.ProvisionIsRealTest",),
+    ),
 )
 
 

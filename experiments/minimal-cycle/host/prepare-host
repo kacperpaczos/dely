@@ -175,6 +175,47 @@ def base_image_step(check_only: bool) -> Step:
     return Step("base image", True, f"downloaded and verified {target}")
 
 
+def project_source_step(check_only: bool) -> Step:
+    """The checkout a run exports its revision from.
+
+    It carries no revision of its own: which one is tested is the run
+    configuration's decision, so any branch can be tested without this
+    evaluation branch being merged anywhere.
+    """
+    source = VERSIONS["project_source"]
+    target = Path(source["path"])
+    if (target / ".git").is_dir():
+        if check_only:
+            return Step("project source", True, f"{target} is a checkout")
+        fetched = run(
+            ["git", "-C", str(target), "fetch", "--all", "--tags", "--prune"],
+            timeout=600,
+        )
+        if fetched.returncode != 0:
+            return Step(
+                "project source",
+                True,
+                f"{target} is a checkout; it could not be refreshed "
+                f"({fetched.stderr.strip().splitlines()[-1] if fetched.stderr.strip() else 'no detail'})",
+            )
+        return Step("project source", True, f"{target} refreshed from its origin")
+    if check_only:
+        return Step("project source", False, f"no checkout at {target}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    cloned = run(
+        ["git", "clone", "--no-checkout", source["repository"], str(target)],
+        timeout=1800,
+    )
+    if cloned.returncode != 0:
+        return Step(
+            "project source",
+            False,
+            f"cloning {source['repository']} failed: "
+            + (cloned.stderr.strip().splitlines()[-1] if cloned.stderr.strip() else "no detail"),
+        )
+    return Step("project source", True, f"cloned {source['repository']} into {target}")
+
+
 def pool_step(check_only: bool) -> Step:
     pool = VERSIONS["host_tools"]["storage_pool"]
     uri = VERSIONS["host_tools"]["connect_uri"]
@@ -224,6 +265,7 @@ STEPS = (
     pulumi_step,
     backend_step,
     environment_step,
+    project_source_step,
     base_image_step,
     pool_step,
     network_step,

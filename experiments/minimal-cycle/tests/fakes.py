@@ -11,7 +11,7 @@ import shutil
 from pathlib import Path
 from typing import Mapping, Sequence
 
-from cycle_runner import probe, proc
+from cycle_runner import probe, proc, skills
 from cycle_runner.adapters.base import (
     BackendAdapter,
     DestroyReport,
@@ -114,8 +114,12 @@ class FakeAdapter(BackendAdapter):
         create_fails: bool = False,
         task_writes_nothing: bool = False,
         host_project: Path | None = None,
+        skill_answers: Mapping[str, tuple[str, str]] | None = None,
+        plugin_answers: Mapping[str, tuple[str, str]] | None = None,
     ):
         self.root = Path(root)
+        self.skill_answers = dict(skill_answers or {})
+        self.plugin_answers = dict(plugin_answers or {})
         self.home = self.root / "home"
         self.project = self.home / "project"
         self.shared_base = self.root.parent / "shared" / "base.img"
@@ -218,6 +222,18 @@ class FakeAdapter(BackendAdapter):
             return probe.parse(self._host_snapshot_text()).get("orca_path", "")
         return "/usr/bin/orca"
 
+    @staticmethod
+    def _skill_lines(argv: Sequence[str], answers: Mapping[str, tuple[str, str]]) -> str:
+        """Answer one line per name the probe was asked about, as the script does."""
+        lines = []
+        for item in argv[4:]:
+            name = item.split("=", 1)[0]
+            if name.startswith("."):  # the roots argument, not a name
+                continue
+            first, second = answers.get(name, ("missing", ""))
+            lines.append(f"{name}\t{first}\t{second}")
+        return "\n".join(lines) + ("\n" if lines else "")
+
     def execute(
         self,
         argv: Sequence[str],
@@ -228,6 +244,12 @@ class FakeAdapter(BackendAdapter):
         extra_values: Sequence[str] = (),
     ) -> proc.CommandOutcome:
         joined = " ".join(argv)
+        if skills.LOCATE_SCRIPT in joined:
+            self.calls.append("skills-locate")
+            return self._outcome(argv, 0, self._skill_lines(argv, self.skill_answers), "")
+        if skills.REVISION_SCRIPT in joined:
+            self.calls.append("skills-revision")
+            return self._outcome(argv, 0, self._skill_lines(argv, self.plugin_answers), "")
         if probe.PROBE_SCRIPT in joined:
             self.calls.append("probe")
             return self._outcome(argv, 0, self._snapshot(), "")

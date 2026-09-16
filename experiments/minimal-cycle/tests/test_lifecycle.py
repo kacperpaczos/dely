@@ -636,3 +636,88 @@ class HostRegistryTest(CycleTestCase):
             [record.state for record in admission.read_leases(self.state, "distrobox")],
             [admission.RETAINED],
         )
+
+
+SKILL_DIGEST = "f7da0dd40d8681e2b0303fa0fa2f7ee4e36f2eca6495a4af57b92b9857dff732"
+PLUGIN_COMMIT = "b36e0829c6d0140e93cfef2ca599b1b07d4a7797"
+
+
+class SkillsGateTest(CycleTestCase):
+    """An image that says it installed a skill is not an agent that has it."""
+
+    def make_config(self, **overrides):
+        document = json.loads(
+            json.dumps(
+                {
+                    "skills": {
+                        "required": True,
+                        "bundled": [{"name": "orchestration", "sha256": SKILL_DIGEST}],
+                        "plugins": [
+                            {
+                                "name": "superpowers",
+                                "path": "/opt/dely-cycle/superpowers",
+                                "revision": PLUGIN_COMMIT,
+                            }
+                        ],
+                    }
+                }
+            )
+        )
+        document.update(overrides)
+        return super().make_config(**document)
+
+    def cycle(self, **adapter_options):
+        adapter = FakeAdapter(
+            self.state / RUN_ID, host_project=self.repo, **adapter_options
+        )
+        return lifecycle.run_cycle(
+            run_config=self.make_config(),
+            adapter=adapter,
+            run_id=RUN_ID,
+            host_home=self.host_home,
+            environ={},
+            tool_versions={"runner": "one"},
+        )
+
+    def everything_present(self):
+        return {
+            "skill_answers": {"orchestration": ("/h/.agents/skills/orchestration/SKILL.md", SKILL_DIGEST)},
+            "plugin_answers": {"superpowers": (PLUGIN_COMMIT, "/opt/dely-cycle/superpowers")},
+        }
+
+    def test_the_pinned_skills_being_there_lets_the_run_continue(self):
+        outcome = self.cycle(**self.everything_present())
+        self.assertEqual(outcome.run_result.skills.status.value, "OK")
+        self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+
+    def test_an_absent_skill_blocks_before_the_task(self):
+        answers = self.everything_present()
+        answers["skill_answers"] = {"orchestration": ("missing", "")}
+        outcome = self.cycle(**answers)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.BLOCKED)
+        self.assertEqual(
+            outcome.run_result.phase("task").status.value, "SKIPPED"
+        )
+        self.assertIn("orchestration", outcome.run_result.skills.detail)
+
+    def test_a_skill_that_is_not_the_pinned_one_blocks(self):
+        answers = self.everything_present()
+        answers["skill_answers"] = {"orchestration": ("/h/SKILL.md", "0" * 64)}
+        outcome = self.cycle(**answers)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.BLOCKED)
+        self.assertIn("drifted", outcome.run_result.skills.detail)
+
+    def test_a_plugin_at_the_wrong_commit_blocks(self):
+        answers = self.everything_present()
+        answers["plugin_answers"] = {"superpowers": ("0" * 40, "/opt/dely-cycle/superpowers")}
+        outcome = self.cycle(**answers)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.BLOCKED)
+        self.assertIn("different commit", outcome.run_result.skills.detail)
+
+    def test_the_findings_are_exported(self):
+        outcome = self.cycle(**self.everything_present())
+        document = json.loads(self.artifact("skills.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            sorted(entry["name"] for entry in document["findings"]),
+            ["orchestration", "superpowers"],
+        )

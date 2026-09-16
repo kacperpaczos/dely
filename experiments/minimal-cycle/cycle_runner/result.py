@@ -258,6 +258,22 @@ class FirstRunRecord:
 
 
 @dataclass
+class SkillsRecord:
+    """Which skills the environment really carries, and at which revision."""
+
+    status: PhaseStatus = PhaseStatus.SKIPPED
+    findings: list[dict[str, Any]] = field(default_factory=list)
+    detail: str = "not attempted"
+
+    def to_document(self) -> dict[str, Any]:
+        return {
+            "status": self.status.value,
+            "findings": [dict(entry) for entry in self.findings],
+            "detail": self.detail,
+        }
+
+
+@dataclass
 class AdmissionRecord:
     """The slot this run was given, and what else held one at the time."""
 
@@ -308,6 +324,7 @@ class RunResult:
     auth: AuthRecord = field(default_factory=AuthRecord)
     first_run: FirstRunRecord = field(default_factory=FirstRunRecord)
     admission: AdmissionRecord = field(default_factory=AdmissionRecord)
+    skills: SkillsRecord = field(default_factory=SkillsRecord)
 
     def phase(self, name: str) -> PhaseRecord | None:
         for record in self.phases:
@@ -338,6 +355,7 @@ class RunResult:
             "auth": self.auth.to_document(),
             "first_run": self.first_run.to_document(),
             "admission": self.admission.to_document(),
+            "skills": self.skills.to_document(),
         }
 
 

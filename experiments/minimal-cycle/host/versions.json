@@ -12,8 +12,12 @@
       "version": "1.16.0",
       "note": "already present on the development host; the template pins the qemu plugin itself"
     },
-    "qemu": {"version": "10.2.2"},
-    "libvirt": {"version": "12.0.0"},
+    "qemu": {
+      "version": "10.2.2"
+    },
+    "libvirt": {
+      "version": "12.0.0"
+    },
     "connect_uri": "qemu:///system",
     "network": "default",
     "storage_pool": {
@@ -62,7 +66,13 @@
         "note": "installed from the registry at the pinned version, never at latest"
       },
       "skills": {
-        "note": "skills are an explicit, pinned part of the image; the runner never fetches an unpinned one at run time"
+        "note": "see the top-level skills block; every entry is pinned and verified inside the environment before the task runs"
+      },
+      "node": {
+        "version": "v24.21.0",
+        "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz",
+        "sha256": "fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6",
+        "note": "Ubuntu packages node 18, on which the skills command line fails with a module error; this tarball is unpacked into /usr/local/node after its digest is checked"
       }
     },
     "excludes": [
@@ -72,5 +82,53 @@
       "private keys",
       "any part of the host home directory"
     ]
+  },
+  "project_source": {
+    "description": "The checkout the runner exports a revision from. The revision under test is named by the run configuration, never here: the evaluation harness and the revision it tests stay separate, so any branch can be tested without merging it into this one.",
+    "repository": "https://github.com/kacperpaczos/dely.git",
+    "path": "/var/tmp/dely-cycle/project-source"
+  },
+  "skills": {
+    "description": "What the agent inside the environment must be able to reach. Each entry is pinned, and the runner asks the environment for the digest rather than trusting that an install succeeded.",
+    "roots": [
+      ".agents/skills",
+      ".claude/skills"
+    ],
+    "bundled": {
+      "installed_with": "orca skills install --skill <name> --agent claude",
+      "pins_read_from": "/opt/Orca/resources/skills/current-manifest.json, inside the pinned Orca package",
+      "why_a_digest": "the install resolves to `npx skills add <repo>`, which fetches what is current; the digest is what tells that apart from what was pinned",
+      "entries": [
+        {
+          "name": "orchestration",
+          "release_revision": 29,
+          "git_tree_sha": "ebd864919dd8cab9d7049fc624c9afeebce2767c",
+          "package_digest": "1816d97bb3597c8b110a5e7d48056e95aeeb8c2fe0d882d5cb04ee9257061618",
+          "skill_md_sha256": "f7da0dd40d8681e2b0303fa0fa2f7ee4e36f2eca6495a4af57b92b9857dff732"
+        },
+        {
+          "name": "orca-cli",
+          "release_revision": 37,
+          "git_tree_sha": "0c90a5b8b422a93ca806af6df3b65445ab5b2072",
+          "package_digest": "f5e4d304469c6455612c4ccea8985fb2206be0b8de402d1de8f758dde3f902ab",
+          "skill_md_sha256": "b21b9b80475c35996b9c046379b9c9fa788f2d357c9e917befd8ab1b37df2e77"
+        }
+      ]
+    },
+    "plugins": [
+      {
+        "name": "superpowers",
+        "version": "6.3.0",
+        "repository": "https://github.com/obra/superpowers.git",
+        "revision": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797",
+        "marketplace": "superpowers-dev",
+        "path": "/opt/dely-cycle/superpowers",
+        "note": "cloned and checked out at the commit above, then added as a marketplace and installed; a tag would move"
+      }
+    ],
+    "cloud": {
+      "installed": false,
+      "why": "this cycle reaches no cloud service. Pulumi runs on the host, not inside the environment, so the environment needs no cloud skill. A test that does use one adds it here, pinned like the rest."
+    }
   }
 }

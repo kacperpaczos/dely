@@ -30,6 +30,7 @@ from . import (
     proc,
     project,
     redact,
+    skills,
     worker,
 )
 from .adapters.base import BackendAdapter, EnvironmentHandle
@@ -426,6 +427,53 @@ class _Cycle:
             )
             self.result.first_run = first_run
             self.exporter.write_json("first-run-state.json", first_run.to_document())
+            # Provisioning claims to have installed the skills; this asks the
+            # environment what it actually has, and at which revision.
+            self._verify_skills(record)
+
+    def _verify_skills(self, record) -> None:
+        """Ask the environment which skills it has, and whether they are the pinned ones."""
+        assert self.handle is not None
+        settings = self.config.skills
+        if settings.empty:
+            self.result.skills = skills.record([], settings.required)
+            self.exporter.write_json(
+                "skills.json", self.result.skills.to_document(), required=False
+            )
+            return
+        skill_answers: dict[str, tuple[str, str]] = {}
+        plugin_answers: dict[str, tuple[str, str]] = {}
+        if settings.bundled:
+            outcome = self.execute(
+                skills.locate_argv(
+                    settings.roots, [item.name for item in settings.bundled]
+                ),
+                timeout=min(180, self.config.timeout_seconds),
+            )
+            record.commands.append(outcome.to_record())
+            skill_answers = skills.parse(outcome.stdout)
+        if settings.plugins:
+            outcome = self.execute(
+                skills.revision_argv(
+                    [(item.name, item.path) for item in settings.plugins]
+                ),
+                timeout=min(180, self.config.timeout_seconds),
+            )
+            record.commands.append(outcome.to_record())
+            plugin_answers = skills.parse(outcome.stdout)
+        findings, _ = skills.judge(
+            bundled=[(item.name, item.sha256) for item in settings.bundled],
+            plugins=[(item.name, item.revision) for item in settings.plugins],
+            skill_answers=skill_answers,
+            plugin_answers=plugin_answers,
+        )
+        self.result.skills = skills.record(findings, settings.required)
+        self.exporter.write_json("skills.json", self.result.skills.to_document())
+        self.log.say(f"skills: {self.result.skills.detail}")
+        if self.result.skills.status is PhaseStatus.BLOCKED:
+            record.status = PhaseStatus.BLOCKED
+            record.detail = self.result.skills.detail
+            self.blocked_reason = self.blocked_reason or self.result.skills.detail
 
     def _provision_steps(self):
         section = (

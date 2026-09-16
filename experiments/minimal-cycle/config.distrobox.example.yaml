@@ -1,16 +1,18 @@
 # One minimal proof cycle on the Distrobox backend.
 #
-# Every path here is an example. Replace them before running, and read the
-# README's "What Distrobox does not give you" section before trusting the
-# isolation this backend provides.
+# This file is meant to be run as it stands, once `host/prepare-host` has put
+# the project source in place. Nothing here is a placeholder. Read the README's
+# "What Distrobox does not give you" before trusting this backend's isolation:
+# Distrobox mounts the host home into every box and offers no flag to stop it.
 
 backend: distrobox
 
-# The revision of the system under test, and of dely itself. Both are recorded
-# in the manifest so a result can be tied to what produced it.
-tested_revision: replace-with-the-revision-under-test
-dely_revision: replace-with-the-dely-revision
-claude_code_version: replace-with-the-pinned-claude-code-version
+# The revision under test, and of dely itself — dely is the project here. The
+# evaluation harness lives on its own branch and is never merged into what it
+# tests, so this names any revision you want to test.
+tested_revision: main
+dely_revision: main
+claude_code_version: "2.1.272"
 
 timeout_seconds: 1800
 
@@ -20,8 +22,9 @@ artifact_root: /var/tmp/dely-cycle/artifacts
 state_root: /var/tmp/dely-cycle/state
 
 project:
-  # A git repository on the host. The runner exports one revision with
-  # `git archive`, so the copy carries no repository state and no uncommitted work.
+  # The checkout host/prepare-host maintains. The runner exports one revision
+  # with `git archive`, so the copy carries no repository state and no
+  # uncommitted work.
   source: /var/tmp/dely-cycle/project-source
   revision: main
   # Where the copy lands inside the environment, relative to the per-run home.
@@ -35,31 +38,83 @@ check:
   relative_path: evidence.txt
 
 auth:
-  # existing_login | short_lived_token | api_key_helper
-  #
-  # existing_login copies only the relative entries listed below into the
-  # per-run home. On Distrobox that buys less than it appears to: see the
-  # README, because Distrobox mounts the host home regardless.
-  mode: api_key_helper
-  reference: workshop-helper
-  helper_argv:
-    - /usr/local/bin/replace-with-your-key-helper
+  # existing_login copies only the entries listed below into the per-run home.
+  # On Distrobox that buys less than it appears to — the host home is mounted
+  # regardless — so it is a deliberate, minimal transfer, not an isolation
+  # claim. The alternatives are short_lived_token and api_key_helper.
+  mode: existing_login
+  reference: workshop-host-login
+  allowlist:
+    - .claude/.credentials.json
 
 orca:
-  version: replace-with-the-pinned-orca-version
-  model: replace-with-the-pinned-model
-  effort: replace-with-the-pinned-effort
+  version: "1.4.201"
+  model: claude-opus-5
+  effort: high
   agent: claude
   worktree_selector: current
+  # The box's own installation, by the path the package puts it at.
+  command: /opt/Orca/resources/bin/orca-ide
+  status_argv: ["/opt/Orca/resources/bin/orca-ide", "status", "--json"]
+  version_argv: ["/opt/Orca/resources/bin/orca-ide", "--version"]
+  app_argv: ["/opt/Orca/orca-ide", "--disable-gpu"]
+  # A display of the box's own. Pointing at the host's compositor would put
+  # windows on the operator's desktop.
+  display: ":99"
+  ready_timeout_seconds: 300
+
+# What the agent must be able to reach, and at which revision. The runner asks
+# the environment for each digest rather than trusting that an install worked.
+skills:
+  required: true
+  roots: [".agents/skills", ".claude/skills"]
+  bundled:
+    - name: orchestration
+      sha256: f7da0dd40d8681e2b0303fa0fa2f7ee4e36f2eca6495a4af57b92b9857dff732
+    - name: orca-cli
+      sha256: b21b9b80475c35996b9c046379b9c9fa788f2d357c9e917befd8ab1b37df2e77
+  plugins:
+    - name: superpowers
+      version: "6.3.0"
+      repository: https://github.com/obra/superpowers.git
+      revision: b36e0829c6d0140e93cfef2ca599b1b07d4a7797
+      marketplace: superpowers-dev
+      path: /opt/dely-cycle/superpowers
+
+# One box at a time on this host. Raising that is a switch, not a number, and
+# the switch requires a budget.
+limits:
+  parallel: false
+  max_active: 1
 
 distrobox:
   # Pull the image deliberately before the run; the runner refuses to fetch it.
   image: docker.io/library/ubuntu:24.04
   container_prefix: dely-cycle
   extra_mounts: []
-  # Commands run inside the fresh box before the identity gate. This is where
-  # Orca and Claude Code get installed if the image does not already carry them.
-  provision: []
-  # Distrobox mounts the host home into every box and offers no flag to suppress
-  # it. Preflight blocks until this records that the compromise is deliberate.
-  accept_host_home_mount: false
+  # The share of the host this box may take. The container manager is told the
+  # same numbers admission counts against the budget.
+  vcpus: 2
+  memory_mb: 4096
+  pids: 2048
+  disk_bytes: 8589934592
+  # Distrobox mounts the host home into every box and offers no flag to
+  # suppress it. Preflight blocks until this records that the compromise is
+  # deliberate.
+  accept_host_home_mount: true
+  # Commands run inside the fresh box before the identity gate. A container
+  # image carries none of this, so the box installs it per run.
+  provision:
+    - ["sh", "-c", "set -eu; export DEBIAN_FRONTEND=noninteractive; sudo apt-get update -qq; sudo apt-get install -y -qq curl ca-certificates git xz-utils xvfb x11-xserver-utils xdotool libgtk-3-0t64 libnss3 libasound2t64 libatk-bridge2.0-0t64 libcups2t64 libdrm2 libgbm1 libxkbcommon0 libpango-1.0-0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libsecret-1-0 xdg-utils > /dev/null; echo deps installed"]
+    # Ubuntu's own node is 18, and the skills command line fails on it with a
+    # module error. This is the pinned tarball, checked before it is unpacked.
+    - ["sh", "-c", "set -eu; curl -fsSL -o /tmp/node.tar.xz 'https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz'; echo 'fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6  /tmp/node.tar.xz' | sha256sum -c -; sudo mkdir -p /usr/local/node; sudo tar -xJf /tmp/node.tar.xz -C /usr/local/node --strip-components=1; rm -f /tmp/node.tar.xz; sudo ln -sf /usr/local/node/bin/node /usr/local/bin/node; sudo ln -sf /usr/local/node/bin/npm /usr/local/bin/npm; sudo ln -sf /usr/local/node/bin/npx /usr/local/bin/npx; node --version"]
+    - ["sh", "-c", "set -eu; curl -fsSL -o /tmp/orca.deb 'https://github.com/stablyai/orca/releases/download/v1.4.201/orca-ide_1.4.201_amd64.deb'; echo '9dab79a5223837fc91992e04ed54f92f45d6f4b486d7128c08166bfb1a15a573  /tmp/orca.deb' | sha256sum -c -; sudo apt-get install -y -qq /tmp/orca.deb > /dev/null; rm -f /tmp/orca.deb; test -x /opt/Orca/resources/bin/orca-ide; echo orca installed"]
+    - ["sh", "-c", "set -eu; sudo npm install -g --no-fund --no-audit --silent '@anthropic-ai/claude-code@2.1.272' > /dev/null; sudo ln -sf /usr/local/node/bin/claude /usr/local/bin/claude; claude --version"]
+    # Superpowers, at the pinned commit. A tag would move.
+    - ["sh", "-c", "set -eu; sudo mkdir -p /opt/dely-cycle; sudo chown \"$(id -u):$(id -g)\" /opt/dely-cycle; git clone -q --filter=blob:none https://github.com/obra/superpowers.git /opt/dely-cycle/superpowers; git -C /opt/dely-cycle/superpowers checkout -q b36e0829c6d0140e93cfef2ca599b1b07d4a7797; claude plugin marketplace add /opt/dely-cycle/superpowers; claude plugin install superpowers@superpowers-dev --yes; claude plugin list"]
+    # Orca's own skills. `orca skills install` resolves to this command but
+    # passes --agent claude, which the skills command line rejects; the name it
+    # accepts is claude-code.
+    - ["sh", "-c", "set -eu; npx --yes skills add https://github.com/stablyai/orca --skill orca-cli --skill orchestration --global --agent claude-code -y > /tmp/skills.log 2>&1 || { tail -20 /tmp/skills.log >&2; exit 1; }; ls \"$HOME/.claude/skills\""]
+    - ["sh", "-c", "set -eu; if DISPLAY=:99 xset -q > /dev/null 2>&1; then echo 'virtual display already up'; exit 0; fi; setsid nohup Xvfb :99 -screen 0 1280x800x24 -nolisten tcp > /tmp/xvfb.log 2>&1 < /dev/null & waited=0; while ! DISPLAY=:99 xset -q > /dev/null 2>&1; do waited=$((waited + 1)); if [ $waited -ge 60 ]; then echo 'no virtual display' >&2; exit 3; fi; sleep 1; done; echo \"virtual display ready after ${waited}s\""]

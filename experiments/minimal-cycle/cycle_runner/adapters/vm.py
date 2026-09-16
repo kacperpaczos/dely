@@ -16,6 +16,7 @@ graphics types this qemu actually has — is read before a domain is declared.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import shlex
 import shutil
@@ -405,6 +406,30 @@ class VmAdapter(BackendAdapter):
 
     # -- host facts -------------------------------------------------------
 
+    @property
+    def base_metadata_path(self) -> Path:
+        """Where the build that produced this image recorded what it produced."""
+        return Path(self.settings.base_image).with_suffix(".json")
+
+    def expected_base_digest(self) -> tuple[str, str]:
+        """Return the digest this image must have, and where that came from.
+
+        A configuration may pin it outright. Otherwise it comes from the
+        metadata the build wrote beside the image — which is what shows the
+        image is still the one that build produced, not a claim about where the
+        build's inputs came from. Those are pinned separately, in versions.json.
+        """
+        if self.settings.base_image_sha256:
+            return self.settings.base_image_sha256, "the configuration pins"
+        try:
+            recorded = json.loads(self.base_metadata_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return "", "nothing records"
+        digest = recorded.get("sha256")
+        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+            return "", "nothing records"
+        return digest, f"the build recorded in {self.base_metadata_path.name}"
+
     def _base_digest(self) -> str | None:
         base = Path(self.settings.base_image)
         if not base.is_file():
@@ -564,14 +589,23 @@ class VmAdapter(BackendAdapter):
         )
         if base_present:
             observed = self._base_digest()
+            expected, source = self.expected_base_digest()
             findings.append(
                 Finding(
                     name="base image digest matches the pin",
-                    ok=observed == self.settings.base_image_sha256,
+                    ok=bool(expected) and observed == expected,
                     detail=(
-                        "the preserved base matches the pinned digest"
-                        if observed == self.settings.base_image_sha256
-                        else f"the base image digest is {observed}, not the pinned value"
+                        f"the preserved base matches the digest {source}"
+                        if expected and observed == expected
+                        else (
+                            f"the base image digest is {observed}, not the one {source}"
+                            if expected
+                            else (
+                                "nothing says what this image should hash to: the "
+                                "configuration names no digest and there is no build "
+                                f"metadata at {self.base_metadata_path}"
+                            )
+                        )
                     ),
                 )
             )

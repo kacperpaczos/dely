@@ -9,6 +9,7 @@ authenticates. It never names a credential value: a key whose name means
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -229,6 +230,67 @@ class OrcaConfig:
         }
 
 
+#: Where a skill's directory may sit under the environment's home. The first
+#: is the shared directory the skills CLI installs into; the second is Claude
+#: Code's own personal skills directory.
+DEFAULT_SKILL_ROOTS = (".agents/skills", ".claude/skills")
+
+
+@dataclass(frozen=True)
+class PinnedSkill:
+    """One skill directory, pinned by the digest of its SKILL.md."""
+
+    name: str
+    sha256: str
+
+    def to_document(self) -> dict[str, Any]:
+        return {"name": self.name, "sha256": self.sha256}
+
+
+@dataclass(frozen=True)
+class PinnedPlugin:
+    """One plugin checkout, pinned by the commit the environment must be at."""
+
+    name: str
+    path: str
+    revision: str
+    repository: str = ""
+    version: str = ""
+    marketplace: str = ""
+
+    def to_document(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "path": self.path,
+            "revision": self.revision,
+            "repository": self.repository,
+            "version": self.version,
+            "marketplace": self.marketplace,
+        }
+
+
+@dataclass(frozen=True)
+class SkillsConfig:
+    """What the agent in the environment must be able to reach, and at what version."""
+
+    required: bool = True
+    roots: tuple[str, ...] = DEFAULT_SKILL_ROOTS
+    bundled: tuple[PinnedSkill, ...] = ()
+    plugins: tuple[PinnedPlugin, ...] = ()
+
+    def to_document(self) -> dict[str, Any]:
+        return {
+            "required": self.required,
+            "roots": list(self.roots),
+            "bundled": [item.to_document() for item in self.bundled],
+            "plugins": [item.to_document() for item in self.plugins],
+        }
+
+    @property
+    def empty(self) -> bool:
+        return not self.bundled and not self.plugins
+
+
 @dataclass(frozen=True)
 class DistroboxConfig:
     image: str
@@ -273,9 +335,13 @@ class VmConfig:
     provider_version: str
     stack_prefix: str
     base_image: Path
-    base_image_sha256: str
     guest_user: str
     venv: Path
+    # Empty means "whatever the build that produced this image recorded beside
+    # it". A packer build is not reproducible byte for byte, so a digest
+    # committed here would be wrong after every rebuild; the metadata the build
+    # writes is what says this image is still the one it produced.
+    base_image_sha256: str = ""
     pulumi_binary: str = "pulumi"
     connect_uri: str = "qemu:///system"
     pool: str = "dely-cycle"
@@ -340,6 +406,7 @@ class RunConfig:
     check: CheckConfig
     auth: AuthConfig
     orca: OrcaConfig
+    skills: SkillsConfig = field(default_factory=SkillsConfig)
     limits: Limits = field(default_factory=Limits)
     distrobox: DistroboxConfig | None = None
     vm: VmConfig | None = None
@@ -373,6 +440,7 @@ class RunConfig:
             "check": self.check.to_document(),
             "auth": self.auth.to_document(),
             "orca": self.orca.to_document(),
+            "skills": self.skills.to_document(),
             "limits": self.limits.to_document(),
         }
         if self.distrobox is not None:
@@ -398,6 +466,7 @@ _TOP_LEVEL = (
     "check",
     "auth",
     "orca",
+    "skills",
     "limits",
     "distrobox",
     "vm",
@@ -522,6 +591,74 @@ def _provision(document: Mapping[str, Any], where: str) -> tuple[tuple[str, ...]
     return tuple(steps)
 
 
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+_COMMIT = re.compile(r"^[0-9a-f]{40}$")
+
+
+def _skills(document: Mapping[str, Any]) -> SkillsConfig:
+    if not document:
+        return SkillsConfig()
+    _reject_unknown(document, ("required", "roots", "bundled", "plugins"), "skills")
+    roots = tuple(document.get("roots") or DEFAULT_SKILL_ROOTS)
+    for root in roots:
+        if not isinstance(root, str) or not root.strip():
+            _fail("skills.roots must contain only non-empty strings")
+        if Path(root).is_absolute():
+            _fail(
+                f"skills.roots entry {root!r} is absolute; a root is relative to "
+                "the environment's home, not to this host"
+            )
+    bundled = []
+    for index, entry in enumerate(document.get("bundled") or ()):
+        where = f"skills.bundled[{index}]"
+        if not isinstance(entry, Mapping):
+            _fail(f"{where} must be a mapping")
+        _reject_unknown(entry, ("name", "sha256"), where)
+        name = _text(entry, "name", where)
+        sha256 = _text(entry, "sha256", where)
+        if not _SHA256.match(sha256):
+            _fail(
+                f"{where}.sha256 is not a sha256 digest; a skill nothing pins is a "
+                "skill that can be fetched from anywhere"
+            )
+        bundled.append(PinnedSkill(name=name, sha256=sha256))
+    plugins = []
+    for index, entry in enumerate(document.get("plugins") or ()):
+        where = f"skills.plugins[{index}]"
+        if not isinstance(entry, Mapping):
+            _fail(f"{where} must be a mapping")
+        _reject_unknown(
+            entry,
+            ("name", "path", "revision", "repository", "version", "marketplace"),
+            where,
+        )
+        revision = _text(entry, "revision", where)
+        if not _COMMIT.match(revision):
+            _fail(
+                f"{where}.revision is not a full commit; a tag or a branch is not "
+                "a pin, because it moves"
+            )
+        path_value = _text(entry, "path", where)
+        if not Path(path_value).is_absolute():
+            _fail(f"{where}.path must be absolute inside the environment")
+        plugins.append(
+            PinnedPlugin(
+                name=_text(entry, "name", where),
+                path=path_value,
+                revision=revision,
+                repository=_text(entry, "repository", where, ""),
+                version=_text(entry, "version", where, ""),
+                marketplace=_text(entry, "marketplace", where, ""),
+            )
+        )
+    return SkillsConfig(
+        required=_flag(document, "required", "skills", True),
+        roots=roots,
+        bundled=tuple(bundled),
+        plugins=tuple(plugins),
+    )
+
+
 def _budget(document: Mapping[str, Any]) -> Budget:
     _reject_unknown(
         document,
@@ -633,8 +770,14 @@ def _vm(document: Mapping[str, Any]) -> VmConfig:
     base_image = Path(_text(document, "base_image", "vm"))
     if not base_image.is_absolute():
         _fail("field vm.base_image must be an absolute path")
-    digest = _text(document, "base_image_sha256", "vm")
-    if len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+    # Absent means "whatever the build that produced this image recorded beside
+    # it". A packer build is not reproducible byte for byte, so a digest in a
+    # committed configuration would be wrong after every rebuild.
+    digest = _text(document, "base_image_sha256", "vm", "")
+    if digest and (
+        len(digest) != 64
+        or any(character not in "0123456789abcdef" for character in digest)
+    ):
         _fail("field vm.base_image_sha256 must be a lowercase content digest")
     venv = Path(_text(document, "venv", "vm"))
     if not venv.is_absolute():
@@ -709,6 +852,7 @@ def from_document(document: Mapping[str, Any]) -> RunConfig:
         check=_check(_section(document, "check", required=True), task),
         auth=_auth(_section(document, "auth", required=True)),
         orca=_orca(_section(document, "orca", required=True)),
+        skills=_skills(_section(document, "skills", required=False)),
         limits=_limits(_section(document, "limits", required=False)),
         distrobox=_distrobox(distrobox_document) if distrobox_document else None,
         vm=_vm(vm_document) if vm_document else None,

@@ -55,6 +55,29 @@ variable "claude_code_version" {
   type = string
 }
 
+variable "node_version" {
+  type        = string
+  description = "The node release the image carries; the packaged one is too old for the skills command line."
+}
+
+variable "node_sha256" {
+  type = string
+}
+
+variable "superpowers_repository" {
+  type = string
+}
+
+variable "superpowers_revision" {
+  type        = string
+  description = "The commit the plugin is pinned to. A tag would move."
+}
+
+variable "skill_digests" {
+  type        = string
+  description = "Space separated name=sha256 pairs the installed skills must match."
+}
+
 variable "guest_user" {
   type    = string
   default = "cycle"
@@ -117,6 +140,11 @@ build {
       "ORCA_URL=${var.orca_url}",
       "ORCA_SHA256=${var.orca_sha256}",
       "CLAUDE_CODE_VERSION=${var.claude_code_version}",
+      "NODE_VERSION=${var.node_version}",
+      "NODE_SHA256=${var.node_sha256}",
+      "SUPERPOWERS_REPOSITORY=${var.superpowers_repository}",
+      "SUPERPOWERS_REVISION=${var.superpowers_revision}",
+      "SKILL_DIGESTS=${var.skill_digests}",
       "GUEST_USER=${var.guest_user}",
     ]
     script          = "provision.sh"

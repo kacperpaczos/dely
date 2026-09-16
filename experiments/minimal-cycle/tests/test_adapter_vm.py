@@ -525,3 +525,68 @@ class VideoDeviceTest(VmTestCase):
 
     def test_another_model_can_be_declared(self):
         self.assertIn("VIDEO = 'qxl'", self.make(video="qxl").render_program())
+
+
+class BaseImageDigestTest(VmTestCase):
+    """A packer build is not reproducible, so the pin cannot be a constant."""
+
+    def unpinned(self, **overrides):
+        """An adapter whose configuration names no digest at all."""
+        document = minimal_document(backend="vm")
+        document.pop("distrobox")
+        document["state_root"] = str(self.root / "state")
+        document["artifact_root"] = str(self.root / "artifacts")
+        section = {
+            "provider": "pulumi-libvirt",
+            "provider_version": "0.5.4",
+            "stack_prefix": "dely-cycle",
+            "base_image": str(self.base),
+            "guest_user": "cycle",
+            "venv": str(self.venv),
+        }
+        section.update(overrides)
+        document["vm"] = section
+        return vm.VmAdapter(
+            run_config=config_module.from_document(document),
+            run_id=RUN_ID,
+            runner=StubRunner(HEALTHY, passthrough=True),
+            which=lambda name: f"/usr/bin/{name}",
+            sleeper=lambda _seconds: None,
+        )
+
+    def record_the_build(self, digest):
+        self.base.with_suffix(".json").write_text(
+            json.dumps({"sha256": digest}), encoding="utf-8"
+        )
+
+    def test_the_digest_the_build_recorded_is_what_the_image_is_held_to(self):
+        self.record_the_build(self.base_digest)
+        expected, source = self.unpinned().expected_base_digest()
+        self.assertEqual(expected, self.base_digest)
+        self.assertIn("tool-image.json", source)
+
+    def test_a_digest_in_the_configuration_wins(self):
+        self.record_the_build("0" * 64)
+        adapter = self.make(base_image_sha256="a" * 64)
+        expected, source = adapter.expected_base_digest()
+        self.assertEqual(expected, "a" * 64)
+        self.assertIn("configuration", source)
+
+    def test_with_nothing_recorded_and_nothing_pinned_the_answer_is_nothing(self):
+        self.assertEqual(self.unpinned().expected_base_digest()[0], "")
+
+    def test_an_unpinned_image_blocks_rather_than_passing(self):
+        findings = {f.name: f for f in self.unpinned().preflight().findings}
+        finding = findings["base image digest matches the pin"]
+        self.assertFalse(finding.ok)
+        self.assertIn("nothing says what this image should hash to", finding.detail)
+
+    def test_an_image_that_changed_since_the_build_blocks(self):
+        self.record_the_build(self.base_digest)
+        self.base.write_bytes(b"something else entirely")
+        findings = {f.name: f for f in self.unpinned().preflight().findings}
+        self.assertFalse(findings["base image digest matches the pin"].ok)
+
+    def test_unreadable_build_metadata_pins_nothing(self):
+        self.base.with_suffix(".json").write_text("{not json", encoding="utf-8")
+        self.assertEqual(self.unpinned().expected_base_digest()[0], "")

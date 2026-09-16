@@ -1,15 +1,19 @@
 # One minimal proof cycle on the virtual-machine backend.
 #
-# The stack is Pulumi Python with the libvirt provider over qemu and kvm, a
-# qcow2 overlay on a preserved tool image, and a cloud-init NoCloud seed. Run
-# `host/prepare-host` first: it installs the pinned Pulumi, points it at a
-# local state backend, builds the environment, fetches the base image and
-# declares the storage pool.
+# This file is meant to be run as it stands. The stack is Pulumi Python with
+# the libvirt provider over qemu and kvm, a qcow2 overlay on a preserved tool
+# image, and a cloud-init NoCloud seed. Run these first, once per host:
+#
+#     host/prepare-host              pinned pulumi, local state, base image, pool
+#     host/packer/build-tool-image   the tool image, ~15 minutes
+#
+# The tool image carries Orca, Claude Code, node and the pinned skills, so this
+# backend provisions nothing at run time and the guest needs no network for it.
 
 backend: vm
 
-tested_revision: replace-with-the-revision-under-test
-dely_revision: replace-with-the-dely-revision
+tested_revision: main
+dely_revision: main
 claude_code_version: "2.1.272"
 
 timeout_seconds: 3600
@@ -30,31 +34,60 @@ check:
   relative_path: evidence.txt
 
 auth:
-  mode: short_lived_token
-  reference: workshop-token
-  # The variable name only. Its value is read from the runner's environment for
-  # the duration of the run and is never written to the seed, the stack state,
-  # the manifest or a log.
-  token_env: CLAUDE_CODE_OAUTH_TOKEN
+  # The same minimal transfer the container backend makes, so both backends are
+  # answered by the same evidence. short_lived_token and api_key_helper are the
+  # alternatives; with a token, only the variable's name reaches the guest
+  # transport, never its value.
+  mode: existing_login
+  reference: workshop-host-login
+  allowlist:
+    - .claude/.credentials.json
 
 orca:
   version: "1.4.201"
-  model: replace-with-the-pinned-model
-  effort: replace-with-the-pinned-effort
+  model: claude-opus-5
+  effort: high
   agent: claude
   worktree_selector: current
+  # The guest's graphical session is started by the image at boot; the runner
+  # starts the application onto it.
+  display: ":0"
+  app_argv: ["/opt/Orca/orca-ide"]
+  ready_timeout_seconds: 300
+
+skills:
+  required: true
+  roots: [".agents/skills", ".claude/skills"]
+  bundled:
+    - name: orchestration
+      sha256: f7da0dd40d8681e2b0303fa0fa2f7ee4e36f2eca6495a4af57b92b9857dff732
+    - name: orca-cli
+      sha256: b21b9b80475c35996b9c046379b9c9fa788f2d357c9e917befd8ab1b37df2e77
+  plugins:
+    - name: superpowers
+      version: "6.3.0"
+      repository: https://github.com/obra/superpowers.git
+      revision: b36e0829c6d0140e93cfef2ca599b1b07d4a7797
+      marketplace: superpowers-dev
+      path: /opt/dely-cycle/superpowers
+
+limits:
+  parallel: false
+  max_active: 1
 
 vm:
   provider: pulumi-libvirt
   provider_version: "0.5.4"
   stack_prefix: dely-cycle
-  # The preserved tool image built by host/packer. The run opens it only as a
-  # backing file and never destroys it. Its name inside the pool is the file
-  # name below.
+  # The preserved tool image the packer build produced. The run opens it only
+  # as a backing file and never destroys it.
   base_image: /var/tmp/dely-cycle/images/tool-image.qcow2
-  # A digest of the right shape that matches nothing, so preflight blocks
-  # until the tool image build's recorded digest replaces it.
-  base_image_sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+  # There is deliberately no base_image_sha256 here. A packer build is not
+  # reproducible byte for byte, so a digest written here would be wrong after
+  # every rebuild. With the field absent, preflight uses the digest the build
+  # recorded in tool-image.json beside the image, and blocks when neither that
+  # nor a digest here says what the image should be. Adding one pins the run to
+  # exactly that build.
   guest_user: cycle
   # The environment carrying the pinned Pulumi SDK and libvirt provider. The
   # rendered program is checked field by field against the provider importable

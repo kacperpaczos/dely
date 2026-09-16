@@ -66,9 +66,10 @@ def build_plan(
     timeout_seconds: int,
     orca_run_id: str | None,
     coordinator_handle: str | None = None,
+    prompt_name: str = PROMPT_NAME,
 ) -> LaunchPlan:
     """Compose the argv for run-create, worker-start and the completion wait."""
-    prompt_path = str(Path(handle.home_path) / PROMPT_NAME)
+    prompt_path = str(Path(handle.home_path) / prompt_name)
     spec = (
         f"Read the file {prompt_path} in this environment and do exactly what it says."
     )
@@ -273,6 +274,10 @@ def launch(
     env_overlay: Mapping[str, str] | None = None,
     coordinator_handle: str | None = None,
     keep: Callable[[str, str, str], None] | None = None,
+    role: str = "implementer",
+    prompt_name: str = PROMPT_NAME,
+    prompt_text: str | None = None,
+    orca_run_id: str | None = None,
 ) -> WorkerRecord:
     """Run exactly one worker and report how it settled.
 
@@ -284,11 +289,13 @@ def launch(
         agent=run_config.orca.agent,
         model=run_config.orca.model,
         effort=run_config.orca.effort,
+        role=role,
     )
     overlay = dict(env_overlay or {})
     secrets: Sequence[str] = tuple(value for value in overlay.values() if value)
 
-    def remember(name: str, outcome) -> None:
+    def remember(suffix: str, outcome) -> None:
+        name = suffix if role == "implementer" else f"{role}-{suffix}"
         if keep is not None:
             keep(
                 name,
@@ -296,31 +303,39 @@ def launch(
                 redact.text(outcome.stderr or "", secrets),
             )
 
-    plan = build_plan(
-        run_config=run_config,
-        handle=handle,
-        timeout_seconds=timeout_seconds,
-        orca_run_id=None,
-        coordinator_handle=coordinator_handle,
-    )
-
-    created = adapter.execute(
-        plan.run_create_argv, timeout=timeout_seconds, env=overlay, extra_values=secrets
-    )
-    record.commands.append(created.to_record())
-    remember("run-create", created)
-    if created.timed_out:
-        record.status = PhaseStatus.TIMEOUT
-        record.detail = "orca orchestration run-create reached the run deadline"
-        return record
-    if not created.ok:
-        record.status = PhaseStatus.FAILED
-        record.detail = (
-            "orca orchestration run-create did not return a Run: "
-            + _explain(created, secrets)
+    # A second dispatch belongs to the Run the first one created: that is what
+    # makes it a handoff rather than an unrelated piece of work.
+    if orca_run_id:
+        record.run_id = orca_run_id
+    else:
+        plan = build_plan(
+            run_config=run_config,
+            handle=handle,
+            timeout_seconds=timeout_seconds,
+            orca_run_id=None,
+            coordinator_handle=coordinator_handle,
+            prompt_name=prompt_name,
         )
-        return record
-    record.run_id = run_identifier(_first_document(created.stdout))
+        created = adapter.execute(
+            plan.run_create_argv,
+            timeout=timeout_seconds,
+            env=overlay,
+            extra_values=secrets,
+        )
+        record.commands.append(created.to_record())
+        remember("run-create", created)
+        if created.timed_out:
+            record.status = PhaseStatus.TIMEOUT
+            record.detail = "orca orchestration run-create reached the run deadline"
+            return record
+        if not created.ok:
+            record.status = PhaseStatus.FAILED
+            record.detail = (
+                "orca orchestration run-create did not return a Run: "
+                + _explain(created, secrets)
+            )
+            return record
+        record.run_id = run_identifier(_first_document(created.stdout))
 
     plan = build_plan(
         run_config=run_config,
@@ -328,8 +343,14 @@ def launch(
         timeout_seconds=timeout_seconds,
         orca_run_id=record.run_id,
         coordinator_handle=coordinator_handle,
+        prompt_name=prompt_name,
     )
-    adapter.write_file(plan.prompt_path, build_prompt(run_config, handle), mode=0o644)
+    record.prompt_path = plan.prompt_path
+    adapter.write_file(
+        plan.prompt_path,
+        build_prompt(run_config, handle) if prompt_text is None else prompt_text,
+        mode=0o644,
+    )
 
     started = adapter.execute(
         plan.worker_start_argv,
@@ -345,6 +366,7 @@ def launch(
         return record
     start_document = _first_document(started.stdout)
     record.dispatch_id = dispatch_identifier(start_document)
+    record.terminal = agent_terminal(start_document)
     record.run_id = record.run_id or run_identifier(start_document)
     state = dispatch_state(start_document)
     record.outcome = state

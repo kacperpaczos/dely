@@ -30,6 +30,7 @@ from . import (
     proc,
     project,
     redact,
+    review as review_module,
     skills,
     worker,
 )
@@ -51,6 +52,7 @@ PHASE_ORDER = (
     "bootstrap",
     "identity",
     "task",
+    "review",
     "check",
     "collect",
     "export",
@@ -197,6 +199,7 @@ class _Cycle:
         self.host_before: dict[str, Any] = {}
         self.lease: admission.Lease | None = None
         self.registry_before: dict[str, Any] = {}
+        self.implementer: Any = None
 
     # -- plumbing ---------------------------------------------------------
 
@@ -284,6 +287,21 @@ class _Cycle:
             self._task()
         else:
             self.skip("task", self.blocked_reason or self.error_reason or "no environment")
+        if (
+            self.task_ran
+            and not self.timed_out
+            and not self.error_reason
+            and not self.unverifiable_reason
+        ):
+            self._review()
+        else:
+            self.skip(
+                "review",
+                self.blocked_reason
+                or self.error_reason
+                or self.unverifiable_reason
+                or "the task did not settle",
+            )
         if (
             self.task_ran
             and not self.timed_out
@@ -579,11 +597,6 @@ class _Cycle:
         assert self.handle is not None
         with self.phase("task") as record:
             self.task_ran = True
-            def keep(name: str, stdout: str, stderr: str) -> None:
-                self.exporter.write_text(f"dispatch/{name}.stdout", stdout)
-                if stderr.strip():
-                    self.exporter.write_text(f"dispatch/{name}.stderr", stderr)
-
             worker_record = worker.launch(
                 run_config=self.config,
                 adapter=self.adapter,
@@ -591,9 +604,10 @@ class _Cycle:
                 timeout_seconds=self.config.timeout_seconds,
                 env_overlay=self.env_overlay,
                 coordinator_handle=self.coordinator_handle,
-                keep=keep,
+                keep=self._keep_reply,
             )
             self.result.worker = worker_record
+            self.implementer = worker_record
             record.status = worker_record.status
             record.detail = worker_record.detail
             if worker_record.status is PhaseStatus.TIMEOUT:
@@ -607,6 +621,138 @@ class _Cycle:
                     )
                 else:
                     self.error_reason = self.error_reason or worker_record.detail
+
+    def _review(self) -> None:
+        """Hand the implementer's diff to a reviewer that did not write it."""
+        assert self.handle is not None
+        if not self.config.review.enabled:
+            self.skip("review", "this configuration asks for no review")
+            return
+        with self.phase("review") as record:
+            outcome = self._handoff(record)
+            if outcome is not None:
+                record.status = outcome
+                if outcome is PhaseStatus.FAILED:
+                    self.error_reason = self.error_reason or self.result.review.detail
+
+    def _handoff(self, record) -> PhaseStatus | None:
+        assert self.handle is not None
+        home = Path(self.handle.home_path)
+        diff_path = str(home / review_module.DIFF_NAME)
+        verdict_path = str(home / review_module.VERDICT_NAME)
+        result = self.result.review
+        result.diff_path = diff_path
+
+        captured = self.execute(
+            review_module.capture_argv(self.handle.project_path, diff_path),
+            timeout=min(300, self.config.timeout_seconds),
+        )
+        record.commands.append(captured.to_record())
+        if not captured.ok:
+            result.status = PhaseStatus.FAILED
+            result.detail = (
+                "the implementer's diff could not be captured, so there is "
+                "nothing to hand over: "
+                + redact.text((captured.stderr or captured.stdout).strip()[-300:])
+            )
+            self.exporter.write_json("review.json", result.to_document())
+            return PhaseStatus.FAILED
+        measured = review_module.parse_capture(captured.stdout)
+        result.diff_sha256 = str(measured.get("sha256") or "")
+        result.diff_lines = int(measured.get("lines") or 0)
+        # The diff the reviewer is given is an artifact of this run too: a
+        # verdict nobody can read the subject of is not evidence.
+        fetched = self.execute(
+            review_module.read_argv(diff_path),
+            timeout=min(120, self.config.timeout_seconds),
+        )
+        record.commands.append(fetched.to_record())
+        self.exporter.write_text(
+            "handoff-diff.patch", fetched.stdout, required=False
+        )
+
+        reviewer = worker.launch(
+            run_config=self.config,
+            adapter=self.adapter,
+            handle=self.handle,
+            timeout_seconds=self.config.timeout_seconds,
+            env_overlay=self.env_overlay,
+            coordinator_handle=self.coordinator_handle,
+            keep=self._keep_reply,
+            role="reviewer",
+            prompt_name=review_module.PROMPT_NAME,
+            prompt_text=review_module.build_prompt(
+                diff_path=diff_path,
+                project_path=self.handle.project_path,
+                verdict_path=verdict_path,
+                relative_path=self.config.task.relative_path,
+                marker=self.config.task.marker,
+            ),
+            orca_run_id=self.implementer.run_id if self.implementer else None,
+        )
+        self.result.reviewer = reviewer
+        result.reviewer = reviewer.to_document()
+        record.commands.extend(reviewer.commands)
+
+        after = self.execute(
+            review_module.digest_argv(diff_path),
+            timeout=min(120, self.config.timeout_seconds),
+        )
+        record.commands.append(after.to_record())
+        result.diff_sha256_after = str(
+            review_module.parse_capture(after.stdout).get("sha256") or ""
+        )
+
+        verdict_read = self.execute(
+            review_module.read_argv(verdict_path),
+            timeout=min(120, self.config.timeout_seconds),
+        )
+        record.commands.append(verdict_read.to_record())
+        verdict = review_module.parse_verdict(verdict_read.stdout)
+        result.verdict = str(verdict.get("verdict") or "")
+        result.reason = redact.text(str(verdict.get("reason") or ""))
+        result.diff_reported_by_reviewer = str(verdict.get("diff_sha256") or "")
+
+        separation = review_module.separation(self.implementer, reviewer)
+        result.separation = separation.to_document()
+        same, why = review_module.judge_same_diff(
+            captured=result.diff_sha256,
+            after=result.diff_sha256_after,
+            reported=result.diff_reported_by_reviewer,
+        )
+        result.same_diff = same
+        result.same_diff_detail = why
+
+        if reviewer.status is PhaseStatus.TIMEOUT:
+            result.status = PhaseStatus.TIMEOUT
+            result.detail = "the reviewer reached the run deadline"
+            self.timed_out = True
+        elif reviewer.status is not PhaseStatus.OK:
+            result.status = PhaseStatus.FAILED
+            result.detail = f"the reviewer did not settle: {reviewer.detail}"
+        elif not separation.ok:
+            result.status = PhaseStatus.FAILED
+            result.detail = (
+                "the review was not independent of the work it reviewed: "
+                + separation.detail
+            )
+        elif not same:
+            result.status = PhaseStatus.FAILED
+            result.detail = why
+        else:
+            result.status = PhaseStatus.OK
+            result.detail = (
+                f"the reviewer returned {result.verdict!r} on the implementer's "
+                f"diff ({result.diff_lines} line(s)); {separation.detail}"
+            )
+        self.exporter.write_json("review.json", result.to_document())
+        self.log.say(f"review: {result.detail}")
+        return result.status
+
+    def _keep_reply(self, name: str, stdout: str, stderr: str) -> None:
+        self.exporter.write_text(f"dispatch/{name}.stdout", stdout)
+        if stderr.strip():
+            self.exporter.write_text(f"dispatch/{name}.stderr", stderr)
 
     def _check(self) -> None:
         assert self.handle is not None

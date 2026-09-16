@@ -270,6 +270,16 @@ class PinnedPlugin:
 
 
 @dataclass(frozen=True)
+class ReviewConfig:
+    """Whether a second agent reviews the first one's work, and how long it gets."""
+
+    enabled: bool = True
+
+    def to_document(self) -> dict[str, Any]:
+        return {"enabled": self.enabled}
+
+
+@dataclass(frozen=True)
 class SkillsConfig:
     """What the agent in the environment must be able to reach, and at what version."""
 
@@ -407,6 +417,7 @@ class RunConfig:
     auth: AuthConfig
     orca: OrcaConfig
     skills: SkillsConfig = field(default_factory=SkillsConfig)
+    review: ReviewConfig = field(default_factory=ReviewConfig)
     limits: Limits = field(default_factory=Limits)
     distrobox: DistroboxConfig | None = None
     vm: VmConfig | None = None
@@ -441,6 +452,7 @@ class RunConfig:
             "auth": self.auth.to_document(),
             "orca": self.orca.to_document(),
             "skills": self.skills.to_document(),
+            "review": self.review.to_document(),
             "limits": self.limits.to_document(),
         }
         if self.distrobox is not None:
@@ -467,6 +479,7 @@ _TOP_LEVEL = (
     "auth",
     "orca",
     "skills",
+    "review",
     "limits",
     "distrobox",
     "vm",
@@ -593,6 +606,13 @@ def _provision(document: Mapping[str, Any], where: str) -> tuple[tuple[str, ...]
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _COMMIT = re.compile(r"^[0-9a-f]{40}$")
+
+
+def _review(document: Mapping[str, Any]) -> ReviewConfig:
+    if not document:
+        return ReviewConfig()
+    _reject_unknown(document, ("enabled",), "review")
+    return ReviewConfig(enabled=_flag(document, "enabled", "review", True))
 
 
 def _skills(document: Mapping[str, Any]) -> SkillsConfig:
@@ -853,6 +873,7 @@ def from_document(document: Mapping[str, Any]) -> RunConfig:
         auth=_auth(_section(document, "auth", required=True)),
         orca=_orca(_section(document, "orca", required=True)),
         skills=_skills(_section(document, "skills", required=False)),
+        review=_review(_section(document, "review", required=False)),
         limits=_limits(_section(document, "limits", required=False)),
         distrobox=_distrobox(distrobox_document) if distrobox_document else None,
         vm=_vm(vm_document) if vm_document else None,

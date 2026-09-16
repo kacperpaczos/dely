@@ -114,9 +114,11 @@ CASES: tuple[Counterexample, ...] = (
         name="the-reply-that-decided-the-run-is-kept",
         requirement="A run that exports only its verdict keeps nothing to check it against",
         path="cycle_runner/worker.py",
-        original="""    def remember(name: str, outcome) -> None:
+        original="""    def remember(suffix: str, outcome) -> None:
+        name = suffix if role == "implementer" else f"{role}-{suffix}"
         if keep is not None:""",
-        replacement="""    def remember(name: str, outcome) -> None:
+        replacement="""    def remember(suffix: str, outcome) -> None:
+        name = suffix if role == "implementer" else f"{role}-{suffix}"
         if False:""",
         instruments=("tests.test_worker.KeptRepliesTest",),
     ),
@@ -723,6 +725,70 @@ CASES: tuple[Counterexample, ...] = (
         original="  provision:\n    - [\"sh\", \"-c\", \"set -eu; export DEBIAN_FRONTEND=noninteractive;",
         replacement="  provision: []\n  unused:\n    - [\"sh\", \"-c\", \"set -eu; export DEBIAN_FRONTEND=noninteractive;",
         instruments=("tests.test_examples_are_runnable.ProvisionIsRealTest",),
+    ),
+    Counterexample(
+        name="two-panes-are-not-two-agents",
+        requirement=(
+            "One dispatch answering twice looks exactly like two agents until "
+            "the identifiers are compared"
+        ),
+        path="cycle_runner/review.py",
+        original="    separate_dispatch = implementer.dispatch_id != reviewer.dispatch_id",
+        replacement="    separate_dispatch = True",
+        instruments=(
+            "tests.test_review.SeparationTest",
+            "tests.test_lifecycle.HandoffTest",
+        ),
+    ),
+    Counterexample(
+        name="an-unnamed-dispatch-is-not-a-separate-one",
+        requirement=(
+            "Comparing two identifiers the plane never gave compares nothing, "
+            "and nothing equals nothing"
+        ),
+        path="cycle_runner/review.py",
+        original="    if missing:\n        return Separation(",
+        replacement="    if False:\n        return Separation(",
+        instruments=("tests.test_review.SeparationTest",),
+    ),
+    Counterexample(
+        name="the-reviewer-answered-about-this-diff",
+        requirement=(
+            "A verdict that names no subject is not a review of the change the "
+            "implementer made"
+        ),
+        path="cycle_runner/review.py",
+        original="    if reported != captured:",
+        replacement="    if False:",
+        instruments=(
+            "tests.test_review.SameDiffTest",
+            "tests.test_lifecycle.HandoffTest",
+        ),
+    ),
+    Counterexample(
+        name="the-diff-did-not-move-under-the-review",
+        requirement=(
+            "A diff rewritten while the review ran makes the verdict about "
+            "something the implementer did not write"
+        ),
+        path="cycle_runner/review.py",
+        original="    if after != captured:",
+        replacement="    if False:",
+        instruments=("tests.test_review.SameDiffTest",),
+    ),
+    Counterexample(
+        name="the-capture-includes-a-file-that-is-new",
+        requirement=(
+            "`git diff` omits an untracked file, and a new file is exactly what "
+            "this task produces — the reviewer would be handed an empty patch"
+        ),
+        path="cycle_runner/review.py",
+        original='git -C "$project" add -A\ngit -C "$project" diff --cached > "$target"',
+        replacement='git -C "$project" diff > "$target"',
+        instruments=(
+            "tests.test_review.ParsingTest",
+            "tests.test_lifecycle.HandoffTest",
+        ),
     ),
 )
 

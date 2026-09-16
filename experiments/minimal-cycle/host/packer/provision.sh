@@ -3,6 +3,8 @@
 set -euxo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
+# Tells the tools that read it that no one is watching this shell.
+export CI=1
 
 cloud-init status --wait || true
 
@@ -46,18 +48,50 @@ claude --version
 # -- the skills the agent must be able to reach --------------------------
 # Pinned by commit, because a tag moves. The plugin is installed for the guest
 # user, which is the home the run uses.
+#
+# Every step below is bounded. An earlier build stopped here for as long as it
+# was allowed to, with nothing said; a step that cannot finish has to fail and
+# say what it was doing, not hold the build open.
+#
+# The agent is asked its first-run questions here rather than being left to ask
+# them: a fresh home has not completed onboarding, and a command that waits for
+# that answer waits forever when nobody is attached.
+mkdir -p "${HOME}/.claude"
+if [ ! -f "${HOME}/.claude.json" ]; then
+  printf '{"hasCompletedOnboarding": true}\n' > "${HOME}/.claude.json"
+fi
 sudo mkdir -p /opt/dely-cycle
 sudo chown "$(id -u):$(id -g)" /opt/dely-cycle
 git clone -q --filter=blob:none "${SUPERPOWERS_REPOSITORY}" /opt/dely-cycle/superpowers
 git -C /opt/dely-cycle/superpowers checkout -q "${SUPERPOWERS_REVISION}"
 test "$(git -C /opt/dely-cycle/superpowers rev-parse HEAD)" = "${SUPERPOWERS_REVISION}"
-claude plugin marketplace add /opt/dely-cycle/superpowers
-claude plugin install superpowers@superpowers-dev --yes
-claude plugin list
+# Runs one command with stdin closed and a deadline, and says which it was.
+# Stdin closed is not the fix for the stall seen here — the same command answers
+# with a terminal attached — it is what keeps an unattended shell unattended.
+bounded() {
+  seconds="$1"
+  shift
+  echo "--- running (limit ${seconds}s): $*"
+  if timeout --signal=TERM --kill-after=30 "${seconds}" "$@" < /dev/null; then
+    echo "--- done: $1"
+    return 0
+  fi
+  status=$?
+  if [ "${status}" -eq 124 ]; then
+    echo "gave up after ${seconds}s waiting for: $*" >&2
+  else
+    echo "exited ${status}: $*" >&2
+  fi
+  return "${status}"
+}
+
+bounded 600 claude plugin marketplace add /opt/dely-cycle/superpowers
+bounded 600 claude plugin install superpowers@superpowers-dev --yes
+bounded 120 claude plugin list
 
 # Orca's own skills. `orca skills install` resolves to this command but passes
 # --agent claude, which the skills command line rejects; it accepts claude-code.
-npx --yes skills add https://github.com/stablyai/orca \
+bounded 900 npx --yes skills add https://github.com/stablyai/orca \
   --skill orca-cli --skill orchestration --global --agent claude-code -y
 
 # What the image carries is what the run will be held to, so check it here too.

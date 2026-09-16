@@ -432,12 +432,160 @@
       },
       "type": "array"
     },
+    "review": {
+      "properties": {
+        "detail": {
+          "type": "string"
+        },
+        "diff_lines": {
+          "type": "integer"
+        },
+        "diff_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "diff_reported_by_reviewer": {
+          "type": "string"
+        },
+        "diff_sha256": {
+          "type": "string"
+        },
+        "diff_sha256_after": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "reviewer": {
+          "type": "object"
+        },
+        "same_diff": {
+          "type": "boolean"
+        },
+        "same_diff_detail": {
+          "type": "string"
+        },
+        "separation": {
+          "type": "object"
+        },
+        "status": {
+          "enum": [
+            "OK",
+            "FAILED",
+            "SKIPPED",
+            "TIMEOUT",
+            "BLOCKED"
+          ],
+          "type": "string"
+        },
+        "verdict": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "same_diff",
+        "separation",
+        "detail"
+      ],
+      "type": "object"
+    },
+    "reviewer": {
+      "properties": {
+        "agent": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "commands": {
+          "type": "array"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "dispatch_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "effort": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outcome": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "run_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "OK",
+            "FAILED",
+            "SKIPPED",
+            "TIMEOUT",
+            "BLOCKED"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "detail",
+        "commands"
+      ],
+      "type": "object"
+    },
     "run_id": {
       "pattern": "^\\d{8}T\\d{6}Z-[0-9a-f]{6}-[0-9a-f]{8}$",
       "type": "string"
     },
     "schema_version": {
       "const": 1
+    },
+    "skills": {
+      "properties": {
+        "detail": {
+          "type": "string"
+        },
+        "findings": {
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "OK",
+            "FAILED",
+            "SKIPPED",
+            "TIMEOUT",
+            "BLOCKED"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "findings",
+        "detail"
+      ],
+      "type": "object"
     },
     "started_at": {
       "type": [
@@ -550,8 +698,11 @@
     "host_before",
     "identity",
     "phases",
+    "review",
+    "reviewer",
     "run_id",
     "schema_version",
+    "skills",
     "started_at",
     "status",
     "tested_revision",

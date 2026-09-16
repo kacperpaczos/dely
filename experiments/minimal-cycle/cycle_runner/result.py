@@ -118,6 +118,9 @@ class WorkerRecord:
     run_id: str | None = None
     dispatch_id: str | None = None
     outcome: str | None = None
+    role: str = "implementer"
+    terminal: str | None = None
+    prompt_path: str | None = None
     detail: str = "not attempted"
     commands: list[CommandRecord] = field(default_factory=list)
 
@@ -130,6 +133,9 @@ class WorkerRecord:
             "run_id": self.run_id,
             "dispatch_id": self.dispatch_id,
             "outcome": self.outcome,
+            "role": self.role,
+            "terminal": self.terminal,
+            "prompt_path": self.prompt_path,
             "detail": self.detail,
             "commands": [command.to_document() for command in self.commands],
         }
@@ -258,6 +264,42 @@ class FirstRunRecord:
 
 
 @dataclass
+class ReviewRecord:
+    """The handoff: what was handed over, to whom, and whether it was the same."""
+
+    status: PhaseStatus = PhaseStatus.SKIPPED
+    diff_path: str | None = None
+    diff_sha256: str = ""
+    diff_sha256_after: str = ""
+    diff_reported_by_reviewer: str = ""
+    diff_lines: int = 0
+    same_diff: bool = False
+    same_diff_detail: str = ""
+    verdict: str = ""
+    reason: str = ""
+    separation: dict[str, Any] = field(default_factory=dict)
+    reviewer: dict[str, Any] = field(default_factory=dict)
+    detail: str = "not attempted"
+
+    def to_document(self) -> dict[str, Any]:
+        return {
+            "status": self.status.value,
+            "diff_path": self.diff_path,
+            "diff_sha256": self.diff_sha256,
+            "diff_sha256_after": self.diff_sha256_after,
+            "diff_reported_by_reviewer": self.diff_reported_by_reviewer,
+            "diff_lines": self.diff_lines,
+            "same_diff": self.same_diff,
+            "same_diff_detail": self.same_diff_detail,
+            "verdict": self.verdict,
+            "reason": self.reason,
+            "separation": dict(self.separation),
+            "reviewer": dict(self.reviewer),
+            "detail": self.detail,
+        }
+
+
+@dataclass
 class SkillsRecord:
     """Which skills the environment really carries, and at which revision."""
 
@@ -318,6 +360,7 @@ class RunResult:
     phases: list[PhaseRecord] = field(default_factory=list)
     identity: IdentityRecord = field(default_factory=IdentityRecord)
     worker: WorkerRecord = field(default_factory=WorkerRecord)
+    reviewer: WorkerRecord = field(default_factory=lambda: WorkerRecord(role="reviewer"))
     check: CheckRecord = field(default_factory=CheckRecord)
     export: ExportRecord = field(default_factory=ExportRecord)
     cleanup: CleanupRecord = field(default_factory=CleanupRecord)
@@ -325,6 +368,7 @@ class RunResult:
     first_run: FirstRunRecord = field(default_factory=FirstRunRecord)
     admission: AdmissionRecord = field(default_factory=AdmissionRecord)
     skills: SkillsRecord = field(default_factory=SkillsRecord)
+    review: ReviewRecord = field(default_factory=ReviewRecord)
 
     def phase(self, name: str) -> PhaseRecord | None:
         for record in self.phases:
@@ -349,6 +393,7 @@ class RunResult:
             "phases": [phase.to_document() for phase in self.phases],
             "identity": self.identity.to_document(),
             "worker": self.worker.to_document(),
+            "reviewer": self.reviewer.to_document(),
             "check": self.check.to_document(),
             "export": self.export.to_document(),
             "cleanup": self.cleanup.to_document(),
@@ -356,6 +401,7 @@ class RunResult:
             "first_run": self.first_run.to_document(),
             "admission": self.admission.to_document(),
             "skills": self.skills.to_document(),
+            "review": self.review.to_document(),
         }
 
 

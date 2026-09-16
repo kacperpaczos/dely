@@ -11,7 +11,10 @@ import shutil
 from pathlib import Path
 from typing import Mapping, Sequence
 
-from cycle_runner import probe, proc, skills
+import hashlib
+import json
+
+from cycle_runner import probe, proc, review, skills
 from cycle_runner.adapters.base import (
     BackendAdapter,
     DestroyReport,
@@ -44,7 +47,9 @@ HOST = {
 RUNNABLE_PROGRAMS = frozenset(
     {"sh", "rm", "mkdir", "cat", "test", "true", "false", "printf", "git"}
 )
-RUNNABLE_SHELL_SCRIPTS = frozenset({"cycle-check", "auth-teardown", "cycle-cd"})
+RUNNABLE_SHELL_SCRIPTS = frozenset(
+    {"cycle-check", "auth-teardown", "cycle-cd", "cycle-handoff", "cycle-skills"}
+)
 
 ORCA_STATUS_REPLY = (
     '{"ok": true, "result": {"app": {"running": true, "pid": 1786, '
@@ -71,6 +76,7 @@ ORCA_DISPATCH_REPLY = (
     '{"id": "request-fake", "ok": true, "result": {"run": {"id": "run-fake"}, '
     '"runId": "run-fake", "taskId": "task-fake", "dispatchId": "dispatch-fake", '
     '"state": "ready", '
+    '"effects": [{"kind": "terminal", "role": "agent", "id": "terminal-fake"}], '
     '"messages": [{"type": "worker_done", '
     '"payload": "{\\"outcome\\": \\"DONE\\"}"}], "count": 1}}'
 )
@@ -115,10 +121,17 @@ class FakeAdapter(BackendAdapter):
         task_writes_nothing: bool = False,
         host_project: Path | None = None,
         skill_answers: Mapping[str, tuple[str, str]] | None = None,
+        review_verdict: str | None = "accept",
+        reviewer_reads_another_diff: bool = False,
+        one_dispatch_for_both: bool = False,
         plugin_answers: Mapping[str, tuple[str, str]] | None = None,
     ):
         self.root = Path(root)
         self.skill_answers = dict(skill_answers or {})
+        self.dispatches = 0
+        self.review_verdict = review_verdict
+        self.reviewer_reads_another_diff = reviewer_reads_another_diff
+        self.one_dispatch_for_both = one_dispatch_for_both
         self.plugin_answers = dict(plugin_answers or {})
         self.home = self.root / "home"
         self.project = self.home / "project"
@@ -222,6 +235,47 @@ class FakeAdapter(BackendAdapter):
             return probe.parse(self._host_snapshot_text()).get("orca_path", "")
         return "/usr/bin/orca"
 
+    def _dispatch(self, joined: str) -> str:
+        """Answer one worker-start, and do what that agent would have done.
+
+        Each dispatch gets its own identifier and its own agent terminal,
+        because that is what the runner compares to decide whether two agents
+        were really two.
+        """
+        self.dispatches += 1
+        number = 1 if self.one_dispatch_for_both else self.dispatches
+        reply = ORCA_DISPATCH_REPLY.replace(
+            '"dispatchId": "dispatch-fake"', f'"dispatchId": "dispatch-fake-{number}"'
+        ).replace('"id": "terminal-fake"', f'"id": "terminal-fake-{number}"')
+        if review.PROMPT_NAME in joined:
+            self._review()
+        elif not self.task_writes_nothing:
+            self.project.mkdir(parents=True, exist_ok=True)
+            (self.project / "evidence.txt").write_text(self.marker, encoding="utf-8")
+        return reply
+
+    def _review(self) -> None:
+        """Write the verdict a reviewer would have written."""
+        if self.review_verdict is None:
+            return
+        diff = self.home / review.DIFF_NAME
+        digest = (
+            hashlib.sha256(diff.read_bytes()).hexdigest() if diff.is_file() else ""
+        )
+        if self.reviewer_reads_another_diff:
+            digest = hashlib.sha256(b"a different diff entirely").hexdigest()
+        self.home.mkdir(parents=True, exist_ok=True)
+        (self.home / review.VERDICT_NAME).write_text(
+            json.dumps(
+                {
+                    "diff_sha256": digest,
+                    "verdict": self.review_verdict,
+                    "reason": "the change creates the file with exactly the marker",
+                }
+            ),
+            encoding="utf-8",
+        )
+
     @staticmethod
     def _skill_lines(argv: Sequence[str], answers: Mapping[str, tuple[str, str]]) -> str:
         """Answer one line per name the probe was asked about, as the script does."""
@@ -258,13 +312,17 @@ class FakeAdapter(BackendAdapter):
             if self.task_hangs:
                 return self._outcome(argv, None, "", "deadline reached", timed_out=True)
             if self.dispatch_state and "worker-start" in joined:
-                reply = ORCA_DISPATCH_REPLY.replace(
+                # Still a distinct dispatch: an unobserved turn start says
+                # nothing about whether this is the same agent as the last one.
+                reply = self._dispatch(joined).replace(
                     '"state": "ready"', f'"state": "{self.dispatch_state}"'
                 )
                 return self._outcome(argv, 1, reply, "")
             if not self.wait_settles and "--wait" in joined:
                 # The dispatch never reports, so the wait returns nothing.
                 return self._outcome(argv, 0, ORCA_EMPTY_DELIVERY, "")
+            if "worker-start" in joined:
+                return self._outcome(argv, 0, self._dispatch(joined), "")
             if not self.task_writes_nothing:
                 self.project.mkdir(parents=True, exist_ok=True)
                 (self.project / "evidence.txt").write_text(self.marker, encoding="utf-8")

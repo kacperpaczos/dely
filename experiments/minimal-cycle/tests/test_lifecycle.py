@@ -101,6 +101,7 @@ class SettledCycleTest(CycleTestCase):
                 "bootstrap",
                 "identity",
                 "task",
+                "review",
                 "check",
                 "collect",
                 "export",
@@ -424,7 +425,7 @@ class UnverifiableDispatchTest(CycleTestCase):
     def test_the_dispatch_identifiers_are_still_recorded(self):
         _, outcome = self.run_cycle(**self.never_settles())
         worker_record = outcome.run_result.worker
-        self.assertEqual(worker_record.dispatch_id, "dispatch-fake")
+        self.assertEqual(worker_record.dispatch_id, "dispatch-fake-1")
         self.assertEqual(worker_record.outcome, "outcome_unknown")
         self.assertEqual(worker_record.model, "pinned-model")
 
@@ -721,3 +722,86 @@ class SkillsGateTest(CycleTestCase):
             sorted(entry["name"] for entry in document["findings"]),
             ["orchestration", "superpowers"],
         )
+
+
+class HandoffTest(CycleTestCase):
+    """Control hands the diff to a reviewer that did not write it."""
+
+    def cycle(self, **adapter_options):
+        adapter = FakeAdapter(
+            self.state / RUN_ID, host_project=self.repo, **adapter_options
+        )
+        return adapter, lifecycle.run_cycle(
+            run_config=self.make_config(),
+            adapter=adapter,
+            run_id=RUN_ID,
+            host_home=self.host_home,
+            environ={},
+            tool_versions={"runner": "one"},
+        )
+
+    def test_the_review_is_a_second_dispatch_in_the_same_run(self):
+        _, outcome = self.cycle()
+        result = outcome.run_result
+        self.assertEqual(result.review.status.value, "OK", result.review.detail)
+        self.assertNotEqual(result.worker.dispatch_id, result.reviewer.dispatch_id)
+        self.assertNotEqual(result.worker.terminal, result.reviewer.terminal)
+        self.assertEqual(result.worker.run_id, result.reviewer.run_id)
+        self.assertEqual(result.reviewer.role, "reviewer")
+
+    def test_the_reviewer_answers_about_the_implementers_diff(self):
+        _, outcome = self.cycle()
+        review_record = outcome.run_result.review
+        self.assertTrue(review_record.same_diff, review_record.same_diff_detail)
+        self.assertEqual(review_record.diff_sha256, review_record.diff_sha256_after)
+        self.assertEqual(
+            review_record.diff_sha256, review_record.diff_reported_by_reviewer
+        )
+        self.assertGreater(review_record.diff_lines, 0)
+        self.assertEqual(review_record.verdict, "accept")
+
+    def test_a_reviewer_that_read_another_diff_fails_the_run(self):
+        _, outcome = self.cycle(reviewer_reads_another_diff=True)
+        self.assertEqual(outcome.run_result.review.status.value, "FAILED")
+        self.assertIn("different diff", outcome.run_result.review.detail)
+        self.assertNotEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+
+    def test_one_dispatch_answering_twice_fails_the_run(self):
+        _, outcome = self.cycle(one_dispatch_for_both=True)
+        self.assertEqual(outcome.run_result.review.status.value, "FAILED")
+        self.assertIn("not independent", outcome.run_result.review.detail)
+
+    def test_a_reviewer_that_wrote_no_verdict_fails_the_run(self):
+        _, outcome = self.cycle(review_verdict=None)
+        self.assertEqual(outcome.run_result.review.status.value, "FAILED")
+        self.assertIn("did not report", outcome.run_result.review.detail)
+
+    def test_the_handed_over_diff_and_the_verdict_are_exported(self):
+        _, outcome = self.cycle()
+        patch = self.artifact("handoff-diff.patch").read_text(encoding="utf-8")
+        self.assertIn("evidence.txt", patch)
+        document = json.loads(self.artifact("review.json").read_text(encoding="utf-8"))
+        self.assertEqual(document["verdict"], "accept")
+        self.assertTrue(document["separation"]["ok"])
+
+    def test_the_two_agents_replies_are_kept_apart(self):
+        _, outcome = self.cycle()
+        self.assertTrue(self.artifact("dispatch/worker-start.stdout").is_file())
+        self.assertTrue(
+            self.artifact("dispatch/reviewer-worker-start.stdout").is_file()
+        )
+
+    def test_a_configuration_that_asks_for_no_review_skips_it(self):
+        document = json.loads(json.dumps({"review": {"enabled": False}}))
+        run_config = super(HandoffTest, self).make_config(**document)
+        adapter = FakeAdapter(self.state / RUN_ID, host_project=self.repo)
+        outcome = lifecycle.run_cycle(
+            run_config=run_config,
+            adapter=adapter,
+            run_id=RUN_ID,
+            host_home=self.host_home,
+            environ={},
+            tool_versions={"runner": "one"},
+        )
+        self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+        self.assertEqual(outcome.run_result.phase("review").status.value, "SKIPPED")

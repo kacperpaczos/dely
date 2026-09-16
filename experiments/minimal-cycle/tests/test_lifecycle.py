@@ -684,6 +684,7 @@ class SkillsGateTest(CycleTestCase):
         return {
             "skill_answers": {"orchestration": ("/h/.agents/skills/orchestration/SKILL.md", SKILL_DIGEST)},
             "plugin_answers": {"superpowers": (PLUGIN_COMMIT, "/opt/dely-cycle/superpowers")},
+            "plugin_installed": {"superpowers": (14, 14)},
         }
 
     def test_the_pinned_skills_being_there_lets_the_run_continue(self):
@@ -805,3 +806,60 @@ class HandoffTest(CycleTestCase):
         )
         self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
         self.assertEqual(outcome.run_result.phase("review").status.value, "SKIPPED")
+
+
+class DisplayGateTest(CycleTestCase):
+    """The run has to show its application went to its own screen."""
+
+    def cycle(self, **adapter_options):
+        adapter = FakeAdapter(
+            self.state / RUN_ID, host_project=self.repo, **adapter_options
+        )
+        return lifecycle.run_cycle(
+            run_config=self.make_config(),
+            adapter=adapter,
+            run_id=RUN_ID,
+            host_home=self.host_home,
+            environ={},
+            tool_versions={"runner": "one"},
+        )
+
+    def test_a_window_appearing_on_this_runs_screen_lets_it_continue(self):
+        outcome = self.cycle()
+        record = outcome.run_result.display
+        self.assertEqual(record.status.value, "OK", record.detail)
+        self.assertEqual([w["id"] for w in record.appeared], ["2000"])
+        self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+
+    def test_no_window_anywhere_blocks_before_the_task(self):
+        outcome = self.cycle(window_appears=False)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.BLOCKED)
+        self.assertEqual(outcome.run_result.phase("task").status.value, "SKIPPED")
+        self.assertIn("nothing here says where", outcome.run_result.display.detail)
+
+    def test_a_screen_that_does_not_answer_blocks(self):
+        outcome = self.cycle(display_unreachable=True)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.BLOCKED)
+        self.assertIn("did not answer", outcome.run_result.display.detail)
+
+    def test_the_screen_is_recorded_as_an_artifact(self):
+        self.cycle()
+        document = json.loads(self.artifact("display.json").read_text(encoding="utf-8"))
+        self.assertEqual(document["mode"], "virtual")
+        self.assertEqual(document["display"], ":0")
+        self.assertTrue(document["reachable"])
+
+    def test_a_blocked_display_still_cleans_up(self):
+        outcome = self.cycle(window_appears=False)
+        self.assertEqual(outcome.run_result.cleanup.status.value, "DESTROYED")
+
+
+class PluginSkillsReachTheAgentTest(SkillsGateTest):
+    """A checkout at the pinned commit whose skills the agent cannot read."""
+
+    def test_skills_that_never_reached_the_agent_block_the_run(self):
+        answers = self.everything_present()
+        answers["plugin_installed"] = {"superpowers": (14, 2)}
+        outcome = self.cycle(**answers)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.BLOCKED)
+        self.assertIn("2 of this checkout's 14 skills", outcome.run_result.skills.detail)

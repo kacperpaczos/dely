@@ -13,13 +13,23 @@ COMMIT = "b36e0829c6d0140e93cfef2ca599b1b07d4a7797"
 OTHER_COMMIT = "0000000000000000000000000000000000000000"
 
 
-def judge(bundled=(), plugins=(), skill_answers=None, plugin_answers=None):
+def judge(
+    bundled=(),
+    plugins=(),
+    skill_answers=None,
+    plugin_answers=None,
+    installed_counts=None,
+):
     return skills.judge(
         bundled=bundled,
         plugins=plugins,
         skill_answers=skill_answers or {},
         plugin_answers=plugin_answers or {},
+        installed_counts=installed_counts,
     )
+
+
+INSTALLED = {"superpowers": (14, 14)}
 
 
 class JudgementTest(unittest.TestCase):
@@ -52,17 +62,46 @@ class JudgementTest(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("did not answer", findings[0].detail)
 
-    def test_a_plugin_at_the_pinned_commit_holds(self):
-        _, ok = judge(
+    def test_a_plugin_at_the_pinned_commit_with_its_skills_installed_holds(self):
+        findings, ok = judge(
+            plugins=[("superpowers", COMMIT)],
+            plugin_answers={"superpowers": (COMMIT, "/opt/skills/superpowers")},
+            installed_counts=INSTALLED,
+        )
+        self.assertTrue(ok, findings[0].detail)
+        self.assertIn("all 14 of its skills", findings[0].detail)
+
+    def test_a_checkout_whose_skills_never_reached_the_agent_fails(self):
+        findings, ok = judge(
+            plugins=[("superpowers", COMMIT)],
+            plugin_answers={"superpowers": (COMMIT, "/opt/skills/superpowers")},
+            installed_counts={"superpowers": (14, 3)},
+        )
+        self.assertFalse(ok)
+        self.assertIn("3 of this checkout's 14 skills", findings[0].detail)
+
+    def test_a_checkout_at_the_pin_that_was_never_compared_fails(self):
+        findings, ok = judge(
             plugins=[("superpowers", COMMIT)],
             plugin_answers={"superpowers": (COMMIT, "/opt/skills/superpowers")},
         )
-        self.assertTrue(ok)
+        self.assertFalse(ok)
+        self.assertIn("nothing said whether its skills reached", findings[0].detail)
+
+    def test_a_checkout_carrying_no_skills_fails(self):
+        findings, ok = judge(
+            plugins=[("superpowers", COMMIT)],
+            plugin_answers={"superpowers": (COMMIT, "/opt/skills/superpowers")},
+            installed_counts={"superpowers": (0, 0)},
+        )
+        self.assertFalse(ok)
+        self.assertIn("carries no skills", findings[0].detail)
 
     def test_a_plugin_at_another_commit_fails(self):
         findings, ok = judge(
             plugins=[("superpowers", COMMIT)],
             plugin_answers={"superpowers": (OTHER_COMMIT, "/opt/skills/superpowers")},
+            installed_counts=INSTALLED,
         )
         self.assertFalse(ok)
         self.assertIn("different commit", findings[0].detail)
@@ -71,6 +110,7 @@ class JudgementTest(unittest.TestCase):
         findings, ok = judge(
             plugins=[("superpowers", COMMIT)],
             plugin_answers={"superpowers": ("missing", "/opt/skills/superpowers")},
+            installed_counts=INSTALLED,
         )
         self.assertFalse(ok)
         self.assertIn("no checkout", findings[0].detail)

@@ -167,6 +167,17 @@ def build() -> int:
                 "orca_version": orca["version"],
                 "orca_sha256": orca["sha256"],
                 "claude_code_version": claude["version"],
+                "node_version": node["version"],
+                # What the image was built to carry. The runner does not take
+                # this on trust: before it dispatches anything it asks the
+                # environment for each of these by digest.
+                "skills": sorted(
+                    entry["name"] for entry in VERSIONS["skills"]["bundled"]["entries"]
+                ),
+                "plugins": {
+                    entry["name"]: entry["revision"]
+                    for entry in VERSIONS["skills"]["plugins"]
+                },
                 "carries_credentials": False,
             },
             indent=2,

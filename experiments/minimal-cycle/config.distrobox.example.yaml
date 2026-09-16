@@ -111,8 +111,12 @@ distrobox:
     - ["sh", "-c", "set -eu; curl -fsSL -o /tmp/node.tar.xz 'https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz'; echo 'fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6  /tmp/node.tar.xz' | sha256sum -c -; sudo mkdir -p /usr/local/node; sudo tar -xJf /tmp/node.tar.xz -C /usr/local/node --strip-components=1; rm -f /tmp/node.tar.xz; sudo ln -sf /usr/local/node/bin/node /usr/local/bin/node; sudo ln -sf /usr/local/node/bin/npm /usr/local/bin/npm; sudo ln -sf /usr/local/node/bin/npx /usr/local/bin/npx; node --version"]
     - ["sh", "-c", "set -eu; curl -fsSL -o /tmp/orca.deb 'https://github.com/stablyai/orca/releases/download/v1.4.201/orca-ide_1.4.201_amd64.deb'; echo '9dab79a5223837fc91992e04ed54f92f45d6f4b486d7128c08166bfb1a15a573  /tmp/orca.deb' | sha256sum -c -; sudo apt-get install -y -qq /tmp/orca.deb > /dev/null; rm -f /tmp/orca.deb; test -x /opt/Orca/resources/bin/orca-ide; echo orca installed"]
     - ["sh", "-c", "set -eu; sudo npm install -g --no-fund --no-audit --silent '@anthropic-ai/claude-code@2.1.272' > /dev/null; sudo ln -sf /usr/local/node/bin/claude /usr/local/bin/claude; claude --version"]
-    # Superpowers, at the pinned commit. A tag would move.
-    - ["sh", "-c", "set -eu; sudo mkdir -p /opt/dely-cycle; sudo chown \"$(id -u):$(id -g)\" /opt/dely-cycle; git clone -q --filter=blob:none https://github.com/obra/superpowers.git /opt/dely-cycle/superpowers; git -C /opt/dely-cycle/superpowers checkout -q b36e0829c6d0140e93cfef2ca599b1b07d4a7797; claude plugin marketplace add /opt/dely-cycle/superpowers; claude plugin install superpowers@superpowers-dev --yes; claude plugin list"]
+    # Superpowers, at the pinned commit — a tag would move — with its skills
+    # copied where an agent reads them. `claude plugin marketplace add` is the
+    # documented route and is not used: it hangs in the machine backend's guest,
+    # and both backends install the same way so their evidence compares. What
+    # this loses is the plugin's own session hook.
+    - ["sh", "-c", "set -eu; sudo mkdir -p /opt/dely-cycle; sudo chown \"$(id -u):$(id -g)\" /opt/dely-cycle; git clone -q --filter=blob:none https://github.com/obra/superpowers.git /opt/dely-cycle/superpowers; git -C /opt/dely-cycle/superpowers checkout -q b36e0829c6d0140e93cfef2ca599b1b07d4a7797; mkdir -p \"$HOME/.claude/skills\"; for d in /opt/dely-cycle/superpowers/skills/*/; do [ -f \"${d}SKILL.md\" ] || continue; cp -r \"$d\" \"$HOME/.claude/skills/\"; done; ls \"$HOME/.claude/skills\""]
     # Orca's own skills. `orca skills install` resolves to this command but
     # passes --agent claude, which the skills command line rejects; the name it
     # accepts is claude-code.

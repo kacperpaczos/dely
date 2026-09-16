@@ -99,9 +99,24 @@ bounded() {
 free -m || true
 df -h / || true
 
-bounded 600 claude plugin marketplace add /opt/dely-cycle/superpowers
-bounded 600 claude plugin install superpowers@superpowers-dev --yes
-bounded 120 claude plugin list
+# Superpowers is a skills library, and its skills go where an agent reads them.
+#
+# `claude plugin marketplace add` is the documented way and it is not used here:
+# in this guest it hangs. Given ten minutes and stdin closed it produced no
+# output and never returned, where the same command against the same checkout
+# answers in under a second in a container, with and without a terminal, with
+# and without Orca installed, as root and as an ordinary user. What differs is
+# the guest, and that is not established. So the image does not depend on it.
+#
+# What this loses is the plugin's own wiring — its session hook among it. The
+# skills are here and are the pinned bytes; the hook is not, and nothing here
+# should be read as saying otherwise.
+mkdir -p "${HOME}/.claude/skills"
+for directory in /opt/dely-cycle/superpowers/skills/*/; do
+  [ -f "${directory}SKILL.md" ] || continue
+  cp -r "${directory}" "${HOME}/.claude/skills/"
+done
+ls "${HOME}/.claude/skills"
 
 # Orca's own skills. `orca skills install` resolves to this command but passes
 # --agent claude, which the skills command line rejects; it accepts claude-code.

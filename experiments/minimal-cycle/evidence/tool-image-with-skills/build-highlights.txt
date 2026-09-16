@@ -1,0 +1,19 @@
+Found port for communicator (SSH, WinRM, etc): 3598.
+brainstorming
+using-superpowers
+writing-skills
+    | [1G[J◇  Found 8 skills
+    | ●  Selected 2 skills: orca-cli, orchestration
+    | ◇  Installed 2 skills ─────────────────╮
+    | └  Done!  Review skills before use; they run with full agent permissions.
+--- done: npx --yes skills add https://github.com/stablyai/orca --skill orca-cli --skill orchestration --global --agent claude-code -y
+skill orchestration matches its pin
+skill orca-cli matches its pin
+orca_version=1.4.201
+claude_code_version=2.1.272
+node_version=v24.21.0
+superpowers_revision=b36e0829c6d0140e93cfef2ca599b1b07d4a7797
+skills=brainstorming,dispatching-parallel-agents,executing-plans,finishing-a-development-branch,orca-cli,orchestration,receiving-code-review,requesting-code-review,subagent-driven-development,systematic-debugging,test-driven-development,using-git-worktrees,using-superpowers,verification-before-completion,writing-plans,writing-skills,
+ubuntu=Ubuntu 24.04.5 LTS
+built_at=2026-09-16T08:45:04Z
+provisioning complete

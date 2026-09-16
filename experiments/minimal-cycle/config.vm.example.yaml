@@ -5,7 +5,7 @@
 # image, and a cloud-init NoCloud seed. Run these first, once per host:
 #
 #     host/prepare-host              pinned pulumi, local state, base image, pool
-#     host/packer/build-tool-image   the tool image, ~15 minutes
+#     host/packer/build-tool-image   the tool image
 #
 # The tool image carries Orca, Claude Code, node and the pinned skills, so this
 # backend provisions nothing at run time and the guest needs no network for it.

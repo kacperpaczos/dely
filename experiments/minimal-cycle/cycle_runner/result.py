@@ -264,6 +264,32 @@ class FirstRunRecord:
 
 
 @dataclass
+class DisplayRecord:
+    """Whose screen the environment's application went to."""
+
+    status: PhaseStatus = PhaseStatus.SKIPPED
+    mode: str = ""
+    display: str = ""
+    reachable: bool = False
+    before: list[dict[str, str]] = field(default_factory=list)
+    after: list[dict[str, str]] = field(default_factory=list)
+    appeared: list[dict[str, str]] = field(default_factory=list)
+    detail: str = "not attempted"
+
+    def to_document(self) -> dict[str, Any]:
+        return {
+            "status": self.status.value,
+            "mode": self.mode,
+            "display": self.display,
+            "reachable": self.reachable,
+            "before": [dict(entry) for entry in self.before],
+            "after": [dict(entry) for entry in self.after],
+            "appeared": [dict(entry) for entry in self.appeared],
+            "detail": self.detail,
+        }
+
+
+@dataclass
 class ReviewRecord:
     """The handoff: what was handed over, to whom, and whether it was the same."""
 
@@ -369,6 +395,7 @@ class RunResult:
     admission: AdmissionRecord = field(default_factory=AdmissionRecord)
     skills: SkillsRecord = field(default_factory=SkillsRecord)
     review: ReviewRecord = field(default_factory=ReviewRecord)
+    display: DisplayRecord = field(default_factory=DisplayRecord)
 
     def phase(self, name: str) -> PhaseRecord | None:
         for record in self.phases:
@@ -402,6 +429,7 @@ class RunResult:
             "admission": self.admission.to_document(),
             "skills": self.skills.to_document(),
             "review": self.review.to_document(),
+            "display": self.display.to_document(),
         }
 
 

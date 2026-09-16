@@ -37,7 +37,7 @@ Once per host:
 ```bash
 cd experiments/minimal-cycle
 host/prepare-host                  # pinned pulumi, local state, image, pool, project source
-host/packer/build-tool-image       # the machine backend's tool image, ~15 minutes
+host/packer/build-tool-image       # the machine backend's tool image
 ```
 
 Then, for either backend, with the shipped configuration as it stands:

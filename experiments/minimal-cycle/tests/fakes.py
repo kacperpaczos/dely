@@ -14,7 +14,7 @@ from typing import Mapping, Sequence
 import hashlib
 import json
 
-from cycle_runner import probe, proc, review, skills
+from cycle_runner import display, probe, proc, review, skills
 from cycle_runner.adapters.base import (
     BackendAdapter,
     DestroyReport,
@@ -48,7 +48,14 @@ RUNNABLE_PROGRAMS = frozenset(
     {"sh", "rm", "mkdir", "cat", "test", "true", "false", "printf", "git"}
 )
 RUNNABLE_SHELL_SCRIPTS = frozenset(
-    {"cycle-check", "auth-teardown", "cycle-cd", "cycle-handoff", "cycle-skills"}
+    {
+        "cycle-check",
+        "auth-teardown",
+        "cycle-cd",
+        "cycle-handoff",
+        "cycle-skills",
+        "cycle-display",
+    }
 )
 
 ORCA_STATUS_REPLY = (
@@ -124,7 +131,10 @@ class FakeAdapter(BackendAdapter):
         review_verdict: str | None = "accept",
         reviewer_reads_another_diff: bool = False,
         one_dispatch_for_both: bool = False,
+        display_unreachable: bool = False,
+        window_appears: bool = True,
         plugin_answers: Mapping[str, tuple[str, str]] | None = None,
+        plugin_installed: Mapping[str, tuple[int, int]] | None = None,
     ):
         self.root = Path(root)
         self.skill_answers = dict(skill_answers or {})
@@ -132,7 +142,10 @@ class FakeAdapter(BackendAdapter):
         self.review_verdict = review_verdict
         self.reviewer_reads_another_diff = reviewer_reads_another_diff
         self.one_dispatch_for_both = one_dispatch_for_both
+        self.display_unreachable = display_unreachable
+        self.window_appears = window_appears
         self.plugin_answers = dict(plugin_answers or {})
+        self.plugin_installed = dict(plugin_installed or {})
         self.home = self.root / "home"
         self.project = self.home / "project"
         self.shared_base = self.root.parent / "shared" / "base.img"
@@ -235,6 +248,20 @@ class FakeAdapter(BackendAdapter):
             return probe.parse(self._host_snapshot_text()).get("orca_path", "")
         return "/usr/bin/orca"
 
+    def _windows(self, argv) -> str:
+        """Answer as the environment's own screen would.
+
+        A window for the application appears only once it has been started, so
+        the before-and-after comparison the runner makes is a real one here.
+        """
+        screen = argv[4] if len(argv) > 4 else ":0"
+        if self.display_unreachable:
+            return f"display {screen} unreachable\n"
+        lines = [f"display {screen} reachable", "window 1000 openbox"]
+        if self.app_started and self.window_appears:
+            lines.append("window 2000 orca — project")
+        return "\n".join(lines) + "\n"
+
     def _dispatch(self, joined: str) -> str:
         """Answer one worker-start, and do what that agent would have done.
 
@@ -298,9 +325,19 @@ class FakeAdapter(BackendAdapter):
         extra_values: Sequence[str] = (),
     ) -> proc.CommandOutcome:
         joined = " ".join(argv)
+        if display.WINDOW_SCRIPT in joined:
+            self.calls.append("display-windows")
+            return self._outcome(argv, 0, self._windows(argv), "")
         if skills.LOCATE_SCRIPT in joined:
             self.calls.append("skills-locate")
             return self._outcome(argv, 0, self._skill_lines(argv, self.skill_answers), "")
+        if skills.INSTALLED_SCRIPT in joined:
+            self.calls.append("skills-installed")
+            answers = {
+                name: (str(total), str(same))
+                for name, (total, same) in self.plugin_installed.items()
+            }
+            return self._outcome(argv, 0, self._skill_lines(argv, answers), "")
         if skills.REVISION_SCRIPT in joined:
             self.calls.append("skills-revision")
             return self._outcome(argv, 0, self._skill_lines(argv, self.plugin_answers), "")

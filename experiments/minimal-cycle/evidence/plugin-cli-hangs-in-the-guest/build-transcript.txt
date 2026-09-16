@@ -1,0 +1,40 @@
+==> dely-cycle-tool-image.qemu.tool_image: + printf '{"hasCompletedOnboarding": true}\n'
+==> dely-cycle-tool-image.qemu.tool_image: + sudo mkdir -p /opt/dely-cycle
+==> dely-cycle-tool-image.qemu.tool_image: ++ id -u
+==> dely-cycle-tool-image.qemu.tool_image: ++ id -g
+==> dely-cycle-tool-image.qemu.tool_image: + sudo chown 1000:1000 /opt/dely-cycle
+==> dely-cycle-tool-image.qemu.tool_image: + git clone -q --filter=blob:none https://github.com/obra/superpowers.git /opt/dely-cycle/superpowers
+==> dely-cycle-tool-image.qemu.tool_image: + git -C /opt/dely-cycle/superpowers checkout -q b36e0829c6d0140e93cfef2ca599b1b07d4a7797
+==> dely-cycle-tool-image.qemu.tool_image: ++ git -C /opt/dely-cycle/superpowers rev-parse HEAD
+==> dely-cycle-tool-image.qemu.tool_image: + test b36e0829c6d0140e93cfef2ca599b1b07d4a7797 = b36e0829c6d0140e93cfef2ca599b1b07d4a7797
+==> dely-cycle-tool-image.qemu.tool_image: + free -m
+==> dely-cycle-tool-image.qemu.tool_image:                total        used        free      shared  buff/cache   available
+==> dely-cycle-tool-image.qemu.tool_image: + df -h /
+==> dely-cycle-tool-image.qemu.tool_image: Mem:            3915         503        1361           1        2327        3411
+==> dely-cycle-tool-image.qemu.tool_image: Swap:              0           0           0
+==> dely-cycle-tool-image.qemu.tool_image: + bounded 600 claude plugin marketplace add /opt/dely-cycle/superpowers
+==> dely-cycle-tool-image.qemu.tool_image: + seconds=600
+==> dely-cycle-tool-image.qemu.tool_image: Filesystem      Size  Used Avail Use% Mounted on
+==> dely-cycle-tool-image.qemu.tool_image: + shift
+==> dely-cycle-tool-image.qemu.tool_image: ++ mktemp
+==> dely-cycle-tool-image.qemu.tool_image: /dev/vda1        23G  3.4G   19G  16% /
+==> dely-cycle-tool-image.qemu.tool_image: + log=/tmp/tmp.YFrmt1ugR8
+==> dely-cycle-tool-image.qemu.tool_image: --- running (limit 600s): claude plugin marketplace add /opt/dely-cycle/superpowers
+==> dely-cycle-tool-image.qemu.tool_image: + echo '--- running (limit 600s): claude plugin marketplace add /opt/dely-cycle/superpowers'
+==> dely-cycle-tool-image.qemu.tool_image: + set +e
+==> dely-cycle-tool-image.qemu.tool_image: + timeout --signal=TERM --kill-after=30 600 claude plugin marketplace add /opt/dely-cycle/superpowers
+==> dely-cycle-tool-image.qemu.tool_image: + status=124
+==> dely-cycle-tool-image.qemu.tool_image: + set -e
+==> dely-cycle-tool-image.qemu.tool_image: + sed 's/^/    | /' /tmp/tmp.YFrmt1ugR8
+==> dely-cycle-tool-image.qemu.tool_image: + rm -f /tmp/tmp.YFrmt1ugR8
+==> dely-cycle-tool-image.qemu.tool_image: + '[' 124 -eq 0 ']'
+==> dely-cycle-tool-image.qemu.tool_image: + '[' 124 -eq 124 ']'
+==> dely-cycle-tool-image.qemu.tool_image: + echo 'gave up after 600s: claude plugin marketplace add /opt/dely-cycle/superpowers'
+==> dely-cycle-tool-image.qemu.tool_image: gave up after 600s: claude plugin marketplace add /opt/dely-cycle/superpowers
+==> dely-cycle-tool-image.qemu.tool_image: + return 124
+==> dely-cycle-tool-image.qemu.tool_image: Provisioning step had errors: Running the cleanup provisioner, if present...
+==> dely-cycle-tool-image.qemu.tool_image: Deleting output directory...
+Build 'dely-cycle-tool-image.qemu.tool_image' errored after 11 minutes 3 seconds: Script exited with non-zero exit status: 124. Allowed exit codes are: [0]
+==> Wait completed after 11 minutes 3 seconds
+==> Some builds didn't complete successfully and had errors:
+--> dely-cycle-tool-image.qemu.tool_image: Script exited with non-zero exit status: 124. Allowed exit codes are: [0]

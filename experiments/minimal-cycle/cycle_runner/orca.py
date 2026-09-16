@@ -122,9 +122,22 @@ def wait_for_runtime(
 
 #: Launched detached with its own output kept, because a window manager's
 #: autostart was observed to leave only a crash directory and a stale lock.
+#:
+#: Two exports decide whose screen the application appears on, and both were
+#: learned the hard way. The runtime directory is the environment's own, not
+#: `/run/user/<uid>` — on the container backend that path is the operator's,
+#: mounted in, and it holds the compositor socket. And the toolkit is told to
+#: use X11 outright: left to choose, it found the operator's compositor and
+#: opened a window on their desktop even though this run had given it a
+#: virtual screen of its own.
 START_SCRIPT = (
     'export DISPLAY="$1"; shift; '
-    'export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"; '
+    'export XDG_RUNTIME_DIR="$HOME/.runtime"; '
+    'mkdir -p "$XDG_RUNTIME_DIR"; chmod 700 "$XDG_RUNTIME_DIR"; '
+    'export ELECTRON_OZONE_PLATFORM_HINT=x11; '
+    'export GDK_BACKEND=x11; '
+    'export QT_QPA_PLATFORM=xcb; '
+    'unset WAYLAND_DISPLAY; '
     # The graphical session starts at boot; the application must not be launched
     # before it is there, or it leaves a crash directory and a stale lock.
     'waited=0; '

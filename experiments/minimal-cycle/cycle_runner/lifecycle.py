@@ -21,6 +21,7 @@ from . import (
     admission,
     auth,
     cleanup,
+    display as display_module,
     firstrun,
     hostinfo,
     hostregistry,
@@ -28,6 +29,7 @@ from . import (
     orca,
     probe,
     proc,
+    processes,
     project,
     redact,
     review as review_module,
@@ -39,6 +41,7 @@ from .config import RunConfig
 from .export import Exporter
 from .result import (
     AdmissionRecord,
+    DisplayRecord,
     CheckRecord,
     CleanupRecord,
     PhaseRecord,
@@ -470,20 +473,29 @@ class _Cycle:
             )
             record.commands.append(outcome.to_record())
             skill_answers = skills.parse(outcome.stdout)
+        installed_counts: dict[str, tuple[int, int]] = {}
         if settings.plugins:
+            pairs = [(item.name, item.path) for item in settings.plugins]
             outcome = self.execute(
-                skills.revision_argv(
-                    [(item.name, item.path) for item in settings.plugins]
-                ),
+                skills.revision_argv(pairs),
                 timeout=min(180, self.config.timeout_seconds),
             )
             record.commands.append(outcome.to_record())
             plugin_answers = skills.parse(outcome.stdout)
+            # Being at the pinned commit is not the same as the agent being able
+            # to read what is in it.
+            outcome = self.execute(
+                skills.installed_argv(settings.roots, pairs),
+                timeout=min(300, self.config.timeout_seconds),
+            )
+            record.commands.append(outcome.to_record())
+            installed_counts = skills.counts(outcome.stdout)
         findings, _ = skills.judge(
             bundled=[(item.name, item.sha256) for item in settings.bundled],
             plugins=[(item.name, item.revision) for item in settings.plugins],
             skill_answers=skill_answers,
             plugin_answers=plugin_answers,
+            installed_counts=installed_counts,
         )
         self.result.skills = skills.record(findings, settings.required)
         self.exporter.write_json("skills.json", self.result.skills.to_document())
@@ -551,6 +563,7 @@ class _Cycle:
             runtime = orca.read_status(
                 self.adapter, self.config.orca.status_argv, timeout=120
             )
+            windows_before = self._windows()
             if not runtime.ready:
                 started = self.execute(
                     orca.start_argv(self.config.orca.app_argv, self.config.orca.display),
@@ -575,6 +588,8 @@ class _Cycle:
                     f"ready there: {runtime.detail}"
                 )
                 self.blocked_reason = self.blocked_reason or record.detail
+                return
+            if not self._check_display(record, windows_before):
                 return
             try:
                 self.coordinator_handle = orca.open_coordinator_terminal(
@@ -621,6 +636,68 @@ class _Cycle:
                     )
                 else:
                     self.error_reason = self.error_reason or worker_record.detail
+
+    def _gui_mode(self) -> str:
+        """Which screen this environment's application is pointed at.
+
+        Only the container backend can reach the operator's, so only it has a
+        choice to declare. A guest has its own screen by construction.
+        """
+        if self.config.backend == "distrobox" and self.config.distrobox is not None:
+            return self.config.distrobox.gui
+        return display_module.VIRTUAL
+
+    def _windows(self) -> tuple[bool, list]:
+        """Ask the environment's own screen what is on it."""
+        outcome = self.execute(
+            display_module.windows_argv(self.config.orca.display),
+            timeout=min(120, self.config.timeout_seconds),
+        )
+        return display_module.parse(outcome.stdout)
+
+    def _check_display(self, record, windows_before) -> bool:
+        """Establish that the application went to this run's screen, not somebody's."""
+        reachable_before, before = windows_before
+        reachable, after = self._windows()
+        mode = self._gui_mode()
+        leaking = display_module.carrying_host_session(
+            processes.holding([str(self.config.state_root / self.run_id)])
+            if self.adapter.shares_host_processes
+            else []
+        )
+        ok, detail = display_module.verdict(
+            mode=mode,
+            reachable=reachable or reachable_before,
+            before=before,
+            after=after,
+            application="orca",
+            leaking=leaking,
+        )
+        result = DisplayRecord(
+            status=PhaseStatus.OK if ok else PhaseStatus.BLOCKED,
+            mode=mode,
+            display=self.config.orca.display,
+            reachable=reachable,
+            before=[window.to_document() for window in before],
+            after=[window.to_document() for window in after],
+            appeared=[
+                window.to_document()
+                for window in display_module.appeared(before, after)
+            ],
+            detail=detail,
+        )
+        self.result.display = result
+        self.exporter.write_json("display.json", result.to_document())
+        self.log.say(f"display: {detail}")
+        if ok:
+            return True
+        record.status = PhaseStatus.BLOCKED
+        record.detail = detail
+        self.blocked_reason = self.blocked_reason or (
+            "this run cannot show that its application stayed on its own screen: "
+            + detail
+        )
+        return False
 
     def _review(self) -> None:
         """Hand the implementer's diff to a reviewer that did not write it."""

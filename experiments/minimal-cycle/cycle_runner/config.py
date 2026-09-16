@@ -235,6 +235,9 @@ class OrcaConfig:
 #: Code's own personal skills directory.
 DEFAULT_SKILL_ROOTS = (".agents/skills", ".claude/skills")
 
+#: Which screen an environment's application is pointed at.
+GUI_MODES = ("virtual", "host")
+
 
 @dataclass(frozen=True)
 class PinnedSkill:
@@ -308,6 +311,9 @@ class DistroboxConfig:
     extra_mounts: tuple[str, ...] = ()
     provision: tuple[tuple[str, ...], ...] = ()
     accept_host_home_mount: bool = False
+    # Which screen this box's application uses. `virtual` is its own; `host`
+    # asks for windows on the operator's desktop and is never the default.
+    gui: str = "virtual"
     # The share of the host one box may take. These are declared to the
     # container manager, so the budget admission checks is the same number the
     # kernel enforces, not a hope written in a manifest.
@@ -323,6 +329,7 @@ class DistroboxConfig:
             "extra_mounts": list(self.extra_mounts),
             "provision": [list(argv) for argv in self.provision],
             "accept_host_home_mount": self.accept_host_home_mount,
+            "gui": self.gui,
             "vcpus": self.vcpus,
             "memory_mb": self.memory_mb,
             "pids": self.pids,
@@ -729,6 +736,7 @@ def _distrobox(document: Mapping[str, Any]) -> DistroboxConfig:
             "extra_mounts",
             "provision",
             "accept_host_home_mount",
+            "gui",
             "vcpus",
             "memory_mb",
             "pids",
@@ -736,6 +744,12 @@ def _distrobox(document: Mapping[str, Any]) -> DistroboxConfig:
         ),
         "distrobox",
     )
+    gui = _text(document, "gui", "distrobox", "virtual")
+    if gui not in GUI_MODES:
+        _fail(
+            f"distrobox.gui must be one of {', '.join(GUI_MODES)}, got {gui!r}; "
+            "which screen the application uses is an explicit choice"
+        )
     mounts = tuple(document.get("extra_mounts") or ())
     for mount in mounts:
         if not isinstance(mount, str):
@@ -748,6 +762,7 @@ def _distrobox(document: Mapping[str, Any]) -> DistroboxConfig:
         accept_host_home_mount=_flag(
             document, "accept_host_home_mount", "distrobox", False
         ),
+        gui=gui,
         vcpus=_positive_int(document, "vcpus", "distrobox", 2),
         memory_mb=_positive_int(document, "memory_mb", "distrobox", 4096),
         pids=_positive_int(document, "pids", "distrobox", 2048),

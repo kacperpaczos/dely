@@ -40,6 +40,10 @@ class Process:
     parent: int = 0
     home: str = ""
     cwd: str = ""
+    #: The names of any variables in this process's environment that point at
+    #: the operator's own session. They are stripped before every command, so a
+    #: process that has one anyway means something put it back.
+    session: str = ""
 
     def names(self, path: str) -> bool:
         """Report whether this process is tied to the given path."""
@@ -77,11 +81,22 @@ def _read(pid: int, name: str) -> str:
     return raw.replace(b"\0", b" ").decode("utf-8", "replace").strip()
 
 
-def _read_home(pid: int) -> str:
+#: Variables that point at the operator's screen, keys or message bus.
+SESSION_NAMES = ("WAYLAND_DISPLAY", "XAUTHORITY", "DBUS_SESSION_BUS_ADDRESS")
+
+
+def _read_environment(pid: int) -> tuple[str, str]:
+    """Return this process's home, and which session variables it carries."""
+    home = ""
+    carried: list[str] = []
     for pair in _read(pid, "environ").split(" "):
         if pair.startswith("HOME="):
-            return pair[5:]
-    return ""
+            home = pair[5:]
+            continue
+        for name in SESSION_NAMES:
+            if pair.startswith(f"{name}="):
+                carried.append(f"{name}=")
+    return home, " ".join(carried)
 
 
 def _read_parent(pid: int) -> int:
@@ -163,13 +178,15 @@ def _live_processes() -> list[Process]:
             cwd = os.readlink(PROC_ROOT / entry.name / "cwd")
         except OSError:
             cwd = ""
+        home, session = _read_environment(pid)
         found.append(
             Process(
                 pid=pid,
                 command=command,
                 parent=_read_parent(pid),
-                home=_read_home(pid),
+                home=home,
                 cwd=cwd,
+                session=session,
             )
         )
     return found

@@ -48,6 +48,32 @@ for name in "$@"; do
 done
 """
 
+INSTALLED_SCRIPT = r"""
+set -u
+roots="$1"
+shift
+for entry in "$@"; do
+    name="${entry%%=*}"
+    path="${entry#*=}"
+    total=0
+    same=0
+    for directory in "$path"/skills/*/; do
+        [ -f "${directory}SKILL.md" ] || continue
+        total=$((total + 1))
+        skill="$(basename "$directory")"
+        want="$(sha256sum < "${directory}SKILL.md" | cut -d' ' -f1)"
+        for root in $roots; do
+            target="$HOME/$root/$skill/SKILL.md"
+            if [ -f "$target" ] && [ "$(sha256sum < "$target" | cut -d' ' -f1)" = "$want" ]; then
+                same=$((same + 1))
+                break
+            fi
+        done
+    done
+    printf '%s\t%s\t%s\n' "$name" "$total" "$same"
+done
+"""
+
 REVISION_SCRIPT = r"""
 set -u
 for entry in "$@"; do
@@ -74,6 +100,23 @@ def revision_argv(pairs: Sequence[tuple[str, str]]) -> list[str]:
         "-c",
         REVISION_SCRIPT,
         "cycle-plugins",
+        *[f"{name}={path}" for name, path in pairs],
+    ]
+
+
+def installed_argv(roots: Sequence[str], pairs: Sequence[tuple[str, str]]) -> list[str]:
+    """Return one command comparing a plugin's own skills with the installed ones.
+
+    Nothing has to list a digest for this. Both sides come from the checkout the
+    commit pins, so the comparison is between the pinned bytes and the bytes an
+    agent would read.
+    """
+    return [
+        "sh",
+        "-c",
+        INSTALLED_SCRIPT,
+        "cycle-skills",
+        " ".join(roots),
         *[f"{name}={path}" for name, path in pairs],
     ]
 
@@ -137,7 +180,7 @@ def _judge_bundled(name, expected, answer) -> Finding:
     return finding
 
 
-def _judge_plugin(name, expected, answer) -> Finding:
+def _judge_plugin(name, expected, answer, installed) -> Finding:
     finding = Finding(name=name, kind="plugin", expected=expected)
     if answer is None:
         finding.detail = "the environment did not answer for this plugin"
@@ -154,9 +197,39 @@ def _judge_plugin(name, expected, answer) -> Finding:
     if revision != expected:
         finding.detail = "the checkout is at a different commit than the pin"
         return finding
+    if installed is None:
+        finding.detail = (
+            "the checkout is at the pinned commit, but nothing said whether its "
+            "skills reached the agent"
+        )
+        return finding
+    total, same = installed
+    if total <= 0:
+        finding.detail = "the checkout at the pinned commit carries no skills"
+        return finding
+    if same != total:
+        finding.detail = (
+            f"{same} of this checkout's {total} skills are where an agent reads "
+            "them with the pinned bytes; the rest are absent or different"
+        )
+        return finding
     finding.ok = True
-    finding.detail = "checked out at the pinned commit"
+    finding.detail = (
+        f"checked out at the pinned commit, and all {total} of its skills are "
+        "where an agent reads them, byte for byte"
+    )
     return finding
+
+
+def counts(stdout: str) -> dict[str, tuple[int, int]]:
+    """Return {name: (skills in the checkout, skills installed identically)}."""
+    found: dict[str, tuple[int, int]] = {}
+    for name, (first, second) in parse(stdout).items():
+        try:
+            found[name] = (int(first), int(second))
+        except ValueError:
+            continue
+    return found
 
 
 def judge(
@@ -165,14 +238,18 @@ def judge(
     plugins: Sequence[tuple[str, str]],
     skill_answers: dict[str, tuple[str, str]],
     plugin_answers: dict[str, tuple[str, str]],
+    installed_counts: dict[str, tuple[int, int]] | None = None,
 ) -> tuple[list[Finding], bool]:
     """Return one finding per requirement, and whether every one of them holds."""
+    installed_counts = installed_counts or {}
     findings = [
         _judge_bundled(name, expected, skill_answers.get(name))
         for name, expected in bundled
     ]
     findings.extend(
-        _judge_plugin(name, expected, plugin_answers.get(name))
+        _judge_plugin(
+            name, expected, plugin_answers.get(name), installed_counts.get(name)
+        )
         for name, expected in plugins
     )
     return findings, all(finding.ok for finding in findings)

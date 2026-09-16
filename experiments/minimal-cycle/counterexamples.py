@@ -683,6 +683,34 @@ CASES: tuple[Counterexample, ...] = (
         instruments=("tests.test_skills.JudgementTest",),
     ),
     Counterexample(
+        name="a-checkout-is-not-a-skill-the-agent-can-read",
+        requirement=(
+            "A repository at the pinned commit says nothing about whether its "
+            "skills are anywhere an agent looks"
+        ),
+        path="cycle_runner/skills.py",
+        original="    if installed is None:",
+        replacement="    if False:",
+        instruments=(
+            "tests.test_skills.JudgementTest",
+            "tests.test_lifecycle.PluginSkillsReachTheAgentTest",
+        ),
+    ),
+    Counterexample(
+        name="the-installed-skills-are-the-pinned-bytes",
+        requirement=(
+            "Counting skill directories finds the same number whether or not "
+            "their contents are what the pin names"
+        ),
+        path="cycle_runner/skills.py",
+        original="    if same != total:",
+        replacement="    if False:",
+        instruments=(
+            "tests.test_skills.JudgementTest",
+            "tests.test_lifecycle.PluginSkillsReachTheAgentTest",
+        ),
+    ),
+    Counterexample(
         name="a-missing-skill-blocks-the-run",
         requirement=(
             "A run that goes on to dispatch a worker without the skills it was "
@@ -788,6 +816,56 @@ CASES: tuple[Counterexample, ...] = (
         instruments=(
             "tests.test_review.ParsingTest",
             "tests.test_lifecycle.HandoffTest",
+        ),
+    ),
+    Counterexample(
+        name="the-operators-compositor-is-not-reachable-by-default",
+        requirement=(
+            "A box that inherits WAYLAND_DISPLAY finds the operator's "
+            "compositor and opens a window there, whatever screen the run made"
+        ),
+        path="cycle_runner/isolate.py",
+        original='    "WAYLAND_DISPLAY",\n    "XAUTHORITY",',
+        replacement='    "XAUTHORITY",',
+        instruments=("tests.test_display.StrippingTest",),
+    ),
+    Counterexample(
+        name="the-runtime-directory-is-the-environments-own",
+        requirement=(
+            "`/run/user/<uid>` is the operator's, mounted into the box, and it "
+            "holds the compositor socket"
+        ),
+        path="cycle_runner/orca.py",
+        original="""    'export XDG_RUNTIME_DIR="$HOME/.runtime"; '""",
+        replacement="""    'export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"; '""",
+        instruments=("tests.test_orca.StartTest",),
+    ),
+    Counterexample(
+        name="a-window-on-this-screen-is-the-evidence",
+        requirement=(
+            "Setting DISPLAY is not where the application went; a run with its "
+            "own virtual screen still put a window on somebody's desktop"
+        ),
+        path="cycle_runner/display.py",
+        original="    known = {window.identifier for window in before}\n    return [window for window in after if window.identifier not in known]",
+        replacement="    return list(after)",
+        instruments=(
+            "tests.test_display.VerdictTest",
+            "tests.test_lifecycle.DisplayGateTest",
+        ),
+    ),
+    Counterexample(
+        name="an-unreachable-screen-says-nothing",
+        requirement=(
+            "A screen that did not answer cannot report the window that is not "
+            "on it"
+        ),
+        path="cycle_runner/display.py",
+        original="    if not reachable:",
+        replacement="    if False:",
+        instruments=(
+            "tests.test_display.VerdictTest",
+            "tests.test_lifecycle.DisplayGateTest",
         ),
     ),
 )

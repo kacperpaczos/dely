@@ -1,0 +1,12 @@
+{
+  "base_image": "ubuntu-24.04-server-cloudimg-amd64.img",
+  "base_image_sha256": "612b2c0cc1bc413a6cb8c38fd611794caf0f2b436c50013d8b3794db12ad7354",
+  "built_at": "2026-09-16T08:45:17Z",
+  "carries_credentials": false,
+  "claude_code_version": "2.1.272",
+  "file": "tool-image.qcow2",
+  "orca_sha256": "9dab79a5223837fc91992e04ed54f92f45d6f4b486d7128c08166bfb1a15a573",
+  "orca_version": "1.4.201",
+  "sha256": "af8b68d1ab9917092c7ad6eb9f8a7e47af7ab69797265484b15b3ae7e0f24ae3",
+  "size_bytes": 4246142976
+}

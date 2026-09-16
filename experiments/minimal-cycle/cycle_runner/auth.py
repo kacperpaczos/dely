@@ -188,6 +188,32 @@ def judge_status(
     )
 
 
+#: Asked only when the agent did not answer. Each line is bounded, so the
+#: diagnosis cannot itself hang, and each one separates a different cause: a
+#: binary that does not run at all, a name that does not resolve, a route that
+#: does not exist, and a connection that is refused rather than swallowed.
+DIAGNOSIS_SCRIPT = r"""
+set -u
+say() { printf '\n== %s ==\n' "$1"; }
+say "claude --version"
+timeout 20 claude --version 2>&1 || printf 'exit %s\n' "$?"
+say "default routes"
+ip route show default 2>&1 || printf 'no ip command\n'
+say "name resolution"
+timeout 15 getent hosts api.anthropic.com 2>&1 || printf 'exit %s\n' "$?"
+say "reachability"
+timeout 20 curl -sS -o /dev/null -w 'http %{http_code} in %{time_total}s\n' \
+    https://api.anthropic.com/ 2>&1 || printf 'exit %s\n' "$?"
+say "claude auth status again, bounded"
+timeout 30 claude auth status --json 2>&1 || printf 'exit %s\n' "$?"
+"""
+
+
+def diagnosis_argv() -> list[str]:
+    """Return the command that asks why the agent did not answer."""
+    return ["sh", "-c", DIAGNOSIS_SCRIPT, "auth-diagnosis"]
+
+
 def verify(
     *,
     adapter: BackendAdapter,

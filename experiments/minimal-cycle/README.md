@@ -369,16 +369,31 @@ the table with the tests each row runs. The recorded sweep is in
 
 ## What no instrument here observes
 
-A second, different task. A run on any host but this one.
+A second, different task. A run on any host but this one. Any measurement that
+would need repetition: start-up time, cost, or how often anything succeeds.
 
-Isolation on the container backend. Distrobox mounts the host home, shares the
-host's process namespace and shares the host's display sockets. The runner
-records each of these rather than claiming otherwise: `preflight.json` blocks
-until the home mount is acknowledged, the cleanup survey exists because
-processes outlive the container, and a virtual display did **not** keep the
-application off the host's desktop when one run assumed it would.
+**Isolation on the container backend.** Distrobox mounts the operator's home,
+shares their process table, and mounts both `/run/user/<uid>` and `/tmp` — so
+their compositor socket and their X sockets are reachable from inside the box
+by anything that goes looking for them. What the runner does is narrower and it
+is worth stating exactly: it removes the variables that would point a toolkit
+at them, gives the environment a runtime directory of its own, and then checks
+where the application's window actually went. That is mitigation and a
+measurement, not a sandbox, and the preflight blocks until the home mount is
+acknowledged as a deliberate compromise.
 
-The machine backend has not completed a cycle. It creates its domain, proves a
-distinct kernel, starts Orca, opens a coordinator terminal and dispatches a
-worker, and the worker's turn does not begin there. `evidence/README.md` says
-what each run showed and where each one stopped.
+**That a process is not pointed at the operator's session.** Finding one that
+is settles the question; not finding one settles nothing, because the
+application rewrites its own environment block to set its process title and
+`/proc/<pid>/environ` then reads empty. The window check is what carries the
+claim; this only ever contradicts it.
+
+**That an agent read what it was given.** The handoff shows the reviewer was
+handed the implementer's diff, that the diff did not change underneath it, and
+that the reviewer named that diff in its verdict. Whether it read every line is
+not observable here and is not claimed.
+
+**That a skill was loaded or obeyed in a session.** The runner establishes that
+each pinned skill is present in the environment, where an agent looks, and is
+the pinned bytes. Loading and obedience are further questions and neither is
+answered.

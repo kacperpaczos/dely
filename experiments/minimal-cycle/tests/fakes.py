@@ -55,6 +55,7 @@ RUNNABLE_SHELL_SCRIPTS = frozenset(
         "cycle-handoff",
         "cycle-skills",
         "cycle-display",
+        "auth-diagnosis",
     }
 )
 

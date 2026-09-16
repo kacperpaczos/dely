@@ -228,3 +228,32 @@ class VerifyTest(unittest.TestCase):
         works, detail = auth.judge_status(ok=False, timed_out=True, status={})
         self.assertFalse(works)
         self.assertIn("before the deadline", detail)
+
+
+class DiagnosisTest(unittest.TestCase):
+    """An agent that says nothing has said nothing about why."""
+
+    def test_every_question_is_bounded(self):
+        """The diagnosis must not hang the way the thing it diagnoses did."""
+        lines = [
+            line.strip()
+            for line in auth.DIAGNOSIS_SCRIPT.splitlines()
+            if line.strip().startswith(("claude", "curl", "getent", "ip "))
+        ]
+        self.assertTrue(lines)
+        for line in lines:
+            with self.subTest(line=line):
+                self.assertTrue(
+                    line.startswith("ip ") or "timeout " in line,
+                    f"unbounded command in the diagnosis: {line}",
+                )
+
+    def test_it_separates_the_causes_it_is_meant_to(self):
+        for needed in ("claude --version", "ip route", "getent hosts", "curl"):
+            with self.subTest(needed=needed):
+                self.assertIn(needed, auth.DIAGNOSIS_SCRIPT)
+
+    def test_it_is_one_command_the_environment_can_run(self):
+        argv = auth.diagnosis_argv()
+        self.assertEqual(argv[0], "sh")
+        self.assertEqual(argv[3], "auth-diagnosis")

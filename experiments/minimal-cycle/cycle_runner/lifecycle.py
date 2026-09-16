@@ -449,6 +449,20 @@ class _Cycle:
                 self.result.auth = auth_record
             self.exporter.write_json("auth-receipt.json", auth_record.to_document())
             self.log.say(f"auth: {auth_record.verify_detail}")
+            if auth_record.status is PhaseStatus.BLOCKED and not auth_record.verified:
+                # An agent that says nothing has said nothing about why. These
+                # are the questions whose answers separate the causes, each one
+                # bounded so the diagnosis cannot hang the way the agent did.
+                diagnosis = self.execute(
+                    auth.diagnosis_argv(),
+                    timeout=min(180, self.config.timeout_seconds),
+                )
+                record.commands.append(diagnosis.to_record())
+                self.exporter.write_text(
+                    "auth-diagnosis.txt",
+                    diagnosis.stdout + (diagnosis.stderr or ""),
+                    required=False,
+                )
             if auth_record.status is PhaseStatus.BLOCKED:
                 record.status = PhaseStatus.BLOCKED
                 self.blocked_reason = (

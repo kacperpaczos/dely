@@ -67,6 +67,7 @@ def build_plan(
     orca_run_id: str | None,
     coordinator_handle: str | None = None,
     prompt_name: str = PROMPT_NAME,
+    acknowledge: str | None = None,
 ) -> LaunchPlan:
     """Compose the argv for run-create, worker-start and the completion wait."""
     prompt_path = str(Path(handle.home_path) / prompt_name)
@@ -106,6 +107,10 @@ def build_plan(
     if orca_run_id:
         start.extend(["--run", orca_run_id])
         wait.extend(["--run", orca_run_id])
+    if acknowledge:
+        # Acknowledge the batch the previous dispatch settled on, or this wait
+        # returns that same batch again and reports its outcome as this one's.
+        wait.extend(["--ack", acknowledge])
     created = [
         "orca",
         "orchestration",
@@ -202,6 +207,17 @@ def _explain(outcome, secrets) -> str:
     return redact.text(f"exit={outcome.exit_code}: {text}", secrets)
 
 
+def delivery_identifier(document: Mapping[str, Any]) -> str | None:
+    """Return the identifier of the batch a wait returned.
+
+    A bound Run replays the same delivery until it is acknowledged. Without
+    this, a second dispatch's wait wakes immediately on the first one's message
+    and reports the first agent's outcome as the second agent's.
+    """
+    value = _result(document).get("deliveryId")
+    return value if isinstance(value, str) and value else None
+
+
 def task_identifier(document: Mapping[str, Any]) -> str | None:
     """Return the Task identifier from a worker-start reply."""
     value = _result(document).get("taskId")
@@ -278,6 +294,7 @@ def launch(
     prompt_name: str = PROMPT_NAME,
     prompt_text: str | None = None,
     orca_run_id: str | None = None,
+    acknowledge: str | None = None,
 ) -> WorkerRecord:
     """Run exactly one worker and report how it settled.
 
@@ -315,6 +332,7 @@ def launch(
             orca_run_id=None,
             coordinator_handle=coordinator_handle,
             prompt_name=prompt_name,
+            acknowledge=acknowledge,
         )
         created = adapter.execute(
             plan.run_create_argv,
@@ -344,6 +362,7 @@ def launch(
         orca_run_id=record.run_id,
         coordinator_handle=coordinator_handle,
         prompt_name=prompt_name,
+        acknowledge=acknowledge,
     )
     record.prompt_path = plan.prompt_path
     adapter.write_file(
@@ -411,7 +430,9 @@ def launch(
         record.detail = "the completion wait failed: " + _explain(settled, secrets)
         return record
 
-    message = _settling_message(_first_document(settled.stdout))
+    settled_document = _first_document(settled.stdout)
+    record.delivery_id = delivery_identifier(settled_document)
+    message = _settling_message(settled_document)
     record.outcome = _message_outcome(message) or record.outcome
     if message.get("type") == "worker_done":
         record.status = PhaseStatus.OK

@@ -85,7 +85,8 @@ ORCA_DISPATCH_REPLY = (
     '"state": "ready", '
     '"effects": [{"kind": "terminal", "role": "agent", "id": "terminal-fake"}], '
     '"messages": [{"type": "worker_done", '
-    '"payload": "{\\"outcome\\": \\"DONE\\"}"}], "count": 1}}'
+    '"payload": "{\\"outcome\\": \\"DONE\\"}"}], "count": 1, '
+    '"deliveryId": "delivery-fake"}}'
 )
 
 #: A wait that woke with nothing to report, in the same shape.
@@ -140,6 +141,7 @@ class FakeAdapter(BackendAdapter):
         self.root = Path(root)
         self.skill_answers = dict(skill_answers or {})
         self.dispatches = 0
+        self.unacknowledged: str | None = None
         self.review_verdict = review_verdict
         self.reviewer_reads_another_diff = reviewer_reads_another_diff
         self.one_dispatch_for_both = one_dispatch_for_both
@@ -264,6 +266,29 @@ class FakeAdapter(BackendAdapter):
             lines.append("window 2000 orca — project")
         return "\n".join(lines) + "\n"
 
+    def _delivery(self, joined: str) -> str:
+        """Answer a wait the way a bound Run does.
+
+        A delivery is replayed until it is acknowledged, so a wait that does not
+        acknowledge the previous batch gets that batch again — with the previous
+        agent's message in it.
+        """
+        acknowledged = "--ack" in joined
+        if acknowledged:
+            self.unacknowledged = None
+        if self.unacknowledged is not None:
+            self.calls.append("replayed-delivery")
+            return self.unacknowledged
+        delivered = ORCA_DISPATCH_REPLY.replace(
+            '"deliveryId": "delivery-fake"',
+            f'"deliveryId": "delivery-fake-{self.dispatches}"',
+        ).replace(
+            '"dispatchId": "dispatch-fake"',
+            f'"dispatchId": "dispatch-fake-{self.dispatches}"',
+        )
+        self.unacknowledged = delivered
+        return delivered
+
     def _dispatch(self, joined: str) -> str:
         """Answer one worker-start, and do what that agent would have done.
 
@@ -357,9 +382,11 @@ class FakeAdapter(BackendAdapter):
                     '"state": "ready"', f'"state": "{self.dispatch_state}"'
                 )
                 return self._outcome(argv, 1, reply, "")
-            if not self.wait_settles and "--wait" in joined:
-                # The dispatch never reports, so the wait returns nothing.
-                return self._outcome(argv, 0, ORCA_EMPTY_DELIVERY, "")
+            if "--wait" in joined:
+                if not self.wait_settles:
+                    # The dispatch never reports, so the wait returns nothing.
+                    return self._outcome(argv, 0, ORCA_EMPTY_DELIVERY, "")
+                return self._outcome(argv, 0, self._delivery(joined), "")
             if "worker-start" in joined:
                 return self._outcome(argv, 0, self._dispatch(joined), "")
             if not self.task_writes_nothing:

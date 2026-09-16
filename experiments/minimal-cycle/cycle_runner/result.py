@@ -117,6 +117,7 @@ class WorkerRecord:
     effort: str | None = None
     run_id: str | None = None
     dispatch_id: str | None = None
+    delivery_id: str | None = None
     outcome: str | None = None
     role: str = "implementer"
     terminal: str | None = None
@@ -132,6 +133,7 @@ class WorkerRecord:
             "effort": self.effort,
             "run_id": self.run_id,
             "dispatch_id": self.dispatch_id,
+            "delivery_id": self.delivery_id,
             "outcome": self.outcome,
             "role": self.role,
             "terminal": self.terminal,

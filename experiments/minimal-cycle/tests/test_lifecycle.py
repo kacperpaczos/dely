@@ -905,3 +905,46 @@ class AuthWorksTest(CycleTestCase):
         outcome = self.cycle(signed_in=None)
         self.assertEqual(outcome.run_result.status, status.RunStatus.BLOCKED)
         self.assertIn("no readable answer", outcome.run_result.auth.verify_detail)
+
+
+class AcknowledgedDeliveryTest(CycleTestCase):
+    """A bound Run replays a delivery until it is acknowledged."""
+
+    def cycle(self):
+        adapter = FakeAdapter(self.state / RUN_ID, host_project=self.repo)
+        return adapter, lifecycle.run_cycle(
+            run_config=self.make_config(),
+            adapter=adapter,
+            run_id=RUN_ID,
+            host_home=self.host_home,
+            environ={},
+            tool_versions={"runner": "one"},
+        )
+
+    def test_the_reviewer_waits_on_its_own_message_not_the_implementers(self):
+        adapter, outcome = self.cycle()
+        self.assertNotIn("replayed-delivery", adapter.calls)
+        self.assertNotEqual(
+            outcome.run_result.worker.delivery_id,
+            outcome.run_result.reviewer.delivery_id,
+        )
+
+    def test_the_reviewers_wait_acknowledges_the_batch_before_it(self):
+        _, outcome = self.cycle()
+        waits = [
+            command
+            for command in outcome.run_result.reviewer.commands
+            if "--wait" in command.argv
+        ]
+        self.assertTrue(waits, "the reviewer never waited")
+        self.assertIn("--ack", waits[0].argv)
+        self.assertIn(outcome.run_result.worker.delivery_id, waits[0].argv)
+
+    def test_the_implementers_own_wait_acknowledges_nothing(self):
+        _, outcome = self.cycle()
+        waits = [
+            command
+            for command in outcome.run_result.worker.commands
+            if "--wait" in command.argv
+        ]
+        self.assertNotIn("--ack", waits[0].argv)

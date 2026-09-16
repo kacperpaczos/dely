@@ -792,6 +792,11 @@ class _Cycle:
                 marker=self.config.task.marker,
             ),
             orca_run_id=self.implementer.run_id if self.implementer else None,
+            # Without this the reviewer's wait wakes on the implementer's
+            # message: a bound Run replays a delivery until it is
+            # acknowledged, and reports the first agent's outcome as the
+            # second agent's.
+            acknowledge=self.implementer.delivery_id if self.implementer else None,
         )
         self.result.reviewer = reviewer
         result.reviewer = reviewer.to_document()

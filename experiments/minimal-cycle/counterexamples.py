@@ -767,6 +767,18 @@ CASES: tuple[Counterexample, ...] = (
         instruments=("tests.test_examples_are_runnable.ProvisionIsRealTest",),
     ),
     Counterexample(
+        name="the-reviewer-waits-on-its-own-message",
+        requirement=(
+            "A bound Run replays a delivery until it is acknowledged, so a "
+            "second dispatch's wait wakes on the first one's message and "
+            "reports the first agent's outcome as the second agent's"
+        ),
+        path="cycle_runner/worker.py",
+        original='    if acknowledge:',
+        replacement="    if False:",
+        instruments=("tests.test_lifecycle.AcknowledgedDeliveryTest",),
+    ),
+    Counterexample(
         name="two-panes-are-not-two-agents",
         requirement=(
             "One dispatch answering twice looks exactly like two agents until "

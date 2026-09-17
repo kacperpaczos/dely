@@ -672,8 +672,8 @@ CASES: tuple[Counterexample, ...] = (
     Counterexample(
         name="a-skill-is-pinned-by-its-bytes",
         requirement=(
-            "`skills add` fetches what is current; only the digest tells that "
-            "apart from what was pinned"
+            "A named pin says what should have landed; only the digest says "
+            "what did, whatever the install claims"
         ),
         path="cycle_runner/skills.py",
         original="    if digest != expected:",
@@ -765,6 +765,46 @@ CASES: tuple[Counterexample, ...] = (
         original="  provision:\n    - [\"sh\", \"-c\", \"set -eu; export DEBIAN_FRONTEND=noninteractive;",
         replacement="  provision: []\n  unused:\n    - [\"sh\", \"-c\", \"set -eu; export DEBIAN_FRONTEND=noninteractive;",
         instruments=("tests.test_examples_are_runnable.ProvisionIsRealTest",),
+    ),
+    Counterexample(
+        name="an-install-that-names-no-revision-is-not-a-pin",
+        requirement=(
+            "`npx skills add <repo>` names no revision and has no flag that "
+            "takes one, so it installs the repository's tip; it lands the bytes "
+            "the pinned Orca ships only on the days the tip happens to be them"
+        ),
+        path="config.distrobox.example.yaml",
+        original='rev=fb322046e82b0e60ff2949f8360f0e0f071f42d4; sudo mkdir -p /opt/dely-cycle; sudo chown \\"$(id -u):$(id -g)\\" /opt/dely-cycle; git init -q /opt/dely-cycle/orca-skills; git -C /opt/dely-cycle/orca-skills remote add origin https://github.com/stablyai/orca.git; git -C /opt/dely-cycle/orca-skills fetch -q --depth 1 --filter=blob:none origin \\"$rev\\"; git -C /opt/dely-cycle/orca-skills sparse-checkout set --no-cone skills/orca-cli skills/orchestration; git -C /opt/dely-cycle/orca-skills checkout -q FETCH_HEAD; test \\"$(git -C /opt/dely-cycle/orca-skills rev-parse HEAD)\\" = \\"$rev\\"; mkdir -p \\"$HOME/.claude/skills\\"; for d in /opt/dely-cycle/orca-skills/skills/*/; do [ -f \\"${d}SKILL.md\\" ] || continue; cp -r \\"$d\\" \\"$HOME/.claude/skills/\\"; done',
+        replacement='npx --yes skills add https://github.com/stablyai/orca --skill orca-cli --skill orchestration --global --agent claude-code -y > /tmp/skills.log 2>&1 || { tail -20 /tmp/skills.log >&2; exit 1; }',
+        instruments=(
+            "tests.test_examples_are_runnable.SkillsComeFromAPinnedRevisionTest",
+            "tests.test_examples_are_runnable.ProvisionIsRealTest",
+        ),
+    ),
+    Counterexample(
+        name="an-image-freezes-whichever-tip-it-was-built-on",
+        requirement=(
+            "A built image is frozen, so an unrevisioned install bakes in "
+            "whatever upstream happened to be on build day and says nothing"
+        ),
+        path="host/packer/provision.sh",
+        original=r"""git init -q /opt/dely-cycle/orca-skills
+git -C /opt/dely-cycle/orca-skills remote add origin "${ORCA_SKILLS_REPOSITORY}"
+bounded 600 git -C /opt/dely-cycle/orca-skills fetch -q --depth 1 \
+  --filter=blob:none origin "${ORCA_SKILLS_REVISION}"
+git -C /opt/dely-cycle/orca-skills sparse-checkout set --no-cone \
+  skills/orca-cli skills/orchestration
+git -C /opt/dely-cycle/orca-skills checkout -q FETCH_HEAD
+test "$(git -C /opt/dely-cycle/orca-skills rev-parse HEAD)" = "${ORCA_SKILLS_REVISION}"
+for directory in /opt/dely-cycle/orca-skills/skills/*/; do
+  [ -f "${directory}SKILL.md" ] || continue
+  cp -r "${directory}" "${HOME}/.claude/skills/"
+done""",
+        replacement=r"""bounded 900 npx --yes skills add https://github.com/stablyai/orca \
+  --skill orca-cli --skill orchestration --global --agent claude-code -y""",
+        instruments=(
+            "tests.test_examples_are_runnable.SkillsComeFromAPinnedRevisionTest",
+        ),
     ),
     Counterexample(
         name="the-reviewer-waits-on-its-own-message",
@@ -957,6 +997,60 @@ CASES: tuple[Counterexample, ...] = (
         instruments=("tests.test_display.CarryingHostSessionTest",),
     ),
     Counterexample(
+        name="a-capture-is-never-pointed-at-the-operators-screen",
+        requirement=(
+            "The box has the operator's X socket mounted, so a capture is one "
+            "screen number away from writing their desktop into a shared "
+            "artifact directory"
+        ),
+        path="cycle_runner/screenshot.py",
+        original="    if operator_display and display == operator_display:",
+        replacement="    if False:",
+        instruments=(
+            "tests.test_screenshot.PermittedTest",
+            "tests.test_lifecycle.ScreenCaptureTest",
+        ),
+    ),
+    Counterexample(
+        name="an-image-that-never-reached-the-host-is-not-a-picture",
+        requirement=(
+            "A capture command that reports an image and a host that holds one "
+            "are different claims, and only the second can be looked at"
+        ),
+        path="cycle_runner/screenshot.py",
+        original="""    if not data:
+        return Capture(
+            **attempt,
+            detail=(
+                "no image reached the host, so there is nothing to look at: \"""",
+        replacement="""    if not data:
+        return Capture(
+            **attempt,
+            ok=True,
+            artifact=artifact,
+            detail=(
+                "no image reached the host, so there is nothing to look at: \"""",
+        instruments=(
+            "tests.test_screenshot.JudgeTest",
+            "tests.test_lifecycle.ScreenCaptureTest",
+        ),
+    ),
+    Counterexample(
+        name="a-failed-capture-is-not-a-failed-run",
+        requirement=(
+            "A picture is evidence, not a gate: a screen that did not answer "
+            "would otherwise cost a whole cycle that proved everything else"
+        ),
+        path="cycle_runner/lifecycle.py",
+        original="""        self.captures.append(capture)
+        self.result.screenshot = screenshot.record(screen, self.captures)""",
+        replacement="""        self.captures.append(capture)
+        if not capture.ok:
+            self.blocked_reason = self.blocked_reason or capture.detail
+        self.result.screenshot = screenshot.record(screen, self.captures)""",
+        instruments=("tests.test_lifecycle.ScreenCaptureTest",),
+    ),
+    Counterexample(
         name="an-unreachable-screen-says-nothing",
         requirement=(
             "A screen that did not answer cannot report the window that is not "
@@ -968,6 +1062,48 @@ CASES: tuple[Counterexample, ...] = (
         instruments=(
             "tests.test_display.VerdictTest",
             "tests.test_lifecycle.DisplayGateTest",
+        ),
+    ),
+    Counterexample(
+        name="a-coordinator-that-ends-its-turn-still-owing-terminals",
+        requirement=(
+            "A worker_done settles the Task and leaves the terminal live, so a "
+            "turn that ends without disposing of it hands the plane a resource "
+            "nobody has claimed"
+        ),
+        path="cycle_runner/lifecycle.py",
+        original="""        if record.status is not PhaseStatus.OK:
+            self.error_reason = self.error_reason or record.detail""",
+        replacement="""        if False:
+            self.error_reason = self.error_reason or record.detail""",
+        instruments=("tests.test_lifecycle.TerminalDispositionTest",),
+    ),
+    Counterexample(
+        name="an-unverified-release-is-not-a-released-terminal",
+        requirement=(
+            "The one answer worker-release gives to say it does not know what "
+            "happened is the one that must not count as a disposition"
+        ),
+        path="cycle_runner/terminals.py",
+        original="    if outcome in DISCHARGED:",
+        replacement="    if outcome or True:",
+        instruments=(
+            "tests.test_terminals.ReleaseTest",
+            "tests.test_lifecycle.TerminalDispositionTest",
+        ),
+    ),
+    Counterexample(
+        name="a-release-receipt-is-not-a-closed-terminal",
+        requirement=(
+            "A terminal that is still in the live list was not closed, whatever "
+            "its receipt said and whatever its panel did"
+        ),
+        path="cycle_runner/terminals.py",
+        original="    surviving = [handle for handle in named if handle in live_after]",
+        replacement="    surviving = []",
+        instruments=(
+            "tests.test_terminals.DistinguishesTest",
+            "tests.test_lifecycle.TerminalDispositionTest",
         ),
     ),
 )

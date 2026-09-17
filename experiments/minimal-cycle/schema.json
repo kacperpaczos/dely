@@ -277,6 +277,97 @@
     "dely_revision": {
       "type": "string"
     },
+    "display": {
+      "properties": {
+        "after": {
+          "items": {
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "appeared": {
+          "items": {
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "before": {
+          "items": {
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "display": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "reachable": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "OK",
+            "FAILED",
+            "SKIPPED",
+            "TIMEOUT",
+            "BLOCKED"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "mode",
+        "display",
+        "reachable",
+        "before",
+        "after",
+        "appeared",
+        "detail"
+      ],
+      "type": "object"
+    },
     "elapsed_seconds": {
       "type": [
         "number",
@@ -561,6 +652,77 @@
     "schema_version": {
       "const": 1
     },
+    "screenshot": {
+      "properties": {
+        "captures": {
+          "items": {
+            "properties": {
+              "artifact": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              },
+              "display": {
+                "type": "string"
+              },
+              "moment": {
+                "type": "string"
+              },
+              "ok": {
+                "type": "boolean"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "size_bytes": {
+                "type": "integer"
+              },
+              "source": {
+                "enum": [
+                  "hypervisor",
+                  "x-server"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "moment",
+              "source",
+              "display",
+              "artifact",
+              "ok",
+              "detail"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "display": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "OK",
+            "FAILED",
+            "SKIPPED",
+            "TIMEOUT",
+            "BLOCKED"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "display",
+        "captures",
+        "detail"
+      ],
+      "type": "object"
+    },
     "skills": {
       "properties": {
         "detail": {
@@ -604,6 +766,217 @@
         "BLOCKED"
       ],
       "type": "string"
+    },
+    "terminals": {
+      "properties": {
+        "clean": {
+          "type": "boolean"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "dispositions": {
+          "items": {
+            "properties": {
+              "action": {
+                "enum": [
+                  "release"
+                ],
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              },
+              "dispatch_id": {
+                "type": "string"
+              },
+              "ok": {
+                "type": "boolean"
+              },
+              "outcome": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string"
+              },
+              "terminal": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "role",
+              "dispatch_id",
+              "terminal",
+              "action",
+              "outcome",
+              "ok",
+              "detail"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "distinction_detail": {
+          "type": "string"
+        },
+        "distinguished": {
+          "type": "boolean"
+        },
+        "live_after": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "live_before": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "owed_after": {
+          "items": {
+            "properties": {
+              "dispatch_id": {
+                "type": "string"
+              },
+              "run_id": {
+                "type": "string"
+              },
+              "task_id": {
+                "type": "string"
+              },
+              "terminal": {
+                "type": "string"
+              },
+              "terminal_state": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "dispatch_id",
+              "terminal",
+              "terminal_state"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "owed_before": {
+          "items": {
+            "properties": {
+              "dispatch_id": {
+                "type": "string"
+              },
+              "run_id": {
+                "type": "string"
+              },
+              "task_id": {
+                "type": "string"
+              },
+              "terminal": {
+                "type": "string"
+              },
+              "terminal_state": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "dispatch_id",
+              "terminal",
+              "terminal_state"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "run_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "OK",
+            "FAILED",
+            "SKIPPED",
+            "TIMEOUT",
+            "BLOCKED"
+          ],
+          "type": "string"
+        },
+        "workers_after": {
+          "items": {
+            "properties": {
+              "dispatch_id": {
+                "type": "string"
+              },
+              "run_id": {
+                "type": "string"
+              },
+              "task_id": {
+                "type": "string"
+              },
+              "terminal": {
+                "type": "string"
+              },
+              "terminal_state": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "dispatch_id",
+              "terminal",
+              "terminal_state"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "workers_before": {
+          "items": {
+            "properties": {
+              "dispatch_id": {
+                "type": "string"
+              },
+              "run_id": {
+                "type": "string"
+              },
+              "task_id": {
+                "type": "string"
+              },
+              "terminal": {
+                "type": "string"
+              },
+              "terminal_state": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "dispatch_id",
+              "terminal",
+              "terminal_state"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "status",
+        "run_id",
+        "owed_before",
+        "dispositions",
+        "owed_after",
+        "live_before",
+        "live_after",
+        "clean",
+        "distinguished",
+        "distinction_detail",
+        "detail"
+      ],
+      "type": "object"
     },
     "tested_revision": {
       "type": "string"
@@ -687,6 +1060,7 @@
     "cleanup",
     "config",
     "dely_revision",
+    "display",
     "elapsed_seconds",
     "environment",
     "environment_id",
@@ -702,9 +1076,11 @@
     "reviewer",
     "run_id",
     "schema_version",
+    "screenshot",
     "skills",
     "started_at",
     "status",
+    "terminals",
     "tested_revision",
     "timeout_seconds",
     "versions",

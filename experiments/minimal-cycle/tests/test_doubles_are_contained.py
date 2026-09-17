@@ -11,7 +11,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.fakes import RUNNABLE_PROGRAMS, RUNNABLE_SHELL_SCRIPTS, FakeAdapter
+from tests.fakes import (
+    RUNNABLE_PROGRAMS,
+    RUNNABLE_SHELL_SCRIPTS,
+    SCREEN_FRAME,
+    FakeAdapter,
+)
 from tests.test_adapter_distrobox import PASSTHROUGH_PROGRAMS, StubRunner
 
 
@@ -43,6 +48,28 @@ class FakeAdapterContainmentTest(unittest.TestCase):
         self.assertIsNotNone(refusal)
         self.assertEqual(refusal.exit_code, 127)
         self.assertIn("orca-start", refusal.stderr)
+
+    def test_the_screen_capture_is_answered_not_executed(self):
+        """The real script runs xwd against a screen; here that is somebody's own."""
+        from cycle_runner import screenshot
+
+        directory = self.adapter.home / "screenshots" / "runtime-ready"
+        outcome = self.adapter.execute(
+            screenshot.capture_argv(":0", str(directory)), timeout=5
+        )
+        self.assertIn("screenshot", self.adapter.calls)
+        self.assertIn("captured", outcome.stdout)
+        self.assertEqual(
+            (directory / "screen.png").read_bytes(), SCREEN_FRAME
+        )
+
+    def test_the_allowlist_would_refuse_the_capture_if_it_ever_reached_execution(self):
+        from cycle_runner import screenshot
+
+        refusal = self.adapter._refuse(screenshot.capture_argv(":0", "/tmp/whatever"))
+        self.assertIsNotNone(refusal)
+        self.assertEqual(refusal.exit_code, 127)
+        self.assertIn("cycle-screenshot", refusal.stderr)
 
     def test_an_arbitrary_program_is_refused(self):
         outcome = self.adapter.execute(["/usr/bin/firefox"], timeout=5)

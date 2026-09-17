@@ -301,6 +301,77 @@ class DisplayRecord:
 
 
 @dataclass
+class ScreenshotRecord:
+    """The pictures of that screen, and what each attempt at one produced.
+
+    Separate from the display record because it answers a different question.
+    That one says where the application's window went; this one is the image,
+    so a reader can see the panels rather than their identifiers. It gates
+    nothing: a run with no picture is a run with no picture.
+    """
+
+    status: PhaseStatus = PhaseStatus.SKIPPED
+    display: str = ""
+    captures: list[dict[str, Any]] = field(default_factory=list)
+    detail: str = "not attempted"
+
+    def to_document(self) -> dict[str, Any]:
+        return {
+            "status": self.status.value,
+            "display": self.display,
+            "captures": [dict(entry) for entry in self.captures],
+            "detail": self.detail,
+        }
+
+
+@dataclass
+class TerminalsRecord:
+    """What Control owed on its agents' terminals, and what it did about it.
+
+    Separate from the worker records because it answers a different question.
+    Those say how each agent settled; this says what became of the terminal the
+    plane opened for it, which is accounting the plane keeps on its own and
+    which a settled Task does not touch.
+    """
+
+    status: PhaseStatus = PhaseStatus.SKIPPED
+    run_id: str | None = None
+    #: The rows the plane named as owing a decision, before any was made.
+    owed_before: list[dict[str, Any]] = field(default_factory=list)
+    #: One entry per decision Control actually made, and what came back.
+    dispositions: list[dict[str, Any]] = field(default_factory=list)
+    #: The same question, asked again. Anything here is a debt.
+    owed_after: list[dict[str, Any]] = field(default_factory=list)
+    #: The terminals that existed either side, which is what tells a closed one
+    #: from one whose panel is merely not on screen.
+    live_before: list[str] = field(default_factory=list)
+    live_after: list[str] = field(default_factory=list)
+    workers_before: list[dict[str, Any]] = field(default_factory=list)
+    workers_after: list[dict[str, Any]] = field(default_factory=list)
+    clean: bool = False
+    distinguished: bool = False
+    distinction_detail: str = ""
+    detail: str = "not attempted"
+
+    def to_document(self) -> dict[str, Any]:
+        return {
+            "status": self.status.value,
+            "run_id": self.run_id,
+            "owed_before": [dict(entry) for entry in self.owed_before],
+            "dispositions": [dict(entry) for entry in self.dispositions],
+            "owed_after": [dict(entry) for entry in self.owed_after],
+            "live_before": list(self.live_before),
+            "live_after": list(self.live_after),
+            "workers_before": [dict(entry) for entry in self.workers_before],
+            "workers_after": [dict(entry) for entry in self.workers_after],
+            "clean": self.clean,
+            "distinguished": self.distinguished,
+            "distinction_detail": self.distinction_detail,
+            "detail": self.detail,
+        }
+
+
+@dataclass
 class ReviewRecord:
     """The handoff: what was handed over, to whom, and whether it was the same."""
 
@@ -407,6 +478,8 @@ class RunResult:
     skills: SkillsRecord = field(default_factory=SkillsRecord)
     review: ReviewRecord = field(default_factory=ReviewRecord)
     display: DisplayRecord = field(default_factory=DisplayRecord)
+    screenshot: ScreenshotRecord = field(default_factory=ScreenshotRecord)
+    terminals: TerminalsRecord = field(default_factory=TerminalsRecord)
 
     def phase(self, name: str) -> PhaseRecord | None:
         for record in self.phases:
@@ -441,6 +514,8 @@ class RunResult:
             "skills": self.skills.to_document(),
             "review": self.review.to_document(),
             "display": self.display.to_document(),
+            "screenshot": self.screenshot.to_document(),
+            "terminals": self.terminals.to_document(),
         }
 
 

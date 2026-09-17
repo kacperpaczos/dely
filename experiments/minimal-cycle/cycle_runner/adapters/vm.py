@@ -252,6 +252,8 @@ class VmAdapter(BackendAdapter):
     """One disposable domain, declared with Pulumi and destroyed with it."""
 
     name = "vm"
+    #: qemu answers a framebuffer request with a portable pixmap.
+    screen_capture_format = "ppm"
 
     def __init__(
         self,
@@ -920,6 +922,31 @@ class VmAdapter(BackendAdapter):
         )
         if not written.ok:
             raise VmContractError(f"could not write {remote_path} inside the domain")
+
+    def screen_capture_argv(self, host_path: str) -> list[str]:
+        """Return the command that asks libvirt for this domain's framebuffer.
+
+        It runs on the host and names the domain, so it never enters the guest
+        and cannot be pointed at a screen belonging to anybody else. What comes
+        back is what the emulator is drawing, not what a process in the guest
+        says it drew.
+        """
+        return [
+            "virsh",
+            "--connect",
+            self.settings.connect_uri,
+            "screenshot",
+            "--domain",
+            self.domain_name,
+            "--file",
+            str(host_path),
+        ]
+
+    def capture_screen(self, host_path: str) -> proc.CommandOutcome | None:
+        """Take that picture, on the host, outside the guest entirely."""
+        return self.runner(
+            self.screen_capture_argv(host_path), timeout=120, context="host"
+        )
 
     def stop(self) -> StopReport:
         """Shut the domain down and confirm libvirt no longer runs it."""

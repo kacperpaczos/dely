@@ -108,7 +108,11 @@ counts.
 **The skills the configuration pins have to actually be there.** After
 provisioning, the runner asks the environment where each `SKILL.md` is and what
 it hashes to, and compares. An install that fetched what was current instead of
-what was pinned, or landed where the agent never looks, blocks the run.
+what was pinned, or landed where the agent never looks, blocks the run. The
+install itself names a commit, in both backends: `npx skills add <repo>` — which
+is what `orca skills install` resolves to — takes no revision, so it installs
+whatever upstream's tip is that day and agrees with the pinned digests only by
+coincidence. It stopped agreeing, and the gate caught it.
 
 **The environment must not register itself into the operator's own Orca.** The
 host's registry is searched for this run's identifier, container or domain and
@@ -116,6 +120,26 @@ per-run paths — as bytes, so a repository entry, a worktree, the record that a
 terminal exists and a row in the orchestration store are all caught the same
 way. An entry naming the run makes the cleanup residue. Nothing here removes
 it: it is in somebody's own profile.
+
+**A settled Task is not a released terminal.** A valid `worker_done` settles the
+Task and the Dispatch on its own and leaves the terminal the plane opened for
+that agent live — terminal state is separate accounting, and Orca's own command
+line says so. After each report the coordinator owes exactly one decision:
+reuse, retain, or release. This runner releases, for both agents; reuse is the
+one option the review cannot take, because a reviewer inheriting the
+implementer's session inherits its context and the independence the handoff
+exists to establish would be gone. The plane is asked who is owed rather than
+told, each row it names is released by its dispatch, and the same question is
+asked again afterwards: an answer that is not empty is a coordinator ending its
+turn in debt, and it costs the run its status.
+
+Two orderings around that are worth stating. Both releases wait for the picture
+taken at the end of the review, because that picture is the only artifact in
+which both agents' panels exist at once — a deliberate deviation from disposing
+immediately, and the debt is still paid inside the same turn. And the terminals
+are listed either side of the release, because a released terminal drops out of
+`orca terminal list` and a terminal whose panel is merely off screen does not.
+That comparison is the only thing here that tells the two apart.
 
 **The review is a second agent, not a second pane.** When the implementer
 settles, Control captures the diff inside the environment, takes its digest, and
@@ -150,8 +174,12 @@ $artifact_root/<run_id>/
   first-run-state.json       the questions the agent was answered, by name
   admission.json             the slot this run held, and what else held one
   skills.json                each required skill, where it was and what it hashed to
+  screenshot.json            each picture of this run's own screen, and what it cost
+  screenshots/               the images themselves, one per moment
   review.json                the handoff: the diff, the two agents, the verdict
   handoff-diff.patch         the diff the reviewer was given
+  terminals.json             what each agent's terminal was owed, what was done
+                             about it, and the live list either side
   host-registry-before.json  the operator's own Orca registry, before
   host-registry-after.json   and after, with the question it was searched for
   dispatch/                  each orchestration reply, redacted, as the plane sent it
@@ -356,8 +384,13 @@ the table with the tests each row runs. The recorded sweep is in
 | The runtime directory is the environment's own, not the operator's | case `the-runtime-directory-is-the-environments-own` | `evidence/counterexamples.txt` |
 | A window on this run's own screen is what says where the application went | case `a-window-on-this-screen-is-the-evidence` | `evidence/counterexamples.txt` |
 | A screen that did not answer establishes nothing | case `an-unreachable-screen-says-nothing` | `evidence/counterexamples.txt` |
+| A capture is never pointed at the operator's own screen | case `a-capture-is-never-pointed-at-the-operators-screen` | `python3 counterexamples.py` |
+| An image that never reached the host is not a picture | case `an-image-that-never-reached-the-host-is-not-a-picture` | `python3 counterexamples.py` |
+| A capture that failed does not fail the run | case `a-failed-capture-is-not-a-failed-run` | `python3 counterexamples.py` |
 | A checkout at the pinned commit is not a skill the agent can read | case `a-checkout-is-not-a-skill-the-agent-can-read` | `evidence/tool-image-with-skills/` |
 | The installed skills are the pinned bytes, not just the right names | case `the-installed-skills-are-the-pinned-bytes` | `evidence/tool-image-with-skills/` |
+| An install that names no revision cannot be pinned | case `an-install-that-names-no-revision-is-not-a-pin` | `python3 counterexamples.py` |
+| A built image freezes whichever tip it was built on | case `an-image-freezes-whichever-tip-it-was-built-on` | `python3 counterexamples.py` |
 | A branch is found where a clone actually keeps it | case `a-branch-is-found-where-a-clone-keeps-it` | `evidence/counterexamples.txt` |
 | A full cycle completes on the container backend, review and all | `./run-cycle run` on this host | `evidence/distrobox-reviewed-cycle/` |
 | A full cycle completes on the machine backend | `./run-cycle run` on this host | `evidence/vm-reviewed-cycle/` |
@@ -369,6 +402,9 @@ the table with the tests each row runs. The recorded sweep is in
 | An expired login blocks rather than passes | case `an-expired-login-blocks-rather-than-passes` | `evidence/counterexamples.txt` |
 | The auth receipt names no person and no organisation | case `the-receipt-names-no-person` | `evidence/counterexamples.txt` |
 | The reviewer waits on its own message, not the one before it | case `the-reviewer-waits-on-its-own-message` | `evidence/replayed-delivery/` |
+| A coordinator that ends its turn still owing terminals is not a settled run | case `a-coordinator-that-ends-its-turn-still-owing-terminals` | `python3 counterexamples.py` |
+| The answer the plane gives to say it does not know is not a release | case `an-unverified-release-is-not-a-released-terminal` | `python3 counterexamples.py` |
+| A release receipt is not a closed terminal; the live list is | case `a-release-receipt-is-not-a-closed-terminal` | `python3 counterexamples.py` |
 
 ## What no instrument here observes
 
@@ -385,11 +421,28 @@ where the application's window actually went. That is mitigation and a
 measurement, not a sandbox, and the preflight blocks until the home mount is
 acknowledged as a deliberate compromise.
 
+**A picture is not a proof.** Each run also exports an image of its own screen,
+taken from outside the application — through the hypervisor on the machine
+backend, and through the X server drawing the window on the container backend,
+never by asking the application to photograph itself. It is there so a reader
+can see the two agents' terminals rather than their identifiers. Nothing rests
+on it: a capture that fails is recorded with its reason and costs the run
+nothing, and the window check next to it is what carries the claim about where
+the application went. The operator's own screen is never captured, in any mode.
+
 **That a process is not pointed at the operator's session.** Finding one that
 is settles the question; not finding one settles nothing, because the
 application rewrites its own environment block to set its process title and
 `/proc/<pid>/environ` then reads empty. The window check is what carries the
 claim; this only ever contradicts it.
+
+**That a real terminal was closed.** The disposition is exercised end to end
+against a fake that answers as the plane does: the argv, the outcomes
+`worker-release` may give, the debt query and the live-list comparison either
+side. Nothing here has released a terminal in a live Orca. Where the outcome
+sits in a real receipt, and whether a `release_pending` has completed by the
+time the debt is asked about again, are read from the command's own help and
+from one recorded `worker-list`, not observed.
 
 **That an agent read what it was given.** The handoff shows the reviewer was
 handed the implementer's diff, that the diff did not change underneath it, and

@@ -127,14 +127,82 @@ class ProvisionIsRealTest(unittest.TestCase):
             VERSIONS["tool_image"]["contents"]["orca"]["sha256"],
             VERSIONS["tool_image"]["contents"]["node"]["sha256"],
             VERSIONS["skills"]["plugins"][0]["revision"],
-            "skills add",
+            VERSIONS["skills"]["bundled"]["revision"],
         ):
+            with self.subTest(needed=needed):
+                self.assertIn(needed, steps)
+
+    def test_the_container_example_installs_what_a_screen_capture_needs(self):
+        """No hypervisor holds this box's screen, so its X server has to be asked."""
+        run_config = config_module.load(ROOT / "config.distrobox.example.yaml")
+        steps = " ".join(" ".join(argv) for argv in run_config.distrobox.provision)
+        for needed in ("x11-apps", "netpbm"):
             with self.subTest(needed=needed):
                 self.assertIn(needed, steps)
 
     def test_the_machine_example_provisions_nothing_because_its_image_carries_it(self):
         run_config = config_module.load(ROOT / "config.vm.example.yaml")
         self.assertEqual(run_config.vm.provision, ())
+
+
+class SkillsComeFromAPinnedRevisionTest(unittest.TestCase):
+    """An install that names no revision installs the tip, which is not a pin.
+
+    The digests in `skills.bundled` say what Orca 1.4.201 ships. `npx skills add
+    <repo>` — which is what `orca skills install` resolves to — names no
+    revision and has no flag that takes one, so it fetches the repository's tip
+    and agrees with those digests only on the days the tip happens to equal what
+    the pinned release shipped. The container backend blocked the day it stopped
+    being one of those days; the image backend would have baked the wrong bytes
+    in silently, because a built image freezes whatever the tip was that day.
+
+    So both places name a commit, and these are the tests that keep them naming
+    one. The runner's digest check stays where it is: it is what catches a pin
+    that is right on paper and wrong in the environment.
+    """
+
+    IMAGE_PROVISION = (ROOT / "host" / "packer" / "provision.sh").read_text(
+        encoding="utf-8"
+    )
+    TEMPLATE = (ROOT / "host" / "packer" / "tool-image.pkr.hcl").read_text(
+        encoding="utf-8"
+    )
+    BUILD = (ROOT / "host" / "packer" / "build-tool-image").read_text(encoding="utf-8")
+
+    def container_steps(self) -> str:
+        run_config = config_module.load(ROOT / "config.distrobox.example.yaml")
+        return " ".join(" ".join(argv) for argv in run_config.distrobox.provision)
+
+    def test_the_host_records_a_repository_and_a_commit_for_the_bundled_skills(self):
+        bundled = VERSIONS["skills"]["bundled"]
+        self.assertTrue(bundled.get("repository"))
+        self.assertRegex(bundled.get("revision", ""), r"^[0-9a-f]{40}$")
+
+    def test_the_container_example_takes_them_from_the_pinned_commit(self):
+        steps = self.container_steps()
+        self.assertIn(VERSIONS["skills"]["bundled"]["revision"], steps)
+
+    def test_the_container_example_names_no_unrevisioned_install(self):
+        self.assertNotIn("skills add", self.container_steps())
+
+    def test_the_image_takes_them_from_the_pinned_commit(self):
+        self.assertIn("ORCA_SKILLS_REVISION", self.IMAGE_PROVISION)
+        self.assertIn("orca_skills_revision", self.TEMPLATE)
+        self.assertIn("orca_skills_revision", self.BUILD)
+
+    def test_the_image_names_no_unrevisioned_install(self):
+        """Comments are allowed to name it; only what the build runs is checked."""
+        commands = "\n".join(
+            line
+            for line in self.IMAGE_PROVISION.splitlines()
+            if not line.lstrip().startswith("#")
+        )
+        self.assertNotIn("skills add", commands)
+
+    def test_the_image_still_checks_the_installed_bytes_against_the_pin(self):
+        """The pin says what should land; the digest says what did."""
+        self.assertIn("SKILL_DIGESTS", self.IMAGE_PROVISION)
+        self.assertIn("not the pinned", self.IMAGE_PROVISION)
 
 
 if __name__ == "__main__":

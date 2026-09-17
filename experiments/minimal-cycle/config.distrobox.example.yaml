@@ -103,9 +103,12 @@ distrobox:
   # deliberate.
   accept_host_home_mount: true
   # Commands run inside the fresh box before the identity gate. A container
-  # image carries none of this, so the box installs it per run.
+  # image carries none of this, so the box installs it per run. x11-apps is
+  # there for xwd: with no hypervisor to ask, a picture of this box's screen
+  # has to come from the X server drawing it, and netpbm turns the dump into a
+  # png somebody can open.
   provision:
-    - ["sh", "-c", "set -eu; export DEBIAN_FRONTEND=noninteractive; sudo apt-get update -qq; sudo apt-get install -y -qq curl ca-certificates git xz-utils xvfb x11-xserver-utils xdotool libgtk-3-0t64 libnss3 libasound2t64 libatk-bridge2.0-0t64 libcups2t64 libdrm2 libgbm1 libxkbcommon0 libpango-1.0-0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libsecret-1-0 xdg-utils > /dev/null; echo deps installed"]
+    - ["sh", "-c", "set -eu; export DEBIAN_FRONTEND=noninteractive; sudo apt-get update -qq; sudo apt-get install -y -qq curl ca-certificates git xz-utils xvfb x11-xserver-utils xdotool x11-apps netpbm libgtk-3-0t64 libnss3 libasound2t64 libatk-bridge2.0-0t64 libcups2t64 libdrm2 libgbm1 libxkbcommon0 libpango-1.0-0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libsecret-1-0 xdg-utils > /dev/null; echo deps installed"]
     # Ubuntu's own node is 18, and the skills command line fails on it with a
     # module error. This is the pinned tarball, checked before it is unpacked.
     - ["sh", "-c", "set -eu; curl -fsSL -o /tmp/node.tar.xz 'https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz'; echo 'fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6  /tmp/node.tar.xz' | sha256sum -c -; sudo mkdir -p /usr/local/node; sudo tar -xJf /tmp/node.tar.xz -C /usr/local/node --strip-components=1; rm -f /tmp/node.tar.xz; sudo ln -sf /usr/local/node/bin/node /usr/local/bin/node; sudo ln -sf /usr/local/node/bin/npm /usr/local/bin/npm; sudo ln -sf /usr/local/node/bin/npx /usr/local/bin/npx; node --version"]
@@ -117,8 +120,25 @@ distrobox:
     # and both backends install the same way so their evidence compares. What
     # this loses is the plugin's own session hook.
     - ["sh", "-c", "set -eu; sudo mkdir -p /opt/dely-cycle; sudo chown \"$(id -u):$(id -g)\" /opt/dely-cycle; git clone -q --filter=blob:none https://github.com/obra/superpowers.git /opt/dely-cycle/superpowers; git -C /opt/dely-cycle/superpowers checkout -q b36e0829c6d0140e93cfef2ca599b1b07d4a7797; mkdir -p \"$HOME/.claude/skills\"; for d in /opt/dely-cycle/superpowers/skills/*/; do [ -f \"${d}SKILL.md\" ] || continue; cp -r \"$d\" \"$HOME/.claude/skills/\"; done; ls \"$HOME/.claude/skills\""]
-    # Orca's own skills. `orca skills install` resolves to this command but
-    # passes --agent claude, which the skills command line rejects; the name it
-    # accepts is claude-code.
-    - ["sh", "-c", "set -eu; npx --yes skills add https://github.com/stablyai/orca --skill orca-cli --skill orchestration --global --agent claude-code -y > /tmp/skills.log 2>&1 || { tail -20 /tmp/skills.log >&2; exit 1; }; ls \"$HOME/.claude/skills\""]
+    # Orca's own skills, taken from the one commit whose bytes the pinned Orca
+    # ships. Three sources were weighed and this is the only one that is pinned
+    # by construction:
+    #
+    #   - `npx skills add https://github.com/stablyai/orca ...` — what was here
+    #     before, and what `orca skills install --dry-run` prints — names no
+    #     revision, and `skills add --help` has no flag that takes one. It
+    #     installs the repository's tip, so it matches the digests this file
+    #     pins only on the days the tip happens to equal what Orca 1.4.201
+    #     shipped. It stopped matching, which is how this was found.
+    #   - `orca skills get <name>` would need no network at all, but it serves
+    #     the version-matched guide, not the repository file: 13246 and 18521
+    #     bytes against the 3862 and 2237 the manifest pins. The SKILL.md itself
+    #     says it is "a discovery stub, not the usage guide", kept apart from the
+    #     guide on purpose. It cannot produce these bytes.
+    #   - So: the repository at commit fb32204, the newest one carrying both
+    #     trees the Orca 1.4.201 manifest names. Same shape as superpowers above.
+    #
+    # Fetched blobless at depth one and checked out sparsely: the two files are
+    # six kilobytes inside a repository a blobless clone of which is 446M.
+    - ["sh", "-c", "set -eu; rev=fb322046e82b0e60ff2949f8360f0e0f071f42d4; sudo mkdir -p /opt/dely-cycle; sudo chown \"$(id -u):$(id -g)\" /opt/dely-cycle; git init -q /opt/dely-cycle/orca-skills; git -C /opt/dely-cycle/orca-skills remote add origin https://github.com/stablyai/orca.git; git -C /opt/dely-cycle/orca-skills fetch -q --depth 1 --filter=blob:none origin \"$rev\"; git -C /opt/dely-cycle/orca-skills sparse-checkout set --no-cone skills/orca-cli skills/orchestration; git -C /opt/dely-cycle/orca-skills checkout -q FETCH_HEAD; test \"$(git -C /opt/dely-cycle/orca-skills rev-parse HEAD)\" = \"$rev\"; mkdir -p \"$HOME/.claude/skills\"; for d in /opt/dely-cycle/orca-skills/skills/*/; do [ -f \"${d}SKILL.md\" ] || continue; cp -r \"$d\" \"$HOME/.claude/skills/\"; done; ls \"$HOME/.claude/skills\""]
     - ["sh", "-c", "set -eu; if DISPLAY=:99 xset -q > /dev/null 2>&1; then echo 'virtual display already up'; exit 0; fi; setsid nohup Xvfb :99 -screen 0 1280x800x24 -nolisten tcp > /tmp/xvfb.log 2>&1 < /dev/null & waited=0; while ! DISPLAY=:99 xset -q > /dev/null 2>&1; do waited=$((waited + 1)); if [ $waited -ge 60 ]; then echo 'no virtual display' >&2; exit 3; fi; sleep 1; done; echo \"virtual display ready after ${waited}s\""]

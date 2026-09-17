@@ -14,7 +14,7 @@ from typing import Mapping, Sequence
 import hashlib
 import json
 
-from cycle_runner import display, probe, proc, review, skills
+from cycle_runner import display, probe, proc, review, screenshot, skills
 from cycle_runner.adapters.base import (
     BackendAdapter,
     DestroyReport,
@@ -47,6 +47,11 @@ HOST = {
 RUNNABLE_PROGRAMS = frozenset(
     {"sh", "rm", "mkdir", "cat", "test", "true", "false", "printf", "git"}
 )
+#: `cycle-screenshot` is deliberately absent for the same reason as
+#: `orca-start`: the real script runs `xset` and `xwd` against whatever screen
+#: it is given, and on this machine that is somebody's desktop. The fake answers
+#: it before the allowlist is consulted; the allowlist is what catches the day
+#: that answer stops matching.
 RUNNABLE_SHELL_SCRIPTS = frozenset(
     {
         "cycle-check",
@@ -95,6 +100,16 @@ ORCA_EMPTY_DELIVERY = (
     '{"id": "request-fake", "ok": true, "result": {"messages": [], "count": 0}}'
 )
 
+#: The handle of the coordinator's own terminal. It is never a worker row and
+#: nothing here may ever release it: `worker-release` closes only the agent
+#: terminal a dispatch owns, and a fake that forgot that would let the runner
+#: look correct while closing the terminal it sends from.
+COORDINATOR_HANDLE = "term_fake"
+
+#: What a fake screen looks like: not an image, but bytes that travel and hash
+#: like one, so the digest and the re-read the runner does are really exercised.
+SCREEN_FRAME = b"\x89PNG\r\n\x1a\n fake frame of the environment's own screen"
+
 
 def render(snapshot: Mapping[str, str]) -> str:
     return "".join(f"{key}={value}\n" for key, value in snapshot.items())
@@ -136,12 +151,24 @@ class FakeAdapter(BackendAdapter):
         display_unreachable: bool = False,
         signed_in: bool | None = True,
         window_appears: bool = True,
+        capture_fails: bool = False,
+        capture_vanishes: bool = False,
+        captures_from_outside: bool = False,
         plugin_answers: Mapping[str, tuple[str, str]] | None = None,
         plugin_installed: Mapping[str, tuple[int, int]] | None = None,
+        release_fails: bool = False,
+        release_leaves_the_terminal: bool = False,
+        still_owed: bool = False,
     ):
         self.root = Path(root)
         self.skill_answers = dict(skill_answers or {})
         self.dispatches = 0
+        # The plane's own terminal accounting, keyed by dispatch: one agent
+        # terminal per dispatch, its state, and whether it still exists.
+        self.worker_terminals: dict[str, dict[str, object]] = {}
+        self.release_fails = release_fails
+        self.release_leaves_the_terminal = release_leaves_the_terminal
+        self.still_owed = still_owed
         self.unacknowledged: str | None = None
         self.review_verdict = review_verdict
         self.reviewer_reads_another_diff = reviewer_reads_another_diff
@@ -149,6 +176,11 @@ class FakeAdapter(BackendAdapter):
         self.display_unreachable = display_unreachable
         self.signed_in = signed_in
         self.window_appears = window_appears
+        self.capture_fails = capture_fails
+        self.capture_vanishes = capture_vanishes
+        # A backend that can be asked for its screen from outside itself, which
+        # is what the machine backend's hypervisor route is.
+        self.screen_capture_format = "ppm" if captures_from_outside else ""
         self.plugin_answers = dict(plugin_answers or {})
         self.plugin_installed = dict(plugin_installed or {})
         self.home = self.root / "home"
@@ -267,6 +299,55 @@ class FakeAdapter(BackendAdapter):
             lines.append("window 2000 orca — project")
         return "\n".join(lines) + "\n"
 
+    def _screenshot(self, argv) -> str:
+        """Answer as the environment's own X server would, and leave the file.
+
+        The real script runs `xwd` against the screen it is given. Running that
+        here would photograph the desktop of whoever is running the tests, so
+        this writes the bytes instead and reports them exactly as the script
+        does — the runner still has to fetch them and re-read what landed.
+        """
+        screen = argv[4] if len(argv) > 4 else ":0"
+        directory = Path(argv[5]) if len(argv) > 5 else self.home / "screenshots"
+        if self.display_unreachable:
+            return f"screen {screen} not captured\nreason the screen did not answer\n"
+        if self.capture_fails:
+            return (
+                f"screen {screen} not captured\n"
+                "reason xwd could not read the root window of this screen\n"
+            )
+        directory.mkdir(parents=True, exist_ok=True)
+        if not self.capture_vanishes:
+            # The other way a capture goes wrong: the command reports an image
+            # and the host ends up with nothing, because the transport brought
+            # out an empty directory or the file was gone by then.
+            (directory / "screen.png").write_bytes(SCREEN_FRAME)
+        return (
+            f"screen {screen} captured\n"
+            "file screen.png\n"
+            f"bytes {len(SCREEN_FRAME)}\n"
+            f"sha256 {hashlib.sha256(SCREEN_FRAME).hexdigest()}\n"
+        )
+
+    def capture_screen(self, host_path: str):
+        """Answer the hypervisor route without a hypervisor and without a process."""
+        self.calls.append("capture-screen")
+        if not self.capture_fails:
+            Path(host_path).parent.mkdir(parents=True, exist_ok=True)
+            Path(host_path).write_bytes(SCREEN_FRAME)
+        return proc.CommandOutcome(
+            argv=("virsh", "screenshot", "--file", str(host_path)),
+            exit_code=1 if self.capture_fails else 0,
+            stdout="" if self.capture_fails else f"Screenshot saved to {host_path}\n",
+            stderr="the domain has no graphics device" if self.capture_fails else "",
+            started_at="2026-09-14T22:15:30Z",
+            finished_at="2026-09-14T22:15:31Z",
+            elapsed_seconds=1.0,
+            timed_out=False,
+            # It runs on the host: that is the whole point of this route.
+            context="host",
+        )
+
     def _delivery(self, joined: str) -> str:
         """Answer a wait the way a bound Run does.
 
@@ -302,6 +383,15 @@ class FakeAdapter(BackendAdapter):
         reply = ORCA_DISPATCH_REPLY.replace(
             '"dispatchId": "dispatch-fake"', f'"dispatchId": "dispatch-fake-{number}"'
         ).replace('"id": "terminal-fake"', f'"id": "terminal-fake-{number}"')
+        # The plane opens a terminal for the agent and keeps counting it after
+        # the Task settles: a dispatch whose reply already carries worker_done
+        # is reclaimable, one whose turn start was never observed is still
+        # active and owes nobody anything yet.
+        self.worker_terminals[f"dispatch-fake-{number}"] = {
+            "terminal": f"terminal-fake-{number}",
+            "state": "active" if self.dispatch_state else "reclaimable",
+            "live": True,
+        }
         if review.PROMPT_NAME in joined:
             self._review()
         elif not self.task_writes_nothing:
@@ -331,6 +421,96 @@ class FakeAdapter(BackendAdapter):
             encoding="utf-8",
         )
 
+    # -- terminal accounting, which a settled Task does not touch ----------
+
+    @staticmethod
+    def _flag(joined: str, name: str) -> str:
+        """Return the value that followed one flag, as the real command reads it."""
+        if name not in joined:
+            return ""
+        rest = joined.split(name, 1)[1].split()
+        return rest[0] if rest else ""
+
+    def _worker_list(self, joined: str) -> str:
+        """Answer as the plane's worker accounting does, filter and all."""
+        wanted = self._flag(joined, "--terminal-state")
+        rows = [
+            {
+                "dispatchId": dispatch,
+                "taskId": "task-fake",
+                "runId": "run-fake",
+                "agentTerminalHandle": entry["terminal"],
+                "terminalState": entry["state"],
+            }
+            for dispatch, entry in self.worker_terminals.items()
+            if not wanted or entry["state"] == wanted
+        ]
+        return json.dumps(
+            {
+                "id": "request-fake",
+                "ok": True,
+                "result": {
+                    "workers": rows,
+                    "page": {"limit": 100, "total": len(rows), "hasMore": False},
+                    "scope": {"source": "flag"},
+                },
+            }
+        )
+
+    def _worker_release(self, joined: str) -> tuple[int, str]:
+        """Release one dispatch's own terminal, and nobody else's.
+
+        The coordinator's terminal is not in this table at all, so a call that
+        named it would find nothing — which is the real verb's behaviour and
+        the reason it is addressed by dispatch rather than by handle.
+        """
+        dispatch = self._flag(joined, "--dispatch")
+        entry = self.worker_terminals.get(dispatch)
+        if entry is None or self.release_fails:
+            return 1, json.dumps(
+                {
+                    "id": "request-fake",
+                    "ok": False,
+                    "result": {"dispatchId": dispatch, "outcome": "release_unknown"},
+                }
+            )
+        if self.release_leaves_the_terminal:
+            # The receipt is fine and the terminal is still there: the case a
+            # run that trusted the receipt could never tell from a closure.
+            entry["state"] = "release_pending"
+        elif self.still_owed:
+            # The terminal went, and the accounting still owes a decision on it.
+            entry["live"] = False
+            entry["state"] = "reclaimable"
+        else:
+            entry["live"] = False
+            entry["state"] = "released"
+        return 0, json.dumps(
+            {
+                "id": "request-fake",
+                "ok": True,
+                "result": {"dispatchId": dispatch, "outcome": "release_pending"},
+            }
+        )
+
+    def _terminal_list(self) -> str:
+        """Answer with the terminals that still exist, coordinator included."""
+        handles = [COORDINATOR_HANDLE] + [
+            str(entry["terminal"])
+            for entry in self.worker_terminals.values()
+            if entry["live"]
+        ]
+        return json.dumps(
+            {
+                "id": "request-fake",
+                "ok": True,
+                "result": {
+                    "terminals": [{"handle": handle} for handle in handles],
+                    "totalCount": len(handles),
+                },
+            }
+        )
+
     @staticmethod
     def _skill_lines(argv: Sequence[str], answers: Mapping[str, tuple[str, str]]) -> str:
         """Answer one line per name the probe was asked about, as the script does."""
@@ -356,6 +536,9 @@ class FakeAdapter(BackendAdapter):
         if display.WINDOW_SCRIPT in joined:
             self.calls.append("display-windows")
             return self._outcome(argv, 0, self._windows(argv), "")
+        if screenshot.CAPTURE_SCRIPT in joined:
+            self.calls.append("screenshot")
+            return self._outcome(argv, 0, self._screenshot(argv), "")
         if skills.LOCATE_SCRIPT in joined:
             self.calls.append("skills-locate")
             return self._outcome(argv, 0, self._skill_lines(argv, self.skill_answers), "")
@@ -372,6 +555,18 @@ class FakeAdapter(BackendAdapter):
         if probe.PROBE_SCRIPT in joined:
             self.calls.append("probe")
             return self._outcome(argv, 0, self._snapshot(), "")
+        # Before the dispatch branch: these are orchestration commands too, and
+        # they are about the terminal the plane counts rather than the Task.
+        if "worker-list" in joined:
+            self.calls.append("worker-list")
+            return self._outcome(argv, 0, self._worker_list(joined), "")
+        if "worker-release" in joined:
+            self.calls.append("worker-release")
+            exit_code, reply = self._worker_release(joined)
+            return self._outcome(argv, exit_code, reply, "")
+        if "terminal list" in joined:
+            self.calls.append("terminal-list")
+            return self._outcome(argv, 0, self._terminal_list(), "")
         if "orchestration" in joined:
             self.calls.append("worker")
             if self.task_hangs:

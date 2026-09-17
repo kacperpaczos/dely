@@ -21,6 +21,11 @@ def digest_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def digest_bytes(data: bytes) -> str:
+    """Return the content digest of bytes already in hand."""
+    return hashlib.sha256(data).hexdigest()
+
+
 def describe_file(path: Path, *, relative_to: Path) -> dict[str, Any]:
     """Describe one file by its relative path, size and digest."""
     resolved = Path(path)

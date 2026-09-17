@@ -104,6 +104,11 @@ def build() -> int:
             f"{entry['name']}={entry['skill_md_sha256']}"
             for entry in VERSIONS["skills"]["bundled"]["entries"]
         )
+        # Orca's own skills come from a named commit, not from whatever the
+        # repository's tip is on build day. An image freezes what it was built
+        # with, so an unpinned install here is an unnoticed wrong answer for the
+        # life of the image.
+        orca_skills = VERSIONS["skills"]["bundled"]
 
         argv = [
             "packer", "build",
@@ -120,6 +125,8 @@ def build() -> int:
             "-var", f"node_sha256={node['sha256']}",
             "-var", f"superpowers_repository={superpowers['repository']}",
             "-var", f"superpowers_revision={superpowers['revision']}",
+            "-var", f"orca_skills_repository={orca_skills['repository']}",
+            "-var", f"orca_skills_revision={orca_skills['revision']}",
             "-var", f"skill_digests={skill_digests}",
             str(HERE / "tool-image.pkr.hcl"),
         ]
@@ -174,6 +181,7 @@ def build() -> int:
                 "skills": sorted(
                     entry["name"] for entry in VERSIONS["skills"]["bundled"]["entries"]
                 ),
+                "skills_revision": orca_skills["revision"],
                 "plugins": {
                     entry["name"]: entry["revision"]
                     for entry in VERSIONS["skills"]["plugins"]

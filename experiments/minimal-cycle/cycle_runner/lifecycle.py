@@ -34,7 +34,9 @@ from . import (
     project,
     redact,
     review as review_module,
+    screenshot,
     skills,
+    terminals,
     worker,
 )
 from .adapters.base import BackendAdapter, EnvironmentHandle
@@ -204,6 +206,7 @@ class _Cycle:
         self.lease: admission.Lease | None = None
         self.registry_before: dict[str, Any] = {}
         self.implementer: Any = None
+        self.captures: list[screenshot.Capture] = []
 
     # -- plumbing ---------------------------------------------------------
 
@@ -306,6 +309,10 @@ class _Cycle:
                 or self.unverifiable_reason
                 or "the task did not settle",
             )
+        # Deliberately here and not inside the review phase: the disposition is
+        # owed whether or not a review happened, and a review that was skipped
+        # is exactly when an implementer's terminal is left holding.
+        self._dispose_terminals()
         if (
             self.task_ran
             and not self.timed_out
@@ -625,6 +632,9 @@ class _Cycle:
                 return
             if not self._check_display(record, windows_before):
                 return
+            # The window check has just said where the application went; this is
+            # the picture of it, taken from outside the application.
+            self._capture_screen(record, screenshot.RUNTIME_READY)
             try:
                 self.coordinator_handle = orca.open_coordinator_terminal(
                     self.adapter,
@@ -742,6 +752,96 @@ class _Cycle:
         )
         return False
 
+    def _operator_display(self) -> str:
+        """The screen the operator's own session is on, if this host names one."""
+        environ = os.environ if self.environ is None else self.environ
+        return str(environ.get("DISPLAY", "") or "")
+
+    def _capture_screen(self, record, moment: str) -> None:
+        """Photograph this run's own screen, so the panels can be looked at.
+
+        The window check above is what establishes where the application went.
+        This is the image of it, and nothing consults whether one landed: a
+        capture that fails is recorded with its reason and the run continues.
+        """
+        if self.handle is None:
+            return
+        screen = self.config.orca.display
+        source = (
+            screenshot.HYPERVISOR
+            if self.adapter.screen_capture_format
+            else screenshot.X_SERVER
+        )
+        allowed, why = screenshot.permitted(
+            source=source,
+            mode=self._gui_mode(),
+            display=screen,
+            operator_display=self._operator_display(),
+        )
+        if allowed:
+            capture = self._take_screen(record, moment=moment, source=source, screen=screen)
+        else:
+            capture = screenshot.judge(
+                moment=moment, source=source, display=screen, failure=why
+            )
+        self.captures.append(capture)
+        self.result.screenshot = screenshot.record(screen, self.captures)
+        self.exporter.write_json("screenshot.json", self.result.screenshot.to_document())
+        self.log.say(f"screenshot {moment}: {capture.detail}")
+
+    def _take_screen(self, record, *, moment: str, source: str, screen: str):
+        """Run one capture and judge it by the bytes that reached the host."""
+        assert self.handle is not None
+        attempt = {"moment": moment, "source": source, "display": screen}
+        with tempfile.TemporaryDirectory(prefix="dely-cycle-screen-") as staging:
+            if source == screenshot.HYPERVISOR:
+                landed = Path(staging) / f"{moment}.{self.adapter.screen_capture_format}"
+                outcome = self.adapter.capture_screen(str(landed))
+                reported: dict[str, Any] = {}
+                if outcome is not None:
+                    record.commands.append(outcome.to_record())
+                    self.log.record(outcome)
+                if outcome is None or not outcome.ok:
+                    return screenshot.judge(
+                        **attempt,
+                        failure=(
+                            "the hypervisor did not produce a framebuffer for this "
+                            "environment: "
+                            + redact.text(
+                                ((outcome.stderr or outcome.stdout) if outcome else "")
+                                .strip()[-200:]
+                            )
+                        ),
+                    )
+            else:
+                remote = f"{self.handle.home_path}/{screenshot.DIRECTORY}/{moment}"
+                outcome = self.execute(
+                    screenshot.capture_argv(screen, remote),
+                    timeout=min(120, self.config.timeout_seconds),
+                )
+                record.commands.append(outcome.to_record())
+                reported = screenshot.parse(outcome.stdout)
+                if not outcome.ok or not reported["captured"]:
+                    return screenshot.judge(**attempt, reported=reported)
+                try:
+                    self.adapter.fetch_tree(remote, Path(staging))
+                except Exception as error:
+                    return screenshot.judge(
+                        **attempt,
+                        failure=redact.text(
+                            f"the image could not be brought out of the environment: {error}"
+                        ),
+                    )
+                landed = Path(staging) / Path(str(reported["file"])).name
+            data = landed.read_bytes() if landed.is_file() else None
+            artifact = f"{screenshot.DIRECTORY}/{moment}{landed.suffix}"
+            capture = screenshot.judge(
+                **attempt, artifact=artifact, data=data, reported=reported
+            )
+            if capture.ok and data is not None:
+                self.exporter.write_bytes(artifact, data, required=False)
+            return capture
+
     def _review(self) -> None:
         """Hand the implementer's diff to a reviewer that did not write it."""
         assert self.handle is not None
@@ -754,6 +854,10 @@ class _Cycle:
                 record.status = outcome
                 if outcome is PhaseStatus.FAILED:
                     self.error_reason = self.error_reason or self.result.review.detail
+            # Both agents have a terminal by now, so this is the one moment at
+            # which a single image holds both of them. A review that went wrong
+            # is exactly when somebody will want to look.
+            self._capture_screen(record, screenshot.AFTER_REVIEW)
 
     def _handoff(self, record) -> PhaseStatus | None:
         assert self.handle is not None
@@ -873,6 +977,128 @@ class _Cycle:
         self.exporter.write_json("review.json", result.to_document())
         self.log.say(f"review: {result.detail}")
         return result.status
+
+    def _terminal_snapshot(self, run_id: str) -> terminals.Snapshot:
+        """Ask what terminals exist and what the plane's accounting says.
+
+        Both, taken together, at one moment. The live list is what tells a
+        closed terminal from a hidden one; the accounting is what says whose
+        terminal it was and whether anybody has claimed it.
+        """
+        live = self.execute(
+            terminals.live_argv(), timeout=min(120, self.config.timeout_seconds)
+        )
+        listed = self.execute(
+            terminals.workers_argv(run_id),
+            timeout=min(120, self.config.timeout_seconds),
+        )
+        return terminals.Snapshot(
+            live=tuple(terminals.parse_live(live.stdout)),
+            workers=tuple(terminals.parse_workers(listed.stdout)),
+        )
+
+    def _owed(self, run_id: str) -> list[terminals.WorkerRow]:
+        """Ask the plane which of this Run's terminals still owe a decision."""
+        outcome = self.execute(
+            terminals.owed_argv(run_id), timeout=min(120, self.config.timeout_seconds)
+        )
+        return terminals.parse_workers(outcome.stdout)
+
+    def _dispose_terminals(self) -> None:
+        """Give back the agent terminals this run's dispatches are still holding.
+
+        **On the ordering, which is a deviation and was considered.** The
+        contract says to dispose of a worker's terminal immediately after its
+        report is accepted. This runner waits until the review phase has taken
+        its picture of the screen, because that picture is the one artifact in
+        which a reader can see *both* agents' panels at once, and releasing the
+        implementer's terminal the moment it settled would mean photographing a
+        screen that never held more than one. Nothing between the settlement and
+        here dispatches work, reads either terminal, or depends on their state,
+        so the delay costs the plane a bounded wait and buys the run its only
+        picture of the handoff. The debt is still paid inside the same turn,
+        which is what the contract is actually about.
+
+        **On whether a debt fails the run.** It does, and the two comparable
+        findings in this codebase are why. `cleanup.py` turns a process that is
+        still running after every declared resource is gone into residue, and
+        that residue costs the run its status; `display.py` refuses a run whose
+        screen never answered. Both are findings about something the run
+        promised, so both change the verdict. The one finding here that is
+        recorded and not acted on is a failed screen capture, and `screenshot.py`
+        says exactly why: nothing the runner claims rests on a picture. That is
+        not true of this. Ending the turn owing a terminal is a breach of the
+        one contract this record exists to establish, and a record that noted it
+        without consequence would be decoration.
+
+        It is reported as an error rather than as failed cleanup, because the
+        debt is measured before anything is destroyed and the environment's
+        destruction does take the terminals with it. What went wrong is the
+        coordinator's turn, not the host's disposal.
+        """
+        if self.handle is None or self.coordinator_handle is None:
+            self.result.terminals.detail = (
+                "no coordinator terminal existed, so no dispatch of this run "
+                "ever owned an agent terminal"
+            )
+            return
+        run_id = (self.implementer.run_id if self.implementer else None) or (
+            self.result.reviewer.run_id
+        )
+        if not run_id:
+            self.result.terminals.detail = (
+                "the plane never named a Run for this cycle, so there is no "
+                "worker accounting to settle"
+            )
+            return
+
+        roles = {
+            worker_record.dispatch_id: worker_record.role
+            for worker_record in (self.result.worker, self.result.reviewer)
+            if worker_record.dispatch_id
+        }
+        before = self._terminal_snapshot(run_id)
+        owed_before = self._owed(run_id)
+        dispositions = []
+        for row in owed_before:
+            released = self.execute(
+                terminals.release_argv(row.dispatch_id),
+                timeout=min(120, self.config.timeout_seconds),
+            )
+            outcome = terminals.release_outcome(released.stdout)
+            dispositions.append(
+                terminals.judge_release(
+                    role=roles.get(row.dispatch_id, "an unrecognised dispatch"),
+                    row=row,
+                    outcome=outcome,
+                    failure=(
+                        ""
+                        if outcome
+                        else redact.text(
+                            "worker-release returned no outcome for this "
+                            "dispatch: "
+                            + (released.stderr or released.stdout).strip()[-200:]
+                        )
+                    ),
+                )
+            )
+        after = self._terminal_snapshot(run_id)
+        owed_after = self._owed(run_id)
+
+        record = terminals.record(
+            run_id=run_id,
+            before=before,
+            after=after,
+            owed_before=owed_before,
+            owed_after=owed_after,
+            dispositions=dispositions,
+        )
+        self.result.terminals = record
+        self.exporter.write_json("terminals.json", record.to_document())
+        self.log.say(f"terminals: {record.detail}")
+        self.log.say(f"terminals, on closure: {record.distinction_detail}")
+        if record.status is not PhaseStatus.OK:
+            self.error_reason = self.error_reason or record.detail
 
     def _keep_reply(self, name: str, stdout: str, stderr: str) -> None:
         self.exporter.write_text(f"dispatch/{name}.stdout", stdout)

@@ -73,6 +73,16 @@ variable "superpowers_revision" {
   description = "The commit the plugin is pinned to. A tag would move."
 }
 
+variable "orca_skills_repository" {
+  type        = string
+  description = "The repository Orca's own skills are taken from."
+}
+
+variable "orca_skills_revision" {
+  type        = string
+  description = "The commit whose skills/<name>/SKILL.md is what the pinned Orca ships. `npx skills add` names no revision and so installs the tip, which is only the pinned bytes by coincidence."
+}
+
 variable "skill_digests" {
   type        = string
   description = "Space separated name=sha256 pairs the installed skills must match."
@@ -144,6 +154,8 @@ build {
       "NODE_SHA256=${var.node_sha256}",
       "SUPERPOWERS_REPOSITORY=${var.superpowers_repository}",
       "SUPERPOWERS_REVISION=${var.superpowers_revision}",
+      "ORCA_SKILLS_REPOSITORY=${var.orca_skills_repository}",
+      "ORCA_SKILLS_REVISION=${var.orca_skills_revision}",
       "SKILL_DIGESTS=${var.skill_digests}",
       "GUEST_USER=${var.guest_user}",
     ]

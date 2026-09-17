@@ -202,6 +202,15 @@ class ResourceTest(AdapterTestCase):
         )
 
 
+class ScreenCaptureTest(AdapterTestCase):
+    """There is no hypervisor here, so nothing outside the box holds its screen."""
+
+    def test_the_container_backend_cannot_be_asked_for_its_screen_from_outside(self):
+        adapter = self.make()
+        self.assertEqual(adapter.screen_capture_format, "")
+        self.assertIsNone(adapter.capture_screen("/var/tmp/whatever.ppm"))
+
+
 class PreflightTest(AdapterTestCase):
     def test_a_missing_distrobox_blocks(self):
         adapter = self.make(present=("podman",))

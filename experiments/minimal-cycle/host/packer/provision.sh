@@ -118,10 +118,41 @@ for directory in /opt/dely-cycle/superpowers/skills/*/; do
 done
 ls "${HOME}/.claude/skills"
 
-# Orca's own skills. `orca skills install` resolves to this command but passes
-# --agent claude, which the skills command line rejects; it accepts claude-code.
-bounded 900 npx --yes skills add https://github.com/stablyai/orca \
-  --skill orca-cli --skill orchestration --global --agent claude-code -y
+# Orca's own skills, from the one commit whose bytes the pinned Orca ships.
+#
+# What was here before was `npx skills add https://github.com/stablyai/orca ...`,
+# which is exactly what `orca skills install --dry-run` prints. That command
+# names no revision and `skills add --help` offers no flag that takes one, so it
+# installs whatever is at the tip of the repository on the day it runs. It can
+# agree with the digests checked below only on the days the tip happens to equal
+# what the pinned Orca shipped — and a built image freezes whichever day that
+# was, so a rebuild would have baked in the wrong bytes with nothing said. An
+# install that names no revision is not a pin.
+#
+# `orca skills get <name>` was the other candidate and would have been better
+# still — no network, version-matched to the installed package — but it does not
+# serve these bytes. It serves the bundled guide, which the repository
+# deliberately does not carry: 13246 and 18521 bytes for orchestration and
+# orca-cli against the 3862 and 2237 the manifest pins. The SKILL.md says so
+# itself, calling itself "a discovery stub, not the usage guide".
+#
+# So the repository, at the commit whose skills/orchestration and skills/orca-cli
+# trees are the ones the pinned Orca's manifest records. Blobless, depth one and
+# sparse, because the two files are six kilobytes inside a repository whose
+# blobless clone is 446M.
+git init -q /opt/dely-cycle/orca-skills
+git -C /opt/dely-cycle/orca-skills remote add origin "${ORCA_SKILLS_REPOSITORY}"
+bounded 600 git -C /opt/dely-cycle/orca-skills fetch -q --depth 1 \
+  --filter=blob:none origin "${ORCA_SKILLS_REVISION}"
+git -C /opt/dely-cycle/orca-skills sparse-checkout set --no-cone \
+  skills/orca-cli skills/orchestration
+git -C /opt/dely-cycle/orca-skills checkout -q FETCH_HEAD
+test "$(git -C /opt/dely-cycle/orca-skills rev-parse HEAD)" = "${ORCA_SKILLS_REVISION}"
+for directory in /opt/dely-cycle/orca-skills/skills/*/; do
+  [ -f "${directory}SKILL.md" ] || continue
+  cp -r "${directory}" "${HOME}/.claude/skills/"
+done
+ls "${HOME}/.claude/skills"
 
 # What the image carries is what the run will be held to, so check it here too.
 for entry in ${SKILL_DIGESTS}; do
@@ -181,6 +212,7 @@ orca_version=$(dpkg-query -W -f='${Version}' orca-ide)
 claude_code_version=$(claude --version | awk '{print $1}')
 node_version=$(node --version)
 superpowers_revision=$(git -C /opt/dely-cycle/superpowers rev-parse HEAD)
+orca_skills_revision=$(git -C /opt/dely-cycle/orca-skills rev-parse HEAD)
 skills=$(ls "${HOME}/.claude/skills" | tr '\n' ',')
 ubuntu=$(lsb_release -ds)
 built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)

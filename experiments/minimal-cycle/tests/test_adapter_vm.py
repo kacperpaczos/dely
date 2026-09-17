@@ -527,6 +527,34 @@ class VideoDeviceTest(VmTestCase):
         self.assertIn("VIDEO = 'qxl'", self.make(video="qxl").render_program())
 
 
+class ScreenCaptureTest(VmTestCase):
+    """The guest's framebuffer is held by the hypervisor, not by the guest."""
+
+    def test_the_capture_is_asked_of_libvirt_on_the_host(self):
+        adapter = self.make()
+        argv = adapter.screen_capture_argv("/var/tmp/run/runtime-ready.ppm")
+        self.assertEqual(argv[0], "virsh")
+        self.assertIn("screenshot", argv)
+        self.assertEqual(argv[argv.index("--domain") + 1], adapter.domain_name)
+        self.assertEqual(argv[argv.index("--file") + 1], "/var/tmp/run/runtime-ready.ppm")
+
+    def test_the_capture_never_enters_the_guest(self):
+        adapter = self.make()
+        argv = adapter.screen_capture_argv("/var/tmp/run/runtime-ready.ppm")
+        self.assertNotIn("ssh", argv)
+        self.assertEqual(argv[argv.index("--connect") + 1], adapter.settings.connect_uri)
+
+    def test_the_capture_runs_on_the_host_and_reports_what_it_did(self):
+        runner = StubRunner([("screenshot", 0, "Screenshot saved\n", "")])
+        adapter = self.make(runner=runner)
+        outcome = adapter.capture_screen("/var/tmp/run/runtime-ready.ppm")
+        self.assertTrue(outcome.ok)
+        self.assertEqual(outcome.context, "host")
+
+    def test_the_backend_declares_what_the_image_lands_as(self):
+        self.assertEqual(self.make().screen_capture_format, "ppm")
+
+
 class BaseImageDigestTest(VmTestCase):
     """A packer build is not reproducible, so the pin cannot be a constant."""
 

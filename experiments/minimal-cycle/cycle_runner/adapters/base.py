@@ -176,6 +176,21 @@ class BackendAdapter(abc.ABC):
     #: unrelated process here and must never be acted on.
     shares_host_processes: bool = False
 
+    #: What a picture of this environment's screen lands as when the host can
+    #: take one without entering the environment at all. Empty when there is no
+    #: such route, and the capture has to come from the X server inside it.
+    screen_capture_format: str = ""
+
+    def capture_screen(self, host_path: str) -> CommandOutcome | None:
+        """Write a picture of this environment's screen to a host path.
+
+        Outside the environment is the strongest place to stand: a hypervisor
+        holds the guest's framebuffer, which nothing inside the guest can dress
+        up for the camera. A backend with no such route declares no format and
+        returns nothing, and the capture is taken from its own X server instead.
+        """
+        return None
+
     def describe(self) -> dict[str, Any]:
         """Return backend facts for the manifest."""
         return {"backend": self.name}

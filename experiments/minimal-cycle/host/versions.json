@@ -95,9 +95,14 @@
       ".claude/skills"
     ],
     "bundled": {
-      "installed_with": "orca skills install --skill <name> --agent claude",
+      "repository": "https://github.com/stablyai/orca.git",
+      "revision": "fb322046e82b0e60ff2949f8360f0e0f071f42d4",
+      "installed_with": "git fetch --depth 1 --filter=blob:none <repository> <revision>, sparse checkout of skills/orca-cli and skills/orchestration, then each SKILL.md copied into ~/.claude/skills/<name>/",
       "pins_read_from": "/opt/Orca/resources/skills/current-manifest.json, inside the pinned Orca package",
-      "why_a_digest": "the install resolves to `npx skills add <repo>`, which fetches what is current; the digest is what tells that apart from what was pinned",
+      "why_this_revision": "it is the newest commit on the repository's default branch whose skills/orchestration and skills/orca-cli trees are the two git_tree_sha values Orca 1.4.201's own manifest records, so the SKILL.md it carries is the file that manifest pins a digest for. Verified: the blobs at that commit hash to the skill_md_sha256 values below.",
+      "why_not_skills_add": "`npx skills add <repo>` — which is exactly what `orca skills install` resolves to, as `--dry-run` prints — names no revision, and `skills add --help` offers no flag that takes one. It installs whatever is at the tip of the repository on the day it runs, so it can agree with these digests only on the days the tip happens to equal what the pinned Orca shipped. That is not a pin, and a green run under it is a coincidence.",
+      "why_not_orca_skills_get": "`orca skills get <name>` needs no network and is version-matched to the installed Orca, which would be better still, but it does not serve these bytes: it serves the bundled *guide*, which the repository deliberately does not carry. Measured against Orca 1.4.201 the guide is 13246 bytes for orchestration and 18521 for orca-cli (42455 and 26661 with --full), where the SKILL.md pinned here is 3862 and 2237. The SKILL.md says so itself: \"This file is a discovery stub, not the usage guide.\" No file in the Orca package has either pinned digest; the package carries the digests, not the files.",
+      "why_a_digest": "the install is pinned by commit, so the digest is not what makes it pinned — it is the independent check on the claim. A wrong revision, a half-finished copy, a file the agent cannot read and a later edit inside the environment all show up here, and the runner blocks on any of them.",
       "entries": [
         {
           "name": "orchestration",

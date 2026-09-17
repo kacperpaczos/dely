@@ -1,5 +1,6 @@
 """The shared lifecycle: export before destroy, and never a silent host fallback."""
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -854,6 +855,99 @@ class DisplayGateTest(CycleTestCase):
         self.assertEqual(outcome.run_result.cleanup.status.value, "DESTROYED")
 
 
+class ScreenCaptureTest(CycleTestCase):
+    """A window identifier is not a picture; the run exports the picture too."""
+
+    def cycle(self, environ=None, **adapter_options):
+        adapter = FakeAdapter(
+            self.state / RUN_ID, host_project=self.repo, **adapter_options
+        )
+        return adapter, lifecycle.run_cycle(
+            run_config=self.make_config(),
+            adapter=adapter,
+            run_id=RUN_ID,
+            host_home=self.host_home,
+            environ={} if environ is None else environ,
+            tool_versions={"runner": "one"},
+        )
+
+    def document(self):
+        return json.loads(self.artifact("screenshot.json").read_text(encoding="utf-8"))
+
+    def test_a_run_captures_its_own_screen_once_the_runtime_is_ready_and_again_after_the_review(self):
+        _, outcome = self.cycle()
+        record = outcome.run_result.screenshot
+        self.assertEqual(record.status.value, "OK", record.detail)
+        self.assertEqual(
+            [entry["moment"] for entry in record.captures],
+            ["runtime-ready", "after-review"],
+        )
+
+    def test_the_images_are_on_the_host_and_are_the_bytes_the_record_names(self):
+        _, outcome = self.cycle()
+        for entry in outcome.run_result.screenshot.captures:
+            with self.subTest(moment=entry["moment"]):
+                image = self.artifact(entry["artifact"])
+                self.assertTrue(image.is_file(), entry["artifact"])
+                data = image.read_bytes()
+                self.assertTrue(data)
+                self.assertEqual(
+                    hashlib.sha256(data).hexdigest(), entry["sha256"]
+                )
+                self.assertEqual(len(data), entry["size_bytes"])
+
+    def test_the_image_is_taken_from_the_x_server_rather_than_the_application(self):
+        adapter, _ = self.cycle()
+        self.assertEqual(adapter.calls.count("screenshot"), 2)
+        self.assertEqual(
+            [entry["source"] for entry in self.document()["captures"]],
+            ["x-server", "x-server"],
+        )
+
+    def test_the_receipt_covers_the_images_it_exported(self):
+        _, outcome = self.cycle()
+        exported = {entry["path"] for entry in outcome.run_result.export.artifacts}
+        for entry in outcome.run_result.screenshot.captures:
+            self.assertIn(entry["artifact"], exported)
+
+    def test_a_capture_that_fails_does_not_fail_the_run(self):
+        _, outcome = self.cycle(capture_fails=True)
+        self.assertEqual(
+            outcome.run_result.status, status.RunStatus.SETTLED,
+            outcome.run_result.failure_classification,
+        )
+        record = outcome.run_result.screenshot
+        self.assertEqual(record.status.value, "FAILED")
+        self.assertIn("root window", record.detail)
+        self.assertFalse(any(entry["ok"] for entry in record.captures))
+
+    def test_an_image_the_host_never_received_is_not_a_picture(self):
+        """The command said it took one; what matters is what landed here."""
+        _, outcome = self.cycle(capture_vanishes=True)
+        record = outcome.run_result.screenshot
+        self.assertEqual(record.status.value, "FAILED")
+        self.assertIn("nothing to look at", record.captures[0]["detail"])
+        self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+
+    def test_the_operators_own_screen_is_never_captured(self):
+        """The box has their X socket mounted; the screen number is all that differs."""
+        _, outcome = self.cycle(environ={"DISPLAY": ":0"})
+        record = outcome.run_result.screenshot
+        self.assertEqual(record.status.value, "FAILED")
+        self.assertIn("operator", record.captures[0]["detail"])
+        self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+        self.assertFalse((self.artifacts / RUN_ID / "screenshots").exists())
+
+    def test_a_backend_that_can_be_asked_from_outside_is_asked_there(self):
+        adapter, outcome = self.cycle(captures_from_outside=True)
+        self.assertNotIn("screenshot", adapter.calls)
+        self.assertEqual(adapter.calls.count("capture-screen"), 2)
+        captures = outcome.run_result.screenshot.captures
+        self.assertEqual([entry["source"] for entry in captures], ["hypervisor"] * 2)
+        self.assertTrue(captures[0]["artifact"].endswith(".ppm"))
+        self.assertTrue(self.artifact(captures[0]["artifact"]).is_file())
+
+
 class PluginSkillsReachTheAgentTest(SkillsGateTest):
     """A checkout at the pinned commit whose skills the agent cannot read."""
 
@@ -948,3 +1042,142 @@ class AcknowledgedDeliveryTest(CycleTestCase):
             if "--wait" in command.argv
         ]
         self.assertNotIn("--ack", waits[0].argv)
+
+
+class TerminalDispositionTest(CycleTestCase):
+    """A settled Task is not a released terminal, and the plane keeps count."""
+
+    def cycle(self, **adapter_options):
+        adapter = FakeAdapter(
+            self.state / RUN_ID, host_project=self.repo, **adapter_options
+        )
+        return adapter, lifecycle.run_cycle(
+            run_config=self.make_config(),
+            adapter=adapter,
+            run_id=RUN_ID,
+            host_home=self.host_home,
+            environ={},
+            tool_versions={"runner": "one"},
+        )
+
+    def document(self):
+        return json.loads(self.artifact("terminals.json").read_text(encoding="utf-8"))
+
+    def commands(self):
+        """Every command the run ran, as the log kept it."""
+        lines = self.artifact("logs/commands.jsonl").read_text(encoding="utf-8")
+        return [tuple(json.loads(line)["argv"]) for line in lines.splitlines() if line]
+
+    def test_both_agents_terminals_are_released_and_neither_is_reused(self):
+        _, outcome = self.cycle()
+        record = outcome.run_result.terminals
+        self.assertEqual(record.status.value, "OK", record.detail)
+        self.assertEqual(
+            [entry["role"] for entry in record.dispositions],
+            ["implementer", "reviewer"],
+        )
+        self.assertTrue(all(entry["ok"] for entry in record.dispositions))
+        # Release rather than reuse: the reviewer ran on a terminal of its own,
+        # which is what the independence of the review rests on.
+        self.assertNotEqual(
+            record.dispositions[0]["terminal"], record.dispositions[1]["terminal"]
+        )
+        self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+
+    def test_a_release_is_addressed_by_dispatch_not_by_terminal_handle(self):
+        self.cycle()
+        released = [argv for argv in self.commands() if "worker-release" in argv]
+        self.assertEqual(len(released), 2)
+        for argv in released:
+            self.assertIn("--dispatch", argv)
+            self.assertNotIn("--terminal", argv)
+
+    def test_the_releases_wait_for_the_picture_that_holds_both_panels(self):
+        """The ordering deviation: both agents have to be on one screen first."""
+        adapter, _ = self.cycle()
+        self.assertIn("screenshot", adapter.calls)
+        self.assertIn("worker-release", adapter.calls)
+        self.assertLess(
+            max(
+                index
+                for index, call in enumerate(adapter.calls)
+                if call == "screenshot"
+            ),
+            min(
+                index
+                for index, call in enumerate(adapter.calls)
+                if call == "worker-release"
+            ),
+        )
+
+    def test_the_run_asks_the_plane_what_it_still_owes_before_it_ends(self):
+        _, outcome = self.cycle()
+        owed = [
+            argv
+            for argv in self.commands()
+            if "worker-list" in argv and "--terminal-state" in argv
+        ]
+        self.assertEqual(len(owed), 2, "the debt is asked about either side")
+        for argv in owed:
+            self.assertIn("reclaimable", argv)
+        self.assertTrue(outcome.run_result.terminals.clean)
+        self.assertEqual(outcome.run_result.terminals.owed_after, [])
+
+    def test_a_run_that_ends_owing_a_terminal_is_not_settled(self):
+        """The release receipt was fine; the accounting still owes a decision."""
+        _, outcome = self.cycle(still_owed=True)
+        record = outcome.run_result.terminals
+        self.assertEqual(record.status.value, "FAILED")
+        self.assertFalse(record.clean)
+        self.assertIn("terminal-fake-1", record.detail)
+        self.assertNotEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.ERROR)
+        self.assertIn(
+            "still owing", outcome.run_result.failure_classification
+        )
+
+    def test_a_release_the_plane_could_not_verify_is_not_a_release(self):
+        _, outcome = self.cycle(release_fails=True)
+        record = outcome.run_result.terminals
+        self.assertFalse(any(entry["ok"] for entry in record.dispositions))
+        self.assertIn("could not say", record.dispositions[0]["detail"])
+        self.assertNotEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+
+    def test_a_released_terminal_drops_out_of_the_live_list(self):
+        """The evidence that a closure is not a panel that went off screen."""
+        _, outcome = self.cycle()
+        record = outcome.run_result.terminals
+        self.assertTrue(record.distinguished, record.distinction_detail)
+        for entry in record.dispositions:
+            self.assertIn(entry["terminal"], record.live_before)
+            self.assertNotIn(entry["terminal"], record.live_after)
+        # The terminal Control sends from is not a worker's and is never closed.
+        self.assertIn("term_fake", record.live_after)
+
+    def test_a_terminal_that_survived_its_release_is_not_distinguishable(self):
+        _, outcome = self.cycle(release_leaves_the_terminal=True)
+        record = outcome.run_result.terminals
+        self.assertFalse(record.distinguished)
+        self.assertIn("still in the live list", record.distinction_detail)
+        # Evidence, not a gate: the plane owes nothing, so the run still settles.
+        self.assertTrue(record.clean)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+
+    def test_the_record_is_exported_and_reaches_the_manifest(self):
+        _, outcome = self.cycle()
+        document = self.document()
+        self.assertEqual(document["status"], "OK")
+        self.assertEqual(len(document["dispositions"]), 2)
+        exported = {entry["path"] for entry in outcome.run_result.export.artifacts}
+        self.assertIn("terminals.json", exported)
+        written = json.loads(
+            self.artifact("manifest.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(written["terminals"]["clean"], True)
+        self.assertTrue(written["display"]["reachable"])
+
+    def test_a_run_that_never_dispatched_owes_nothing_and_says_so(self):
+        _, outcome = self.cycle(orca_present=False)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.BLOCKED)
+        self.assertEqual(outcome.run_result.terminals.status.value, "SKIPPED")
+        self.assertIn("ever owned an agent terminal", outcome.run_result.terminals.detail)

@@ -1,0 +1,32 @@
+#!/bin/sh
+# Run dely.js on Node 18+ from PATH.
+set -u
+DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+SCRIPT="$DIR/dely.js"
+
+run() {
+  runtime=$1
+  shift
+  exec "$runtime" "$SCRIPT" "$@"
+}
+
+if [ -n "${DELY_NODE-}" ]; then
+  run "$DELY_NODE" "$@"
+fi
+
+if command -v node >/dev/null 2>&1; then
+  ver=`node -v 2>/dev/null` || ver=v0
+  major=${ver#v}
+  major=${major%%.*}
+  case "$major" in
+    ''|*[!0-9]*) ;;
+    *)
+      if [ "$major" -ge 18 ]; then
+        run node "$@"
+      fi
+      ;;
+  esac
+fi
+
+printf '%s\n' 'BLOCKED no Node 18+ runtime; install Node 18+' >&2
+exit 10

@@ -8,7 +8,8 @@
 
 ## Verification
 
-<!-- Commands you ran and their outcome, e.g. `bash tests/contracts.sh`. -->
+<!-- The closure gates from AGENTS.md you ran, with what each printed. Nothing
+runs automatically on a pull request. -->
 
 ## Contract and documentation impact
 

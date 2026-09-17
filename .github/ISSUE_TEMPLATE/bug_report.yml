@@ -39,14 +39,18 @@ body:
     id: harness
     attributes:
       label: Harness
+      description: >-
+        Deferred harnesses are not supported in the current release. Dely keeps
+        their measured launch mechanics, but a report against one may be closed
+        as deferred rather than fixed.
       options:
         - Claude Code
         - Codex CLI
-        - Grok Build
-        - Antigravity CLI
-        - Kiro CLI
         - Cursor Agent CLI
-        - GitHub Copilot CLI
+        - Grok Build (deferred)
+        - Antigravity CLI (deferred)
+        - Kiro CLI (deferred)
+        - GitHub Copilot CLI (deferred)
         - Other / not sure
     validations:
       required: true

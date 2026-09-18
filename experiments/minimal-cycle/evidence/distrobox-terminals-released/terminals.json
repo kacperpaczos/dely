@@ -1,0 +1,85 @@
+{
+  "clean": true,
+  "detail": "2 terminal(s) this Run's dispatches owned were released rather than reused or left to the environment's destruction; the plane lists no terminal of this Run still owing a decision, so the coordinator ends its turn owing nothing",
+  "dispositions": [
+    {
+      "action": "release",
+      "detail": "the terminal of the implementer's dispatch was released and the plane answered released",
+      "dispatch_id": "ctx_8f80cf372eb8",
+      "ok": true,
+      "outcome": "released",
+      "role": "implementer",
+      "terminal": "term_e286436b-c6ba-457c-929b-65489e0fe9c6"
+    },
+    {
+      "action": "release",
+      "detail": "the terminal of the reviewer's dispatch was released and the plane answered released",
+      "dispatch_id": "ctx_729fe53c01fc",
+      "ok": true,
+      "outcome": "released",
+      "role": "reviewer",
+      "terminal": "term_4d57c24e-fc93-43de-9edb-d5dac7dad665"
+    }
+  ],
+  "distinction_detail": "all 2 released terminal(s) were in the live list before the release and are not in it after, of 1 still there; a terminal whose panel is merely off screen stays in this list, so this is a closure rather than a disappearance",
+  "distinguished": true,
+  "live_after": [
+    "term_4fcd9aae-6be0-411f-9ae8-3ee5c3289c68"
+  ],
+  "live_before": [
+    "term_4fcd9aae-6be0-411f-9ae8-3ee5c3289c68",
+    "term_e286436b-c6ba-457c-929b-65489e0fe9c6",
+    "term_4d57c24e-fc93-43de-9edb-d5dac7dad665"
+  ],
+  "owed_after": [],
+  "owed_before": [
+    {
+      "dispatch_id": "ctx_8f80cf372eb8",
+      "run_id": "run_b3537244a4b7",
+      "task_id": "task_93cfffacef92",
+      "terminal": "term_e286436b-c6ba-457c-929b-65489e0fe9c6",
+      "terminal_state": "reclaimable"
+    },
+    {
+      "dispatch_id": "ctx_729fe53c01fc",
+      "run_id": "run_b3537244a4b7",
+      "task_id": "task_6048857f613b",
+      "terminal": "term_4d57c24e-fc93-43de-9edb-d5dac7dad665",
+      "terminal_state": "reclaimable"
+    }
+  ],
+  "run_id": "run_b3537244a4b7",
+  "status": "OK",
+  "workers_after": [
+    {
+      "dispatch_id": "ctx_8f80cf372eb8",
+      "run_id": "run_b3537244a4b7",
+      "task_id": "task_93cfffacef92",
+      "terminal": "term_e286436b-c6ba-457c-929b-65489e0fe9c6",
+      "terminal_state": "released"
+    },
+    {
+      "dispatch_id": "ctx_729fe53c01fc",
+      "run_id": "run_b3537244a4b7",
+      "task_id": "task_6048857f613b",
+      "terminal": "term_4d57c24e-fc93-43de-9edb-d5dac7dad665",
+      "terminal_state": "released"
+    }
+  ],
+  "workers_before": [
+    {
+      "dispatch_id": "ctx_8f80cf372eb8",
+      "run_id": "run_b3537244a4b7",
+      "task_id": "task_93cfffacef92",
+      "terminal": "term_e286436b-c6ba-457c-929b-65489e0fe9c6",
+      "terminal_state": "reclaimable"
+    },
+    {
+      "dispatch_id": "ctx_729fe53c01fc",
+      "run_id": "run_b3537244a4b7",
+      "task_id": "task_6048857f613b",
+      "terminal": "term_4d57c24e-fc93-43de-9edb-d5dac7dad665",
+      "terminal_state": "reclaimable"
+    }
+  ]
+}

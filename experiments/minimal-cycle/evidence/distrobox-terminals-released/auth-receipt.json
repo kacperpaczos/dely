@@ -1,0 +1,19 @@
+{
+  "detail": "1 allowlisted entry(s) copied into the per-run home with owner-only permissions",
+  "entries": [
+    ".claude/.credentials.json"
+  ],
+  "mode": "existing_login",
+  "observed": {
+    "apiProvider": "firstParty",
+    "authMethod": "claude.ai",
+    "loggedIn": true,
+    "subscriptionType": "max"
+  },
+  "reference": "workshop-host-login",
+  "removed_after_run": false,
+  "status": "OK",
+  "target": "/var/tmp/dely-cycle/state/20260917T233020Z-bbc5e6-3e46a992/home",
+  "verified": true,
+  "verify_detail": "the agent in the environment reports itself signed in through claude.ai"
+}

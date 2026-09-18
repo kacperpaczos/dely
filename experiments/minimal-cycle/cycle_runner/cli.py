@@ -195,6 +195,8 @@ def _establish_gone(
     run_id: str,
     records: Sequence[admission.LeaseRecord],
     left: residue.StateResidue,
+    *,
+    adapter_for=_adapter_for,
 ) -> dict[str, list[str]]:
     """Ask, three separate ways, whether anything of this run is still here.
 
@@ -203,21 +205,34 @@ def _establish_gone(
     `still_present` or, when this host could not put the question at all, in
     `unanswered` — because a question that cannot be asked is not one that was
     answered no, and nothing is removed on that difference.
+
+    The live lease is kept apart from the rest in `alive`, because the two mean
+    different things to different callers. To anything removing state they are
+    the same refusal and are read together. To the command that stops what a
+    dead run left, a live lease is the one answer that ends it — that run is
+    not dead — while a container still standing is the thing it is there to
+    remove.
+
+    A process the survey could not read is not a holder and is not an absence
+    of one: it lands in `unanswered`, beside the domain this host could not ask
+    libvirt about, for the same reason.
     """
+    ownership = processes.attribute(_run_paths(run_config, run_id))
     found: dict[str, list[str]] = {
-        "holders": [
-            f"pid {item.pid} {item.command[:80]}"
-            for item in processes.holding(_run_paths(run_config, run_id))
-        ],
+        "holders": [item.describe() for item in ownership.own],
+        "alive": [],
         "still_present": [],
-        "unanswered": [],
+        "unanswered": [
+            f"whether {item.describe()} is this run's could not be established"
+            for item in ownership.unattributed
+        ],
         "observed": [],
     }
     backend = ""
     for record in records:
         backend = backend or record.backend
         if record.state == admission.HELD:
-            found["still_present"].append(
+            found["alive"].append(
                 f"a {record.backend} lease held by live pid {record.pid}"
             )
         elif record.state == admission.UNREADABLE:
@@ -247,7 +262,7 @@ def _establish_gone(
         )
         return found
     try:
-        adapter = _adapter_for(run_config, backend, run_id)
+        adapter = adapter_for(run_config, backend, run_id)
     except (ValueError, RuntimeError) as error:
         found["unanswered"].append(
             f"no {found['backend'][0]} adapter could be built from this "
@@ -308,12 +323,13 @@ def _residue(arguments, stdout: TextIO, stderr: TextIO) -> int:
                 "run_id": run_id,
                 "backend": found["backend"][0],
                 "state": left.to_document(),
-                "still_present": found["still_present"],
+                "still_present": found["alive"] + found["still_present"],
                 "unanswered": found["unanswered"],
                 "holders": found["holders"],
                 "observed": found["observed"],
                 "removable": bool(
                     left.present
+                    and not found["alive"]
                     and not found["still_present"]
                     and not found["unanswered"]
                     and not found["holders"]
@@ -437,6 +453,141 @@ def _discard(
     return 0
 
 
+def _leases_for(root: Path, run_id: str) -> list[admission.LeaseRecord]:
+    """Return every lease any backend holds for one run."""
+    return [
+        record
+        for backend in config_module.BACKENDS
+        for record in admission.read_leases(root, backend)
+        if record.run_id == run_id
+    ]
+
+
+def _stop(
+    arguments,
+    stdout: TextIO,
+    stderr: TextIO,
+    *,
+    survey=processes.survey_and_stop,
+    adapter_for=_adapter_for,
+) -> int:
+    """Stop what one named dead run left running, then remove its environment.
+
+    This is a verb of its own rather than a flag on `residue`, and rather than
+    something `discard` does first, for two reasons.
+
+    `residue` reports. Its whole contract is that it removes nothing and that
+    `--discard` acts only once three questions have been answered. Signalling a
+    process is a different act with a different standard of proof — every
+    target identified positively, by this run's own paths — and a different
+    worst case, which is reaching the operator's own application. That does not
+    belong behind a command whose job is to describe.
+
+    And `discard` refuses while any process holds the run's state. That refusal
+    is the rail; a `discard` that could stop the processes first would make it
+    conditional on its own flag. So the order is kept and made explicit: this
+    command ends the processes and takes the container or the domain, and then
+    `residue --run-id <id> --discard` asks what the state holds and removes it.
+
+    What it will not do: act on a run whose lease still has a live owner, act
+    on a process it cannot attribute to the named run, or remove an environment
+    while anything of that run is still running.
+    """
+    run_config = _load(arguments.config)
+    run_id = arguments.run_id
+    if not ids.is_run_id(run_id):
+        print(
+            f"refused: {run_id!r} is not a run identifier of the documented "
+            "shape; nothing is signalled under a name this runner did not mint",
+            file=stderr,
+        )
+        return exit_code(RunStatus.BLOCKED)
+    root = run_config.state_root
+    records = _leases_for(root, run_id)
+    left = residue.survey(root, run_id)
+    found = _establish_gone(
+        run_config, run_id, records, left, adapter_for=adapter_for
+    )
+    backend = found["backend"][0]
+
+    print(f"run:       {run_id} on the {backend} backend", file=stdout)
+    for line in found["observed"]:
+        print(f"    seen:        {line}", file=stdout)
+
+    if found["alive"]:
+        print(
+            "refused: "
+            + "; ".join(found["alive"])
+            + f" — {run_id} is not a dead run, and this stops only what a dead "
+            "one left",
+            file=stderr,
+        )
+        return exit_code(RunStatus.BLOCKED)
+    if found["unanswered"]:
+        print(
+            "refused: "
+            + "; ".join(found["unanswered"])
+            + "; a question this host could not put is not a question it was "
+            "told no to, so nothing was signalled",
+            file=stderr,
+        )
+        return exit_code(RunStatus.BLOCKED)
+
+    # The survey that decides what is signalled is taken here and nowhere
+    # earlier: everything above is about whether this run is over, and a
+    # process table read a minute ago is a process table about a different host.
+    report = survey(_run_paths(run_config, run_id))
+    for pid in report.found:
+        print(f"    attributed:  pid {pid}: {report.attribution[pid]}", file=stdout)
+    for pid in report.unattributed:
+        print(f"    not known:   pid {pid}: {report.unreadable[pid]}", file=stdout)
+    if report.unattributed:
+        print(f"refused: {report.detail}", file=stderr)
+        return exit_code(RunStatus.BLOCKED)
+    print(f"    stopped:     {report.stopped or 'nothing was running'}", file=stdout)
+    if report.surviving:
+        for pid in report.surviving:
+            why = report.refused.get(pid, "it did not die")
+            print(f"    still here:  pid {pid}: {why}", file=stdout)
+        print(
+            f"refused: {report.detail}; the environment is left standing, "
+            "because removing what a live process is running in is how a "
+            "process outlives the thing that was supposed to contain it",
+            file=stderr,
+        )
+        return exit_code(RunStatus.BLOCKED)
+
+    try:
+        adapter = adapter_for(run_config, backend, run_id)
+    except (ValueError, RuntimeError) as error:
+        print(f"refused: no {backend} adapter could be built: {error}", file=stderr)
+        return exit_code(RunStatus.BLOCKED)
+    removal = adapter.remove_environment()
+    for item in removal.removed:
+        print(f"    removed:     {item}", file=stdout)
+    print(f"    environment: {removal.detail}", file=stdout)
+    standing = [
+        item
+        for item in (adapter.plan_handle().per_run_resources if adapter.plan_handle() else ())
+        if item.kind != "path" and adapter.resource_exists(item)
+    ]
+    if standing:
+        print(
+            "refused: "
+            + ", ".join(str(item) for item in standing)
+            + " is still on this host after it was asked to go",
+            file=stderr,
+        )
+        return exit_code(RunStatus.BLOCKED)
+    print(
+        f"what {run_id} left on disk is still at {residue.state_path(root, run_id)}; "
+        f"`residue --run-id {run_id} --discard` is what asks what it holds and "
+        "removes it, and `release` is what gives the slot back",
+        file=stdout,
+    )
+    return 0
+
+
 def _host_registry(arguments, stdout: TextIO, stderr: TextIO) -> int:
     """Report what the operator's own Orca registry holds for this runner's runs.
 
@@ -518,6 +669,18 @@ def build_parser() -> argparse.ArgumentParser:
     release.add_argument("--run-id", required=True)
     release.add_argument("--backend", choices=sorted(config_module.BACKENDS))
     release.set_defaults(handler=_release)
+
+    stop = subcommands.add_parser(
+        "stop",
+        help="stop what one named dead run left running, and remove its environment",
+    )
+    stop.add_argument("--config", required=True, type=Path)
+    stop.add_argument(
+        "--run-id",
+        required=True,
+        help="the one run to act on; there is no sweep and no default target",
+    )
+    stop.set_defaults(handler=_stop)
 
     leftovers = subcommands.add_parser(
         "residue",

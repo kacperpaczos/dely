@@ -186,3 +186,220 @@ class MountNamespaceTest(unittest.TestCase):
 
     def test_a_process_that_is_gone_reports_nothing(self):
         self.assertEqual(processes.mount_namespace(999999999), "")
+
+
+class UnreadableProcessTest(unittest.TestCase):
+    """A process this host would not let the survey read is not a no-match.
+
+    Every process the operator owns is readable here. The ones that are not
+    are running as somebody else — in a box that shares this process table,
+    that is the box's own `sudo`, mapped to a subordinate identifier. Such a
+    process cannot be shown to be this run's and cannot be shown not to be,
+    and a survey that treats it as unrelated reports a clean host over a
+    process it never managed to look at.
+    """
+
+    def setUp(self):
+        self.slept = []
+
+    def table(self):
+        return Table([
+            processes.Process(
+                pid=700,
+                command="sh -c apt-get update",
+                parent=1,
+                home=f"{RUN_PATH}/home",
+            ),
+            processes.Process(
+                pid=701,
+                command="sudo apt-get update",
+                parent=700,
+                unreadable=("its environment", "its working directory"),
+            ),
+            processes.Process(
+                pid=800,
+                command="/usr/lib/systemd/systemd-journald",
+                parent=1,
+                unreadable=("its environment", "its working directory"),
+            ),
+        ])
+
+    def test_a_child_this_host_will_not_let_it_read_is_named(self):
+        owned = processes.attribute([RUN_PATH], lister=self.table().lister)
+        self.assertEqual(owned.pids, [700])
+        self.assertEqual([item.pid for item in owned.unattributed], [701])
+        self.assertFalse(owned.settled)
+
+    def test_why_it_could_not_be_decided_is_said_rather_than_implied(self):
+        owned = processes.attribute([RUN_PATH], lister=self.table().lister)
+        said = owned.unattributed[0].describe()
+        self.assertIn("its parent pid 700 is this run's", said)
+        self.assertIn("its environment", said)
+
+    def test_an_unreadable_process_with_no_tie_to_the_run_is_left_alone(self):
+        """Most of a host is unreadable and none of it is this run's."""
+        owned = processes.attribute([RUN_PATH], lister=self.table().lister)
+        self.assertNotIn(800, owned.pids)
+        self.assertNotIn(800, [item.pid for item in owned.unattributed])
+
+    def test_nothing_at_all_is_signalled_while_one_cannot_be_decided(self):
+        table = self.table()
+        report = processes.survey_and_stop(
+            [RUN_PATH],
+            lister=table.lister,
+            signaller=table.signaller,
+            sleeper=self.slept.append,
+        )
+        self.assertEqual(table.signalled, [])
+        self.assertEqual(report.stopped, [])
+        self.assertEqual(report.unattributed, [701])
+        self.assertFalse(report.clean)
+        self.assertIn("nothing was signalled", report.detail)
+
+    def test_the_refusal_still_names_what_it_would_have_signalled(self):
+        table = self.table()
+        report = processes.survey_and_stop(
+            [RUN_PATH],
+            lister=table.lister,
+            signaller=table.signaller,
+            sleeper=self.slept.append,
+        )
+        self.assertEqual(report.found, [700])
+        self.assertIn(700, report.attribution)
+        self.assertIn(701, report.unreadable)
+
+    def test_a_readable_child_that_names_nothing_is_not_walked_through(self):
+        """Being near one of this run's processes is not being one of them."""
+        table = Table([
+            processes.Process(
+                pid=700, command="the run's own", parent=1, home=f"{RUN_PATH}/home"
+            ),
+            processes.Process(pid=702, command="a host helper", parent=700),
+            processes.Process(
+                pid=703,
+                command="something of somebody else's",
+                parent=702,
+                unreadable=("its environment",),
+            ),
+        ])
+        owned = processes.attribute([RUN_PATH], lister=table.lister)
+        self.assertEqual(owned.pids, [700])
+        self.assertEqual(owned.unattributed, ())
+
+
+class SignalRefusedTest(unittest.TestCase):
+    """A signal the host refused is not a stop, and must not read as one."""
+
+    def setUp(self):
+        self.slept = []
+
+    def test_a_process_this_runner_may_not_signal_is_reported_as_surviving(self):
+        class Forbidden(Table):
+            def signaller(self, pid, number):
+                self.signalled.append((pid, number))
+                raise PermissionError(1, "Operation not permitted")
+
+        table = Forbidden([
+            processes.Process(pid=910, command="a box's own root", home=f"{RUN_PATH}/home")
+        ])
+        report = processes.survey_and_stop(
+            [RUN_PATH],
+            lister=table.lister,
+            signaller=table.signaller,
+            sleeper=self.slept.append,
+        )
+        self.assertEqual(report.surviving, [910])
+        self.assertEqual(report.stopped, [])
+        self.assertIn("PermissionError", report.refused[910])
+        self.assertIn("refused the signal", report.detail)
+        self.assertFalse(report.clean)
+
+    def test_a_process_that_had_already_gone_is_not_a_refusal(self):
+        class Gone(Table):
+            def signaller(self, pid, number):
+                self.signalled.append((pid, number))
+                self.rows = [row for row in self.rows if row.pid != pid]
+                raise ProcessLookupError(3, "No such process")
+
+        table = Gone([
+            processes.Process(pid=911, command="already going", home=f"{RUN_PATH}/home")
+        ])
+        report = processes.survey_and_stop(
+            [RUN_PATH],
+            lister=table.lister,
+            signaller=table.signaller,
+            sleeper=self.slept.append,
+        )
+        self.assertEqual(report.stopped, [911])
+        self.assertEqual(report.refused, {})
+        self.assertTrue(report.clean)
+
+
+class NamespaceIsEstablishedFromWhereAProcessIsTest(unittest.TestCase):
+    """Which namespace is the run's, and which is the container manager's.
+
+    Measured on this host: a rootless container manager runs its client and
+    its monitor in one namespace of their own, shared by every box that user
+    has — the operator's included. Those processes carry this run's paths on
+    their command lines, because the paths are what they were told to mount.
+    Seeding from a command line would take the operator's boxes as this run's.
+    """
+
+    HOST = "mnt:[4026531832]"
+    MANAGER = "mnt:[4026533622]"
+    BOX = "mnt:[4026533804]"
+
+    def table(self):
+        return Table([
+            # The container manager's client, holding this run's paths because
+            # they are what it was asked to mount, in the namespace it shares
+            # with every other box on this host.
+            processes.Process(
+                pid=1001,
+                command=f"podman exec --env=HOME={RUN_PATH}/home dely-cycle",
+                home="/home/someone",
+                cwd="/home/someone",
+                namespace=self.MANAGER,
+            ),
+            # The operator's own box, monitored from that same namespace.
+            processes.Process(
+                pid=1002,
+                command="conmon -n claude-desktop",
+                home="/home/someone",
+                namespace=self.MANAGER,
+            ),
+            # Inside this run's box: its home is where it actually is.
+            processes.Process(
+                pid=1003,
+                command="/opt/Orca/orca-ide --disable-gpu",
+                home=f"{RUN_PATH}/home",
+                namespace=self.BOX,
+            ),
+            # Also inside it, and naming nothing of its own.
+            processes.Process(
+                pid=1004, command="claude --dangerously-skip-permissions",
+                namespace=self.BOX,
+            ),
+        ])
+
+    def test_a_command_line_does_not_establish_a_namespace_as_this_runs(self):
+        owned = processes.attribute(
+            [RUN_PATH], lister=self.table().lister, host_namespace=self.HOST
+        )
+        self.assertNotIn(1002, owned.pids)
+
+    def test_a_home_does_establish_it_and_takes_what_shares_it(self):
+        owned = processes.attribute(
+            [RUN_PATH], lister=self.table().lister, host_namespace=self.HOST
+        )
+        self.assertIn(1004, owned.pids)
+        reason = next(item for item in owned.own if item.pid == 1004).reasons[0]
+        self.assertIn(self.BOX, reason)
+
+    def test_the_manager_that_named_the_path_is_still_this_runs_business(self):
+        """It is attributed, but by its own argv rather than by a namespace."""
+        owned = processes.attribute(
+            [RUN_PATH], lister=self.table().lister, host_namespace=self.HOST
+        )
+        reasons = next(item for item in owned.own if item.pid == 1001).reasons
+        self.assertEqual(reasons, (f"its command line names {RUN_PATH}",))

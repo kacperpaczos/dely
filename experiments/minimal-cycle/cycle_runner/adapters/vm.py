@@ -1004,6 +1004,50 @@ class VmAdapter(BackendAdapter):
             outcomes=tuple(outcomes),
         )
 
+    def remove_environment(self) -> DestroyReport:
+        """Remove the domain, the overlay and the seed; keep the state on disk.
+
+        The program that declares them lives in the per-run state, so the state
+        has to outlive this call whichever way round the two are done. It is
+        left standing deliberately: `residue --discard` is what asks whether
+        the transport key this backend mints is still sitting in there.
+        """
+        outcomes = []
+        if self.stack_dir.exists():
+            outcomes.append(
+                self._pulumi(
+                    ["destroy", "--yes", "--non-interactive", "--stack", self.stack_name],
+                    timeout=self.config.timeout_seconds,
+                )
+            )
+            outcomes.append(
+                self._pulumi(
+                    ["stack", "rm", "--yes", "--non-interactive", self.stack_name],
+                    timeout=600,
+                )
+            )
+        self._virsh("pool-refresh", self.settings.pool, timeout=120)
+        declared = [
+            item for item in self.plan_handle().per_run_resources if item.kind != "path"
+        ]
+        standing = [item for item in declared if self.resource_exists(item)]
+        return DestroyReport(
+            removed=tuple(str(item) for item in declared if item not in standing),
+            retained=(*(str(item) for item in standing), f"path:{self.run_state}"),
+            detail=(
+                f"the domain, the overlay and the seed are gone; {self.run_state} "
+                "was left standing, because what a killed run left on disk is "
+                "asked about before it is removed"
+                if not standing
+                else (
+                    "pulumi destroy returned and "
+                    + ", ".join(str(item) for item in standing)
+                    + " is still on this host"
+                )
+            ),
+            outcomes=tuple(outcomes),
+        )
+
     def can_see_environment(self) -> tuple[bool, str]:
         """Whether this host still has virsh, and libvirt still answers it."""
         if not self.which("virsh"):

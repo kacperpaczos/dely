@@ -157,6 +157,30 @@ class BackendAdapter(abc.ABC):
     def destroy(self) -> DestroyReport:
         """Remove only the per-run resources this adapter declared."""
 
+    def remove_environment(self) -> DestroyReport:
+        """Remove this run's environment, and leave its state directory standing.
+
+        `destroy` is the end of a cycle: it takes the environment and the
+        per-run state in one act, because a run that reached its end has
+        already exported everything it will ever export. A run that was killed
+        reaches no end, and then the two have to come apart — what it left on
+        disk is the only record of it, and the questions about what that record
+        holds (is there a private key in it, a copied login) belong to
+        `residue`, which asks them and then removes it.
+
+        So this removes the container, the domain and whatever else the backend
+        stands up per run, and nothing under the state root. A backend that
+        cannot separate the two says so here and removes nothing, because a
+        partial removal nobody declared is worse than a refusal.
+        """
+        return DestroyReport(
+            retained=(self.name,),
+            detail=(
+                f"the {self.name} backend does not say how to remove its "
+                "environment without also removing the state that run left"
+            ),
+        )
+
     @abc.abstractmethod
     def resource_exists(self, resource: Resource) -> bool:
         """Report whether a resource is still present, for cleanup verification."""

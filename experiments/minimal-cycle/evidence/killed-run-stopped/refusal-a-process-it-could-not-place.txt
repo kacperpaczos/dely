@@ -1,0 +1,29 @@
+$ ./run-cycle stop --config config.distrobox.example.yaml --run-id <run>
+# a second run, killed with SIGKILL while its box was still installing its
+# own packages, so nothing of uid 1000 had yet run inside it
+run:       20260918T171946Z-bbc5e6-8b4f423d on the distrobox backend
+    seen:        its distrobox lease is orphaned, so no process owns it
+    seen:        distrobox over podman lists the boxes on this host
+refused: whether pid 2876 apt-get install -y apt-utils bash bash-completion bc bzip2 curl dialog diffutils (its parent pid 2456 is this run's, and this host would not let this survey read its environment) is this run's could not be established; whether pid 6313 /usr/bin/dpkg --status-fd 25 --no-triggers --unpack --auto-deconfigure --recursi (its parent pid 2876 is this run's, and this host would not let this survey read its environment) is this run's could not be established; a question this host could not put is not a question it was told no to, so nothing was signalled
+exit 4
+
+$ ./run-cycle stop --config config.distrobox.example.yaml --run-id <run>
+# minutes later, the package install finished; what is left is the box's own
+# keepalive, which never stops and never becomes readable
+refused: whether pid 25010 sleep 15 (its parent pid 2456 is this run's, and this host would not let this survey read its environment) is this run's could not be established; a question this host could not put is not a question it was told no to, so nothing was signalled
+exit 4
+
+# the container manager is what reaps it, and the operator decides:
+$ distrobox rm --force dely-cycle-<run>
+Removing container...
+
+$ ./run-cycle stop --config config.distrobox.example.yaml --run-id <run>
+run:       20260918T171946Z-bbc5e6-8b4f423d on the distrobox backend
+    seen:        its distrobox lease is orphaned, so no process owns it
+    seen:        distrobox over podman lists the boxes on this host
+    seen:        container:dely-cycle-20260918t171946z-bbc5e6-8b4f423d is gone
+    stopped:     nothing was running
+    removed:     container:dely-cycle-20260918t171946z-bbc5e6-8b4f423d
+    environment: dely-cycle-20260918t171946z-bbc5e6-8b4f423d is gone; /var/tmp/dely-cycle/state/20260918T171946Z-bbc5e6-8b4f423d was left standing, because what a killed run left on disk is asked about before it is removed
+what 20260918T171946Z-bbc5e6-8b4f423d left on disk is still at /var/tmp/dely-cycle/state/20260918T171946Z-bbc5e6-8b4f423d; `residue --run-id 20260918T171946Z-bbc5e6-8b4f423d --discard` is what asks what it holds and removes it, and `release` is what gives the slot back
+exit 0

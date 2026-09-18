@@ -57,8 +57,16 @@ CASES: tuple[Counterexample, ...] = (
             "application instead of this run's"
         ),
         path="cycle_runner/processes.py",
-        original='        return any(path in field for field in (self.command, self.home, self.cwd))',
-        replacement='        return "orca" in self.command',
+        original="""        return tuple(
+            name
+            for name, value in (
+                ("home", self.home),
+                ("working directory", self.cwd),
+                ("command line", self.command),
+            )
+            if path in value
+        )""",
+        replacement='        return ("command line",) if "orca" in self.command else ()',
         instruments=("tests.test_processes.SurveyTest",),
     ),
     Counterexample(
@@ -1401,6 +1409,109 @@ done""",
             "tests.test_residue.DiscardTest",
             "tests.test_residue.ResidueCommandTest",
         ),
+    ),
+    Counterexample(
+        name="a-process-this-survey-cannot-read-is-not-a-no-match",
+        requirement=(
+            "A process running as an identifier the operator cannot look into "
+            "returns nothing from every field the survey reads, so a survey "
+            "that takes silence for absence reports a clean host over the one "
+            "process it never managed to look at"
+        ),
+        path="cycle_runner/processes.py",
+        original="""            if child.pid in reasons or child.pid in opaque or not child.unreadable:
+                continue""",
+        replacement="""            if True:
+                continue""",
+        instruments=("tests.test_processes.UnreadableProcessTest",),
+    ),
+    Counterexample(
+        name="nothing-is-signalled-while-a-process-cannot-be-placed",
+        requirement=(
+            "Stopping the processes that were established and leaving the one "
+            "that was not unmentioned is the worst of both: it acts, and it "
+            "reports a host it established nothing about"
+        ),
+        path="cycle_runner/processes.py",
+        original="""    if owned.unattributed:
+        # `found` stands: it is what this would have signalled, and an""",
+        replacement="""    if False:
+        # `found` stands: it is what this would have signalled, and an""",
+        instruments=("tests.test_processes.UnreadableProcessTest",),
+    ),
+    Counterexample(
+        name="a-signal-the-host-refused-is-not-a-stop",
+        requirement=(
+            "`kill` fails with EPERM for exactly the processes this runner "
+            "cannot reach, and a loop that swallows the error counts a process "
+            "it never touched as one it stopped"
+        ),
+        path="cycle_runner/processes.py",
+        original=(
+            "    except OSError as error:\n"
+            '        refused[pid] = f"{type(error).__name__}: {error}"'
+        ),
+        replacement="    except OSError:\n        return",
+        instruments=("tests.test_processes.SignalRefusedTest",),
+    ),
+    Counterexample(
+        name="the-environments-namespace-is-learned-from-where-a-process-is",
+        requirement=(
+            "The rootless container manager runs its client and its monitor in "
+            "one namespace shared by every box on the host, and they carry this "
+            "run's paths on their command lines because the paths are what they "
+            "were told to mount; seeding from a command line takes the "
+            "operator's own containers as this run's"
+        ),
+        path="cycle_runner/processes.py",
+        original="        if process.pid in located and process.inside(host)",
+        replacement="        if process.pid in reasons and process.inside(host)",
+        instruments=(
+            "tests.test_processes.NamespaceIsEstablishedFromWhereAProcessIsTest",
+        ),
+    ),
+    Counterexample(
+        name="a-dead-run-is-established-and-never-assumed",
+        requirement=(
+            "The command that stops what a dead run left is the command that "
+            "would stop a live one if it did not check; a lease with a live "
+            "owner is what says this run is not dead"
+        ),
+        path="cycle_runner/cli.py",
+        original='    if found["alive"]:\n        print(\n            "refused: "',
+        replacement='    if False:\n        print(\n            "refused: "',
+        instruments=("tests.test_stop.OneNamedDeadRunTest",),
+    ),
+    Counterexample(
+        name="the-environment-goes-only-after-its-processes-do",
+        requirement=(
+            "Removing the container while a process of the run is still "
+            "running is the original failure exactly: the container reports "
+            "itself gone and the application it held keeps running"
+        ),
+        path="cycle_runner/cli.py",
+        original="""    if report.surviving:
+        for pid in report.surviving:""",
+        replacement="""    if False:
+        for pid in report.surviving:""",
+        instruments=("tests.test_stop.SurvivingProcessTest",),
+    ),
+    Counterexample(
+        name="stopping-a-dead-run-does-not-take-what-it-left-on-disk",
+        requirement=(
+            "The container backend copies the operator's own login into every "
+            "per-run home, so a stop that destroys the state as well removes "
+            "the evidence before anybody has asked what was in it"
+        ),
+        path="cycle_runner/adapters/distrobox.py",
+        original="""    def remove_environment(self) -> DestroyReport:
+        \"\"\"Remove the box, and leave the per-run state for a separate decision.\"\"\"
+        outcome = self.runner(""",
+        replacement="""    def remove_environment(self) -> DestroyReport:
+        \"\"\"Remove the box, and leave the per-run state for a separate decision.\"\"\"
+        return self.destroy()
+        outcome = self.runner(""",
+        instruments=("tests.test_adapter_distrobox.RemoveEnvironmentTest",),
     ),
     Counterexample(
         name="a-question-this-host-could-not-ask-is-not-an-answer",

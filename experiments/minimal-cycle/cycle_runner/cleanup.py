@@ -171,7 +171,10 @@ def perform(
                 + survey_report.detail
             ),
             removed=list(report.removed),
-            retained=[f"process:{pid}" for pid in survey_report.surviving],
+            retained=[
+                f"process:{pid}"
+                for pid in (*survey_report.surviving, *survey_report.unattributed)
+            ],
             shared_preserved=[str(item) for item in preserved_shared],
             verified=True,
             processes=survey_report.to_document(),

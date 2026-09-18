@@ -57,6 +57,7 @@ Two more commands exist for when a run does not end cleanly:
 ./run-cycle leases        --config <config>   # which run holds this host's slot
 ./run-cycle release       --config <config> --run-id <id>
 ./run-cycle residue       --config <config>   # what a run that never finished left
+./run-cycle stop          --config <config> --run-id <id>
 ./run-cycle residue       --config <config> --run-id <id> --discard
 ./run-cycle host-registry --config <config>   # what the operator's own Orca knows
 ```
@@ -135,6 +136,27 @@ per-run paths — as bytes, so a repository entry, a worktree, the record that a
 terminal exists and a row in the orchestration store are all caught the same
 way. An entry naming the run makes the cleanup residue. Nothing here removes
 it: it is in somebody's own profile.
+
+**A run that never finished is still running.** Cleanup is the last phase, so
+a run killed in the middle of one never reaches it and nothing stops what it
+started. Measured here, not supposed: a runner killed with `SIGKILL` in its
+task phase left a box up, an agent inside it with the host home mounted, and a
+whole application runtime, and six minutes later they were all still going.
+`residue` found them and could only describe them — it refuses to remove state
+while processes hold it, which is right, and there was no way to end them.
+`run-cycle stop --run-id <id>` is that way.
+
+It acts on one run the operator names, and on nothing else. It refuses while
+that run's lease still has a live owner, because a dead run is established and
+never assumed. Every process it signals is one this run's own paths, or this
+run's own mount namespace, put there — never a program name, which would reach
+the operator's own application. A process this host will not let it read is
+neither signalled nor skipped: it is named, and the command refuses over it,
+the same way `residue` refuses over a question this host could not put. A
+signal the host refused is reported as a process that did not stop rather than
+as one that did. Only when everything is gone does the box or the domain go,
+and the per-run state stays standing for `residue --discard`, which is where
+the questions about what that state holds are asked.
 
 **A run that never finished still left something.** Cleanup is the last phase,
 so it only ever runs for a run that reached the end. A killed or interrupted
@@ -421,6 +443,14 @@ the table with the tests each row runs. The recorded sweep is in
 | A coordinator terminal has to say which machine it is on | case `the-terminal-says-which-machine-it-is-on` | `evidence/distrobox-settled-cycle/` |
 | A run whose processes are still on the host is residue, not destroyed | case `a-process-left-running-is-residue` | `evidence/counterexamples.txt` |
 | The survey matches this run's paths, never a program name | case `the-survey-matches-a-path-not-a-program` | `evidence/counterexamples.txt` |
+| A process this host will not let the survey read is named, not skipped | case `a-process-this-survey-cannot-read-is-not-a-no-match` | `evidence/killed-run-stopped/` |
+| Nothing is signalled at all while one process near the run cannot be placed | case `nothing-is-signalled-while-a-process-cannot-be-placed` | `evidence/killed-run-stopped/` |
+| A signal the host refused is not a stop | case `a-signal-the-host-refused-is-not-a-stop` | `evidence/counterexamples.txt` |
+| The environment's namespace is learned from where a process is, not from its argv | case `the-environments-namespace-is-learned-from-where-a-process-is` | `evidence/killed-run-stopped/` |
+| A run whose lease still has a live owner is not a dead run | case `a-dead-run-is-established-and-never-assumed` | `evidence/killed-run-stopped/` |
+| The box goes only after the processes it held are gone | case `the-environment-goes-only-after-its-processes-do` | `evidence/killed-run-stopped/` |
+| Stopping a dead run does not take what it left on disk | case `stopping-a-dead-run-does-not-take-what-it-left-on-disk` | `evidence/killed-run-stopped/` |
+| A runner killed mid-flight leaves a box and an agent, and one command ends them | `./run-cycle run`, `SIGKILL`, `./run-cycle stop` on this host | `evidence/killed-run-stopped/` |
 | Two runners starting together do not both get the slot | case `the-count-is-taken-under-a-lock` | `evidence/counterexamples.txt` |
 | A lease whose owner is gone still occupies its slot | case `an-orphaned-lease-still-occupies-its-slot` | `evidence/counterexamples.txt` |
 | A run that ended in residue blocks the next one | case `an-unconfirmed-cleanup-keeps-the-slot` | `evidence/counterexamples.txt` |
@@ -552,16 +582,25 @@ handed the implementer's diff, that the diff did not change underneath it, and
 that the reviewer named that diff in its verdict. Whether it read every line is
 not observable here and is not claimed.
 
-**That a run was ever killed mid-flight here on purpose.** The rail for state a
-dead run left is exercised against directories laid out as each backend's
-adapter writes them, and against a lease whose owner the test then makes gone.
-Nobody here has killed a live run between `create` and `cleanup` and watched
-this find what it left: the three keys that prompted it were found by looking,
-not by an instrument, and by then their domains were already gone. What a run
-interrupted at a different moment leaves — a half-created domain, an overlay
-with no domain, a lease still held by a process that is wedged rather than dead
-— is not observed, and the report would say of each only what its own three
-questions can establish.
+**What a run interrupted at a moment nobody has tried leaves.** Two runs have
+now been killed here on purpose — one in its task phase with a box, an
+application and two agents running, one while its box was still installing its
+own packages — and `evidence/killed-run-stopped/` is what the rails found and
+ended. A half-created domain, an overlay with no domain, and a lease still held
+by a process that is wedged rather than dead are still not observed, and the
+report would say of each only what its own three questions can establish.
+
+**A run killed on the machine backend.** A guest has a process table of its
+own, so an identifier from inside it means nothing on this host, and what a
+domain left running is a different question. `stop` removes the domain, the
+overlay and the seed there and leaves the state for `--discard`; that path is
+covered by its tests and by nothing that was killed.
+
+**A process inside the box that this survey cannot see at all.** A box sharing
+the host's process table gives an orphaned process inside it a parent outside
+the run, so an unreadable process whose parent has exited appears in no list.
+Removing the box reaps it, which is why the command that removes the box is the
+one that surveys — but the survey does not claim to have named it.
 
 **That a skill was loaded or obeyed in a session.** The runner establishes that
 each pinned skill is present in the environment, where an agent looks, and is

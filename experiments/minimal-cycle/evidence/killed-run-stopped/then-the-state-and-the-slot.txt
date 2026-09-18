@@ -1,0 +1,8 @@
+$ ./run-cycle residue --config config.distrobox.example.yaml --run-id <run> --discard
+removed /var/tmp/dely-cycle/state/20260918T171411Z-bbc5e6-df1214ce: 1016 file(s), including credential material at home/.claude/.credentials.json, home/.claude/plugins/marketplaces/claude-plugins-official/plugins/mcp-server-dev/skills/build-mcp-app/SKILL.md, home/.claude/plugins/marketplaces/claude-plugins-official/plugins/mcp-server-dev/skills/build-mcp-app/references/directory-checklist.md, home/.claude/plugins/marketplaces/claude-plugins-official/plugins/mcp-server-dev/skills/build-mcp-server/references/auth.md, home/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/mcp-integration/references/authentication.md, home/.claude/plugins/marketplaces/claude-plugins-official/plugins/security-guidance/hooks/security_reminder_hook.py, home/.config/orca/Cache/Cache_Data/0a2785e74fa4b570_0, home/.config/orca/Cache/Cache_Data/1219ac2f9fc534ce_0, home/.config/orca/Cache/Cache_Data/2686fece8ef03721_0, home/.config/orca/Cache/Cache_Data/2b3864a0dac56870_0, home/.config/orca/Cache/Cache_Data/4666272a01fa7de0_0, home/.config/orca/Cache/Cache_Data/56317ec994d47f27_0, home/.config/orca/Cache/Cache_Data/999b379de0c0b10c_0, home/.config/orca/Cache/Cache_Data/a0c558bf585d1da8_0
+the lease is separate accounting: `release` is what gives the slot back
+exit 0
+
+$ ./run-cycle release --config config.distrobox.example.yaml --run-id <run>
+released the distrobox slot held by 20260918T171411Z-bbc5e6-df1214ce; no process holds /var/tmp/dely-cycle/state/20260918T171411Z-bbc5e6-df1214ce or /var/tmp/dely-cycle/artifacts/20260918T171411Z-bbc5e6-df1214ce
+exit 0

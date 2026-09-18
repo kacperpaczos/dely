@@ -406,6 +406,35 @@ class DistroboxAdapter(BackendAdapter):
             outcomes=(outcome,),
         )
 
+    def remove_environment(self) -> DestroyReport:
+        """Remove the box, and leave the per-run state for a separate decision."""
+        outcome = self.runner(
+            [self.binary, "rm", "--force", self.container_name],
+            timeout=600,
+            context="host",
+        )
+        container = Resource(kind="container", identifier=self.container_name)
+        gone = not self.resource_exists(container)
+        return DestroyReport(
+            removed=(f"container:{self.container_name}",) if gone else (),
+            retained=(
+                (f"path:{self.run_state}",)
+                if gone
+                else (f"container:{self.container_name}", f"path:{self.run_state}")
+            ),
+            detail=(
+                f"{self.container_name} is gone; {self.run_state} was left "
+                "standing, because what a killed run left on disk is asked "
+                "about before it is removed"
+                if gone
+                else (
+                    f"{self.binary} rm --force returned and {self.container_name} "
+                    "is still listed on this host"
+                )
+            ),
+            outcomes=(outcome,),
+        )
+
     def can_see_environment(self) -> tuple[bool, str]:
         """Whether this host still has the tool that lists the boxes."""
         if not self.which(self.binary):

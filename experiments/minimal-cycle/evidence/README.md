@@ -32,6 +32,18 @@ message and reported that agent's outcome as its own — a review that never ran
 reporting success. What caught it was the missing verdict artifact, not the
 outcome.
 
+### `killed-run-stopped/`
+
+Two runners killed with `SIGKILL` on purpose, and the command that ends what
+they left. The first was killed in its task phase, with a box up, Orca up and
+two agents running inside it; twenty processes were attributed one by one, all
+twenty stopped, the box removed, and the per-run state left standing for
+`--discard` to ask about. The second was killed while its box was still
+installing its own packages, and is the refusal: a process running as an
+identifier this host will not let the survey read is named rather than skipped,
+and nothing at all is signalled while one stands. It carries the limit that
+follows from that as well.
+
 ### `distrobox-parallel/`
 
 Four runs against `limits.parallel: true`, `max_active: 2` and a budget of 6144

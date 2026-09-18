@@ -368,3 +368,46 @@ class RealPreflightResidueTest(AdapterTestCase):
             else []
         )
         self.assertEqual(entries, [])
+
+
+class RemoveEnvironmentTest(AdapterTestCase):
+    """The box goes; what the run left on disk is a separate decision.
+
+    `destroy` takes both, because a run that reached its end has already
+    exported everything it will ever export. A killed run has exported
+    nothing, and its per-run state is the only record of it — and, on the
+    container backend, holds the copy of the operator's own login that
+    `existing_login` makes on every run. Removing that here would take the
+    evidence before anybody asked what was in it.
+    """
+
+    def test_the_box_is_removed_and_the_state_is_left_standing(self):
+        runner = StubRunner([("distrobox list", 0, "", "")])
+        adapter = self.make(runner=runner)
+        adapter.run_state.mkdir(parents=True)
+        (adapter.run_state / "home").mkdir()
+        report = adapter.remove_environment()
+        self.assertIn(f"container:{adapter.container_name}", report.removed)
+        self.assertTrue(adapter.run_state.is_dir())
+        self.assertIn(f"path:{adapter.run_state}", report.retained)
+
+    def test_it_asks_the_container_manager_and_not_the_filesystem(self):
+        runner = StubRunner([("distrobox list", 0, "", "")])
+        adapter = self.make(runner=runner)
+        adapter.run_state.mkdir(parents=True)
+        adapter.remove_environment()
+        self.assertIn(
+            ("distrobox", "rm", "--force", adapter.container_name), runner.seen
+        )
+
+    def test_a_box_still_listed_afterwards_is_reported_as_still_there(self):
+        runner = StubRunner()
+        adapter = self.make(runner=runner)
+        runner.table.append(
+            ("distrobox list", 0, f"abc | {adapter.container_name} | Up", "")
+        )
+        adapter.run_state.mkdir(parents=True)
+        report = adapter.remove_environment()
+        self.assertEqual(report.removed, ())
+        self.assertIn(f"container:{adapter.container_name}", report.retained)
+        self.assertIn("still listed", report.detail)

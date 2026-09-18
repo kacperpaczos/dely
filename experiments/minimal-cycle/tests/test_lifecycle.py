@@ -8,7 +8,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from cycle_runner import admission, config as config_module, ids, lifecycle, status
+from cycle_runner import (
+    admission,
+    config as config_module,
+    firstrun,
+    ids,
+    lifecycle,
+    status,
+)
 from tests.fakes import FakeAdapter
 from tests.test_config import minimal_document
 
@@ -1181,3 +1188,147 @@ class TerminalDispositionTest(CycleTestCase):
         self.assertEqual(outcome.run_result.status, status.RunStatus.BLOCKED)
         self.assertEqual(outcome.run_result.terminals.status.value, "SKIPPED")
         self.assertIn("ever owned an agent terminal", outcome.run_result.terminals.detail)
+
+
+class BootstrapOutputTest(CycleTestCase):
+    """What a bootstrap command printed outlives the environment that printed it.
+
+    Observed on a real parallel run: the step that installs the Orca package
+    exited 100 after fourteen seconds, and the manifest kept that number and
+    nothing else — `stdout_path` and `stderr_path` were null for every
+    bootstrap command, so why it failed is not established and now never can
+    be. These tests are what stops that shape of record coming back.
+    """
+
+    #: One step that says something and succeeds, and one that fails the way a
+    #: package install does: naming a file it could not read.
+    PROVISION = [
+        ["printf", "the deps are installed\n"],
+        ["cat", "/nonexistent/orca-package"],
+    ]
+
+    def cycle(self):
+        document = self.make_config().to_document()
+        document["distrobox"]["provision"] = self.PROVISION
+        return self.run_cycle(config_document=document)
+
+    def commands(self, outcome):
+        return outcome.run_result.phase("bootstrap").commands
+
+    def test_every_bootstrap_command_names_the_streams_it_produced(self):
+        _, outcome = self.cycle()
+        commands = self.commands(outcome)
+        self.assertGreaterEqual(len(commands), 7)
+        for command in commands:
+            with self.subTest(argv=" ".join(command.argv)):
+                self.assertIsNotNone(command.stdout_path)
+                self.assertIsNotNone(command.stderr_path)
+                self.assertTrue(self.artifact(command.stdout_path).is_file())
+                self.assertTrue(self.artifact(command.stderr_path).is_file())
+
+    def test_a_step_that_succeeded_left_what_it_printed(self):
+        _, outcome = self.cycle()
+        command = self.commands(outcome)[0]
+        self.assertEqual(command.stdout_path, "bootstrap/provision-01-printf.stdout")
+        self.assertEqual(
+            self.artifact(command.stdout_path).read_text(encoding="utf-8"),
+            "the deps are installed\n",
+        )
+
+    def test_a_step_that_failed_left_what_it_printed(self):
+        _, outcome = self.cycle()
+        failed = [c for c in self.commands(outcome) if c.exit_code not in (0, None)]
+        self.assertEqual(len(failed), 1, [c.argv for c in self.commands(outcome)])
+        command = failed[0]
+        self.assertEqual(command.stderr_path, "bootstrap/provision-02-cat.stderr")
+        self.assertIn(
+            "orca-package",
+            self.artifact(command.stderr_path).read_text(encoding="utf-8"),
+        )
+
+    def test_the_names_carry_the_order_the_steps_ran_in(self):
+        _, outcome = self.cycle()
+        names = [c.stdout_path for c in self.commands(outcome)]
+        self.assertEqual(
+            names[:2],
+            [
+                "bootstrap/provision-01-printf.stdout",
+                "bootstrap/provision-02-cat.stdout",
+            ],
+        )
+        # The repository steps are a sequence of their own, and sorting the
+        # directory has to put each one where it ran.
+        repository = [name for name in names if "repository-" in name]
+        self.assertEqual(repository, sorted(repository))
+        self.assertIn("bootstrap/repository-01-git-init.stdout", repository)
+        self.assertIn("bootstrap/repository-05-git-commit.stdout", repository)
+
+    def test_the_streams_are_re_read_from_the_host_by_the_receipt(self):
+        _, outcome = self.cycle()
+        exported = {entry["path"] for entry in outcome.run_result.export.artifacts}
+        for command in self.commands(outcome):
+            with self.subTest(path=command.stdout_path):
+                self.assertIn(command.stdout_path, exported)
+                self.assertIn(command.stderr_path, exported)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+
+    def test_a_failed_step_is_narrated_with_where_to_read_it(self):
+        _, outcome = self.cycle()
+        log = self.artifact("logs/runner.log").read_text(encoding="utf-8")
+        self.assertIn("bootstrap/provision-02-cat.stderr", log)
+
+    def test_a_failed_repository_step_keeps_its_output_too(self):
+        adapter, outcome = self.run_cycle(refuse_repository=True)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.ERROR)
+        failed = [
+            c
+            for c in self.commands(outcome)
+            if c.exit_code not in (0, None) and c.stderr_path
+        ]
+        self.assertTrue(failed)
+        self.assertIn(
+            "refuses to initialise a repository",
+            self.artifact(failed[0].stderr_path).read_text(encoding="utf-8"),
+        )
+
+
+class OrcaFirstRunSeedTest(CycleTestCase):
+    """The application's wizard is answered before the application is started.
+
+    The seed cannot be checked after the fact. Orca reads its profile once, at
+    startup, and flushes its own state back over the file, so a run that wrote
+    the seed a second too late leaves a home that looks exactly like a run that
+    wrote it in time — and a wizard still sitting over both agents' panels. The
+    only moment that distinguishes them is the launch, so the environment is
+    asked what the profile held at precisely that moment.
+    """
+
+    def test_the_wizard_is_answered_before_the_application_is_started(self):
+        adapter, _ = self.run_cycle()
+        self.assertIn("orca-start", adapter.calls)
+        self.assertIsNotNone(
+            adapter.profile_at_start,
+            "the application was started with no onboarding seed in its profile",
+        )
+        onboarding = json.loads(adapter.profile_at_start)["onboarding"]
+        self.assertIsInstance(
+            onboarding["closedAt"],
+            int,
+            "an unclosed flow is exactly what leaves the wizard up",
+        )
+        self.assertEqual(onboarding["outcome"], "completed")
+
+    def test_the_seed_is_written_into_this_runs_own_home(self):
+        adapter, outcome = self.run_cycle()
+        seed = Path(adapter.home) / firstrun.PROFILE_RELATIVE
+        self.assertTrue(str(seed).startswith(str(self.state / RUN_ID)), str(seed))
+        self.assertNotIn(str(self.host_home), str(seed))
+
+    def test_the_receipt_names_the_profile_it_seeded(self):
+        _, outcome = self.run_cycle()
+        record = outcome.run_result.first_run
+        self.assertIn(firstrun.PROFILE_RELATIVE, record.entries)
+        exported = json.loads(
+            self.artifact("first-run-state.json").read_text(encoding="utf-8")
+        )
+        self.assertIn(firstrun.PROFILE_RELATIVE, exported["entries"])

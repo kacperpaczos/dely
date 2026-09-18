@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from . import hashing, redact
 from .proc import utc_now
@@ -19,6 +19,41 @@ from .result import ExportRecord
 from .status import ExportStatus
 
 RECEIPT_NAME = "export-receipt.json"
+
+#: How much of one captured stream an artifact keeps. A single `apt-get`
+#: install prints thousands of lines, and every provisioning step of a run
+#: would otherwise land beside a manifest somebody has to read, so a stream is
+#: bounded rather than complete. The *end* is what is kept: a command that
+#: failed says why in its last lines, and a run that succeeded needs no more
+#: than that either.
+STREAM_LIMIT_BYTES = 64 * 1024
+
+#: The first line of a stream that did not fit. A truncated log that reads as a
+#: complete one is worse than no log at all: it invites a conclusion drawn from
+#: whichever part happened to survive. So the artifact states that it is
+#: bounded, and by how much, in its own text.
+TRUNCATION_NOTICE = (
+    "<bounded: {dropped} byte(s) dropped from the head of this stream; "
+    "the last {kept} byte(s) follow>\n"
+)
+
+
+def bounded_stream(text: str, *, limit: int = STREAM_LIMIT_BYTES) -> bytes:
+    """Return one captured stream as bytes, keeping at most `limit` of its end.
+
+    A stream that fits is returned whole and unannotated. One that does not is
+    the notice above followed by its last `limit` bytes, so nothing here can
+    produce a file that looks complete and is not. The cut is taken on bytes,
+    which is the unit the receipt and the notice both speak in; it may land
+    inside a character, and that is a mangled first character rather than a
+    silent loss.
+    """
+    raw = text.encode("utf-8", errors="surrogateescape")
+    if len(raw) <= limit:
+        return raw
+    kept = raw[-limit:] if limit > 0 else b""
+    notice = TRUNCATION_NOTICE.format(dropped=len(raw) - len(kept), kept=len(kept))
+    return notice.encode("utf-8") + kept
 
 
 class ExportError(ValueError):
@@ -68,6 +103,30 @@ class Exporter:
         """Write a redacted text artifact."""
         return self.write_bytes(
             relative, redact.text(text).encode("utf-8"), required=required
+        )
+
+    def write_stream(
+        self,
+        relative: str,
+        text: str,
+        *,
+        extra_values: Sequence[str] = (),
+        required: bool = True,
+        limit: int = STREAM_LIMIT_BYTES,
+    ) -> Path:
+        """Write one command's captured stream: redacted first, then bounded.
+
+        The order is the whole of it. Redaction matches shapes, and half a
+        shape matches nothing, so bounding first would keep the tail of a token
+        as ordinary text and write it out. The bound is therefore applied to
+        text redaction has already been through — with this run's own forwarded
+        values among the literals, because a value the runner was handed has no
+        shape and only the literal removes it — and never the other way round.
+        """
+        return self.write_bytes(
+            relative,
+            bounded_stream(redact.text(text, extra_values), limit=limit),
+            required=required,
         )
 
     def write_json(

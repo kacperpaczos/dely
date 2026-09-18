@@ -17,6 +17,7 @@ failure, so nothing is left mutated.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -142,7 +143,7 @@ CASES: tuple[Counterexample, ...] = (
     Counterexample(
         name="first-run-answers-every-question-it-names",
         requirement=(
-            "A receipt that lists four answered questions while the state "
+            "A receipt that lists five answered questions while the state "
             "answers one is rejected"
         ),
         path="cycle_runner/firstrun.py",
@@ -150,6 +151,38 @@ CASES: tuple[Counterexample, ...] = (
                 "hasClaudeMdExternalIncludesApproved": True,""",
         replacement="""                "hasTrustDialogAccepted": True,""",
         instruments=("tests.test_firstrun.FirstRunStateTest",),
+    ),
+    Counterexample(
+        name="the-first-run-flow-is-closed-not-merely-recorded",
+        requirement=(
+            "A seed that records the flow without closing it leaves the wizard "
+            "modal over the whole window, and every capture photographs it "
+            "instead of the agents' panels"
+        ),
+        path="cycle_runner/firstrun.py",
+        original='            "closedAt": closed,',
+        replacement='            "closedAt": None,',
+        instruments=(
+            "tests.test_firstrun.OrcaFirstRunTest",
+            "tests.test_lifecycle.OrcaFirstRunSeedTest",
+        ),
+    ),
+    Counterexample(
+        name="the-profile-seed-lands-before-the-application-starts",
+        requirement=(
+            "The profile is read once at startup and flushed back over from "
+            "memory, so a seed written after the launch is undone by the state "
+            "it was meant to replace and leaves a home indistinguishable from "
+            "one that answered in time"
+        ),
+        path="cycle_runner/lifecycle.py",
+        original="""        if self.handle is not None:
+            self._bootstrap(baseline)
+            self._identity()""",
+        replacement="""        if self.handle is not None:
+            self._identity()
+            self._bootstrap(baseline)""",
+        instruments=("tests.test_lifecycle.OrcaFirstRunSeedTest",),
     ),
     Counterexample(
         name="no-host-fallback",
@@ -403,8 +436,9 @@ CASES: tuple[Counterexample, ...] = (
         name="provisioning-comes-first",
         requirement="Provisioning runs before anything that needs what it installs",
         path="cycle_runner/lifecycle.py",
-        original="""            for argv in self._provision_steps():
-                record.commands.append(self.execute(list(argv)).to_record())
+        original="""            for index, argv in enumerate(self._provision_steps(), start=1):
+                outcome = self.execute(list(argv))
+                record.commands.append(self._keep_output("provision", index, argv, outcome))
             # Orca registers a worktree for a repository; the exported copy is
             # not one until this makes it one.""",
         replacement="""            # Orca registers a worktree for a repository; the exported copy is
@@ -415,8 +449,10 @@ CASES: tuple[Counterexample, ...] = (
         name="the-copy-is-a-repository",
         requirement="The project copy is made into a repository Orca can register",
         path="cycle_runner/lifecycle.py",
-        original="""            for argv in project.initialise_repository_commands(self.handle.project_path):""",
-        replacement="""            for argv in []:""",
+        original="""            for index, argv in enumerate(
+                project.initialise_repository_commands(self.handle.project_path), start=1
+            ):""",
+        replacement="""            for index, argv in enumerate([], start=1):""",
         instruments=("tests.test_lifecycle.ProjectRepositoryTest",),
     ),
     Counterexample(
@@ -1106,12 +1142,90 @@ done""",
             "tests.test_lifecycle.TerminalDispositionTest",
         ),
     ),
+    Counterexample(
+        name="a-provisioning-step-keeps-what-it-printed",
+        requirement=(
+            "A provisioning step that failed leaves an exit code and no output, "
+            "so why it failed cannot be read once the environment is gone"
+        ),
+        path="cycle_runner/lifecycle.py",
+        original="""        secrets = tuple(self.env_overlay.values())
+        self.exporter.write_stream(f"{stem}.stdout", outcome.stdout, extra_values=secrets)
+        self.exporter.write_stream(f"{stem}.stderr", outcome.stderr, extra_values=secrets)
+        if not outcome.ok:
+            self.log.say(
+                f"the {kind} step {index} exited {outcome.exit_code}; "
+                f"what it printed is at {stem}.stdout and {stem}.stderr"
+            )
+        return outcome.to_record(
+            stdout_path=f"{stem}.stdout", stderr_path=f"{stem}.stderr"
+        )""",
+        replacement="""        return outcome.to_record()""",
+        instruments=("tests.test_lifecycle.BootstrapOutputTest",),
+    ),
+    Counterexample(
+        name="a-bounded-log-says-it-was-bounded",
+        requirement=(
+            "A log cut down to its tail and left unannotated reads as a "
+            "complete one, and a reader draws a conclusion from the part that "
+            "happened to survive"
+        ),
+        path="cycle_runner/export.py",
+        original="""    kept = raw[-limit:] if limit > 0 else b""
+    notice = TRUNCATION_NOTICE.format(dropped=len(raw) - len(kept), kept=len(kept))
+    return notice.encode("utf-8") + kept""",
+        replacement="""    return raw[-limit:] if limit > 0 else b""""",
+        instruments=("tests.test_export.BoundedStreamTest",),
+    ),
+    Counterexample(
+        name="a-stream-is-redacted-with-this-runs-own-values",
+        requirement=(
+            "A value this run forwarded has no shape, so shape-matching alone "
+            "writes it to the host"
+        ),
+        path="cycle_runner/export.py",
+        original="""            bounded_stream(redact.text(text, extra_values), limit=limit),
+            required=required,""",
+        replacement="""            bounded_stream(redact.text(text), limit=limit),
+            required=required,""",
+        instruments=("tests.test_export.BoundedStreamTest",),
+    ),
+    Counterexample(
+        name="a-stream-is-redacted-before-it-is-bounded",
+        requirement=(
+            "A bound taken before redaction cuts a credential in half, and half "
+            "a shape matches nothing, so the tail is written out as ordinary text"
+        ),
+        path="cycle_runner/export.py",
+        original="""        return self.write_bytes(
+            relative,
+            bounded_stream(redact.text(text, extra_values), limit=limit),""",
+        replacement="""        return self.write_bytes(
+            relative,
+            redact.data(bounded_stream(text, limit=limit), extra_values),""",
+        instruments=("tests.test_export.BoundedStreamTest",),
+    ),
 )
 
 
 def applicable(case: Counterexample) -> bool:
     """Whether this case's target text is still present in the tree."""
     return case.original in (ROOT / case.path).read_text(encoding="utf-8")
+
+
+def forget_bytecode(path: Path) -> None:
+    """Drop the cached bytecode for a file that is about to change, or just did.
+
+    Python decides a `.pyc` is current from its source's size and modification
+    time in whole seconds. A replacement the same length as the text it
+    replaces, applied and restored inside one second, leaves a cache compiled
+    from the wrong source behind — and the next process to import that module
+    runs the other version of it. Observed here: the suite failed one of its own
+    tests minutes after the case that mutated the file had been restored, and
+    the reverse would be worse, because a case reading a stale cache of the
+    original goes green and says the rail is proved.
+    """
+    Path(importlib.util.cache_from_source(str(path))).unlink(missing_ok=True)
 
 
 def run(case: Counterexample) -> tuple[bool, str]:
@@ -1121,6 +1235,7 @@ def run(case: Counterexample) -> tuple[bool, str]:
     if case.original not in backup:
         return False, "the counterexample no longer applies to this code"
     target.write_text(backup.replace(case.original, case.replacement, 1), encoding="utf-8")
+    forget_bytecode(target)
     try:
         completed = subprocess.run(
             [sys.executable, "-m", "unittest", *case.instruments],
@@ -1130,6 +1245,7 @@ def run(case: Counterexample) -> tuple[bool, str]:
         )
     finally:
         target.write_text(backup, encoding="utf-8")
+        forget_bytecode(target)
     if completed.returncode == 0:
         return False, "the instruments stayed green: this row proves nothing"
     reasons = [

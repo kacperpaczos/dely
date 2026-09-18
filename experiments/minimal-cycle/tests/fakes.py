@@ -14,7 +14,7 @@ from typing import Mapping, Sequence
 import hashlib
 import json
 
-from cycle_runner import display, probe, proc, review, screenshot, skills
+from cycle_runner import display, firstrun, probe, proc, review, screenshot, skills
 from cycle_runner.adapters.base import (
     BackendAdapter,
     DestroyReport,
@@ -187,6 +187,11 @@ class FakeAdapter(BackendAdapter):
         self.project = self.home / "project"
         self.shared_base = self.root.parent / "shared" / "base.img"
         self.calls: list[str] = []
+        # What the environment's Orca profile held at the moment the
+        # application was started, read here because it cannot be read
+        # afterwards: the same file written a second later looks identical
+        # once the run is over, and only one of the two answers the wizard.
+        self.profile_at_start: str | None = None
         self.preflight_ok = preflight_ok
         self.identity = identity
         self.orca_present = orca_present
@@ -596,6 +601,10 @@ class FakeAdapter(BackendAdapter):
             # Simulated, never executed: running this would start a desktop
             # application on the machine running the tests.
             self.calls.append("orca-start")
+            seed = self.home / firstrun.PROFILE_RELATIVE
+            self.profile_at_start = (
+                seed.read_text(encoding="utf-8") if seed.is_file() else None
+            )
             self.app_started = True
             return self._outcome(argv, 0, "display ready after 0s\nstarted 1786\n", "")
         if tuple(argv[:3]) == ("claude", "auth", "status"):

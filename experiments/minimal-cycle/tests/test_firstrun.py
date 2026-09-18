@@ -1,4 +1,4 @@
-"""A fresh home has never run the agent, and the agent asks before it works."""
+"""A fresh home has never run any of this, and both applications ask first."""
 
 import json
 import tempfile
@@ -17,7 +17,9 @@ def make_config(auth_section=None):
     return config_module.from_document(document)
 
 
-class FirstRunStateTest(unittest.TestCase):
+class FirstRunCase(unittest.TestCase):
+    """The shared fixture: one fake environment, one application of the state."""
+
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
@@ -40,6 +42,15 @@ class FirstRunStateTest(unittest.TestCase):
         return json.loads(
             (Path(self.handle.home_path) / firstrun.SETTINGS_RELATIVE).read_text()
         )
+
+    def profile(self):
+        return json.loads(
+            (Path(self.handle.home_path) / firstrun.PROFILE_RELATIVE).read_text()
+        )
+
+
+class FirstRunStateTest(FirstRunCase):
+    """What the agent asks a home it has never run in."""
 
     def test_onboarding_is_answered_so_the_agent_does_not_ask_to_sign_in(self):
         self.apply()
@@ -69,7 +80,12 @@ class FirstRunStateTest(unittest.TestCase):
     def test_the_receipt_names_the_files_and_the_questions_they_answer(self):
         record = self.apply()
         self.assertEqual(
-            record.entries, [firstrun.STATE_RELATIVE, firstrun.SETTINGS_RELATIVE]
+            record.entries,
+            [
+                firstrun.STATE_RELATIVE,
+                firstrun.SETTINGS_RELATIVE,
+                firstrun.PROFILE_RELATIVE,
+            ],
         )
         self.assertTrue(record.questions)
 
@@ -85,6 +101,79 @@ class FirstRunStateTest(unittest.TestCase):
         settings = self.settings()
         self.assertEqual(settings["apiKeyHelper"], "/usr/local/bin/key-helper")
         self.assertTrue(settings["skipDangerousModePermissionPrompt"])
+
+
+class OrcaFirstRunTest(FirstRunCase):
+    """The application's own wizard, which nothing in the dispatch can dismiss.
+
+    It does not block orchestration: a complete two-agent cycle was observed
+    running from behind it. What it blocks is looking — every frame of that
+    settled run photographed the wizard instead of the panels.
+    """
+
+    def test_the_flow_is_closed_because_that_is_what_shows_the_wizard(self):
+        self.apply()
+        closed_at = self.profile()["onboarding"]["closedAt"]
+        self.assertIsInstance(closed_at, int)
+        self.assertGreater(closed_at, 0)
+
+    def test_the_seed_is_what_the_application_writes_when_the_flow_finishes(self):
+        self.apply()
+        onboarding = self.profile()["onboarding"]
+        self.assertEqual(onboarding["flowVersion"], 4)
+        self.assertEqual(onboarding["outcome"], "completed")
+        self.assertEqual(onboarding["lastCompletedStep"], 5)
+
+    def test_the_checklist_is_left_to_the_defaults_rather_than_invented(self):
+        self.apply()
+        self.assertNotIn("checklist", self.profile()["onboarding"])
+
+    def test_the_seed_lands_in_the_profile_the_application_reads(self):
+        self.apply()
+        self.assertEqual(
+            firstrun.PROFILE_RELATIVE,
+            ".config/orca/profiles/local-default/orca-data.json",
+        )
+        self.assertTrue(
+            (Path(self.handle.home_path) / firstrun.PROFILE_RELATIVE).is_file()
+        )
+
+    def test_the_seed_is_inside_the_per_run_home_and_owner_only(self):
+        self.apply()
+        seed = Path(self.handle.home_path) / firstrun.PROFILE_RELATIVE
+        self.assertTrue(seed.is_relative_to(Path(self.handle.home_path)))
+        self.assertEqual(seed.stat().st_mode & 0o777, 0o600)
+
+    def test_the_receipt_names_the_wizard_among_the_questions(self):
+        record = self.apply()
+        self.assertIn(firstrun.PROFILE_RELATIVE, record.entries)
+        self.assertTrue(
+            any("wizard" in question for question in record.questions),
+            record.questions,
+        )
+        self.assertEqual(len(record.questions), 5)
+
+    def test_every_value_is_a_constant_or_this_runs_own_moment(self):
+        """Nothing here is copied from a profile, so nothing here can leak one."""
+        document = firstrun.onboarding_document(closed_at_ms=1_700_000_000_000)
+        self.assertEqual(
+            document,
+            {
+                "onboarding": {
+                    "flowVersion": 4,
+                    "closedAt": 1_700_000_000_000,
+                    "outcome": "completed",
+                    "lastCompletedStep": 5,
+                }
+            },
+        )
+
+    def test_the_seed_carries_nothing_of_the_host(self):
+        self.apply()
+        rendered = json.dumps(self.profile())
+        self.assertNotIn(str(Path.home()), rendered)
+        for key in ("repos", "projects", "worktreeMeta", "sshTargets", "userId"):
+            self.assertNotIn(key, rendered)
 
 
 if __name__ == "__main__":

@@ -171,7 +171,8 @@ $artifact_root/<run_id>/
   preflight.json             what the host could and could not do
   backend-status.json        the environment and its declared resources
   auth-receipt.json          the method and its status, never its material
-  first-run-state.json       the questions the agent was answered, by name
+  first-run-state.json       the questions this fresh home was answered, by
+                             name, the application's own among them
   admission.json             the slot this run held, and what else held one
   skills.json                each required skill, where it was and what it hashed to
   screenshot.json            each picture of this run's own screen, and what it cost
@@ -182,6 +183,9 @@ $artifact_root/<run_id>/
                              about it, and the live list either side
   host-registry-before.json  the operator's own Orca registry, before
   host-registry-after.json   and after, with the question it was searched for
+  bootstrap/                 what each provisioning and repository step printed,
+                             one pair of streams per step, numbered in the
+                             order they ran
   dispatch/                  each orchestration reply, redacted, as the plane sent it
   host-before.json           the host before the run
   host-after.json            the host after it, and what changed
@@ -208,6 +212,14 @@ Every stream is redacted on the way out. Redaction matches shapes — bearer
 headers, key prefixes, compact web tokens, private-key blocks, absolute paths to
 credential files, and any assignment whose key names a secret — so a credential
 this run has never seen is still removed.
+
+A captured command's stream is bounded as well as redacted. One `apt-get`
+install prints thousands of lines, so the last 64 kilobytes are kept and a
+stream that did not fit says so in its own first line, with the count of bytes
+dropped: a truncated log that reads as a complete one is worse than no log,
+because somebody draws a conclusion from whichever part survived. Redaction runs
+before the bound and never after, because half a shape matches no shape and a
+bound taken first would keep the tail of a token as ordinary text.
 
 ## The two backends
 
@@ -350,7 +362,9 @@ the table with the tests each row runs. The recorded sweep is in
 | Creation waits for the guest to answer, not just to take an address | case `an-address-is-not-readiness` | `evidence/counterexamples.txt` |
 | A real machine cycle creates a domain, proves a distinct kernel, and destroys it | `./run-cycle run` on this host | `evidence/vm-blocked-on-absent-orca/manifest.json` |
 | First-run state is keyed to the project copy the agent will actually open | case `first-run-state-names-the-environment-copy` | `evidence/distrobox-settled-cycle/first-run-state.json` |
-| A receipt that names four answered questions answers four | case `first-run-answers-every-question-it-names` | `evidence/distrobox-settled-cycle/first-run-state.json` |
+| A receipt that names five answered questions answers five | case `first-run-answers-every-question-it-names` | `evidence/distrobox-settled-cycle/first-run-state.json` |
+| The application's own first-run flow is closed, which is the whole of what shows its wizard | case `the-first-run-flow-is-closed-not-merely-recorded` | `python3 counterexamples.py` |
+| The profile seed lands before the application is started, which is the only moment it can | case `the-profile-seed-lands-before-the-application-starts` | `python3 counterexamples.py` |
 | A settling message is read from the delivery, not from the request envelope | case `a-settling-message-is-read-from-the-delivery` | `evidence/distrobox-settled-cycle/dispatch-completion-wait.json` |
 | The reported outcome is the worker's own verdict, not the message type | case `the-outcome-is-the-workers-own-verdict` | `evidence/distrobox-settled-cycle/dispatch-completion-wait.json` |
 | The reply that decided the run is exported beside the verdict | case `the-reply-that-decided-the-run-is-kept` | `evidence/distrobox-settled-cycle/dispatch-worker-start.json` |
@@ -407,6 +421,10 @@ the table with the tests each row runs. The recorded sweep is in
 | A release receipt is not a closed terminal; the live list is | case `a-release-receipt-is-not-a-closed-terminal` | `python3 counterexamples.py` |
 | Two environments hold slots at once and the ceiling refuses the next | `./run-cycle run` with `limits.parallel: true` on this host | `evidence/distrobox-parallel/` |
 | The budget refuses a claim that overruns it across the live leases, before anything is created | `./run-cycle run` with `limits.parallel: true` on this host | `evidence/distrobox-parallel/` |
+| A provisioning step that failed leaves what it printed, not just its exit code | case `a-provisioning-step-keeps-what-it-printed` | `python3 counterexamples.py` |
+| A bounded log says it was bounded, and by how much | case `a-bounded-log-says-it-was-bounded` | `python3 counterexamples.py` |
+| A value this run forwarded is removed from a stream it has no shape in | case `a-stream-is-redacted-with-this-runs-own-values` | `python3 counterexamples.py` |
+| A credential lying across the bound is not kept as its tail | case `a-stream-is-redacted-before-it-is-bounded` | `python3 counterexamples.py` |
 
 ## What no instrument here observes
 
@@ -445,6 +463,32 @@ side. Nothing here has released a terminal in a live Orca. Where the outcome
 sits in a real receipt, and whether a `release_pending` has completed by the
 time the debt is asked about again, are read from the command's own help and
 from one recorded `worker-list`, not observed.
+
+**That a real credential ever passed through a provisioning log.** A stream
+artifact is redacted before it is bounded, and both halves of that are exercised
+against stand-ins: a shaped token, a value with no shape that only the literal
+removes, and one lying across the cut. No run has put a real credential into a
+provisioning step's output, and as the bootstrap is ordered none could —
+provisioning runs before any auth material is placed, so the list of forwarded
+values is empty while it runs. What is established is that the artifact would
+remove one; that a live run produced one to remove is not.
+
+**That the first-run wizard is actually gone from a screen.** The seed that
+closes it is written into the per-run profile before the application is
+started, and that ordering is read back from the environment at the instant of
+the launch. What no run has yet shown is the consequence: no capture has been
+taken since, so no image here holds the agents' panels rather than *"welcome to
+Orca"*. Until one does, this is a mechanism read out of the application's bundle
+and a write placed where the application will read it — not an observation that
+the window is clear.
+
+**Which profile a cold start selects.** The seed is written to
+`local-default`, because that is the profile the bundle's own factory mints.
+Whether the index beside the profiles must already exist for that profile to be
+chosen was not established, and nothing here writes one: the onboarding value's
+shape was read, the index's was not, and a guessed index that selects the wrong
+profile would be a worse failure than the wizard and a quieter one. If a capture
+still shows the wizard with the seed on disk, that index is what to read next.
 
 **That an agent read what it was given.** The handoff shows the reviewer was
 handed the implementer's diff, that the diff did not change underneath it, and

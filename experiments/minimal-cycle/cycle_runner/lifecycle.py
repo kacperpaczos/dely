@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from . import (
     admission,
@@ -47,6 +48,7 @@ from .result import (
     DisplayRecord,
     CheckRecord,
     CleanupRecord,
+    CommandRecord,
     PhaseRecord,
     RunResult,
 )
@@ -94,6 +96,98 @@ def check_argv(project_path: str, relative_path: str, marker: str) -> list[str]:
         str(Path(project_path) / relative_path),
         marker,
     ]
+
+
+#: Shells a bootstrap step may be wrapped in. `sh -c <script>` is what almost
+#: every provisioning step is, so naming a step after `argv[0]` would name them
+#: all `sh`.
+_SLUG_SHELLS = frozenset({"sh", "bash", "dash", "zsh"})
+
+#: Words a step's name looks through rather than at: the shell keywords and the
+#: wrappers that stand in front of the program, and the statements a
+#: provisioning script opens with before it runs anything.
+_SLUG_SKIP = frozenset(
+    {
+        "sudo",
+        "env",
+        "set",
+        "export",
+        "exec",
+        "cd",
+        "if",
+        "elif",
+        "else",
+        "then",
+        "while",
+        "until",
+        "do",
+        "nohup",
+        "setsid",
+    }
+)
+
+#: What may become part of a name: a lowercase word to its very last character,
+#: so nothing with a slash, a space, a newline, a quote, a capital, a version or
+#: a leading dash can reach a file name.
+_SLUG_WORD = re.compile(r"^[a-z][a-z0-9+_-]*\Z")
+
+_SLUG_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+
+_SLUG_SEPARATORS = re.compile(r"[;&|\n]+")
+
+_SLUG_FALLBACK = "step"
+
+_SLUG_WORD_LIMIT = 20
+
+
+def _statement_words(statement: str) -> list[str]:
+    """Return one shell statement's words, minus the noise in front of them."""
+    words = statement.split()
+    while words and (words[0] in _SLUG_SKIP or _SLUG_ASSIGNMENT.match(words[0])):
+        words.pop(0)
+    return words
+
+
+def _script_words(script: str) -> list[str]:
+    """Return the words of the first statement in a script that runs something."""
+    for statement in _SLUG_SEPARATORS.split(script):
+        words = _statement_words(statement)
+        if words and _SLUG_WORD.match(words[0]):
+            return words
+    return []
+
+
+def command_slug(argv: Sequence[str]) -> str:
+    """Return a short lowercase name for what one command actually runs.
+
+    A label, never an identity. Two steps that both begin with `curl` get the
+    same slug and are told apart by their number; the command record beside the
+    artifact carries the argv, which is what a reader compares. The slug exists
+    so somebody opening the directory with nothing else in hand can see which
+    step is which without opening seven files.
+    """
+    argv = [str(item) for item in argv]
+    if not argv:
+        return _SLUG_FALLBACK
+    program = Path(argv[0]).name
+    if program in _SLUG_SHELLS and "-c" in argv[1:]:
+        script_at = argv.index("-c", 1) + 1
+        words = _script_words(argv[script_at]) if script_at < len(argv) else []
+    else:
+        words = [program, *argv[1:]]
+    chosen = [word for word in words if _SLUG_WORD.match(word)][:2]
+    return "-".join(word[:_SLUG_WORD_LIMIT] for word in chosen) or _SLUG_FALLBACK
+
+
+def bootstrap_artifact_stem(kind: str, index: int, argv: Sequence[str]) -> str:
+    """Return where one bootstrap command's streams are kept.
+
+    `bootstrap/<kind>-<nn>-<slug>`, beside `dispatch/<name>.stdout` and
+    `check.stdout`. Bootstrap is a numbered sequence, so the position is in the
+    name and is padded: a directory listing then sorts in the order the steps
+    ran, which is the first thing a reader of a failed run needs.
+    """
+    return f"bootstrap/{kind}-{index:02d}-{command_slug(argv)}"
 
 
 class RunLog:
@@ -414,19 +508,62 @@ class _Cycle:
             }
             self.exporter.write_json("backend-status.json", self.result.environment)
 
+    def _keep_output(
+        self, kind: str, index: int, argv: Sequence[str], outcome
+    ) -> CommandRecord:
+        """Export one bootstrap command's streams and return the record naming them.
+
+        Provisioning is the step most likely to fail — it installs packages
+        over a network into an environment that did not exist a minute ago —
+        and it was the one step whose output nothing kept. A real parallel run
+        lost a box to an installer that exited 100, and the whole record of it
+        was that number: `stdout_path` and `stderr_path` were null for every
+        bootstrap command, so why it failed is not established and now never
+        can be. This is that gap, closed the way the check already does it.
+
+        Both streams are written, and both are required. An empty stderr is a
+        fact worth keeping — it is how a reader tells a silent failure from a
+        loud one — and required is what the check's own streams are, for the
+        same reason: the record names these paths, and a record naming a path
+        the host does not hold is worse than no record, because it is a false
+        one. An export that cannot re-read them is exactly what the receipt
+        exists to refuse.
+        """
+        stem = bootstrap_artifact_stem(kind, index, argv)
+        # The streams are redacted where they were captured, in `proc.run`,
+        # with the same forwarded values; passing them again is what keeps that
+        # true of the artifact rather than true of the code path that happens
+        # to reach it today.
+        secrets = tuple(self.env_overlay.values())
+        self.exporter.write_stream(f"{stem}.stdout", outcome.stdout, extra_values=secrets)
+        self.exporter.write_stream(f"{stem}.stderr", outcome.stderr, extra_values=secrets)
+        if not outcome.ok:
+            self.log.say(
+                f"the {kind} step {index} exited {outcome.exit_code}; "
+                f"what it printed is at {stem}.stdout and {stem}.stderr"
+            )
+        return outcome.to_record(
+            stdout_path=f"{stem}.stdout", stderr_path=f"{stem}.stderr"
+        )
+
     def _bootstrap(self, baseline: Path) -> None:
         assert self.handle is not None
         with self.phase("bootstrap") as record:
             self.adapter.put_tree(baseline, self.handle.project_path)
             # Provisioning first: it is what gives the environment the tools the
             # rest of the bootstrap needs, git among them.
-            for argv in self._provision_steps():
-                record.commands.append(self.execute(list(argv)).to_record())
+            for index, argv in enumerate(self._provision_steps(), start=1):
+                outcome = self.execute(list(argv))
+                record.commands.append(self._keep_output("provision", index, argv, outcome))
             # Orca registers a worktree for a repository; the exported copy is
             # not one until this makes it one.
-            for argv in project.initialise_repository_commands(self.handle.project_path):
+            for index, argv in enumerate(
+                project.initialise_repository_commands(self.handle.project_path), start=1
+            ):
                 outcome = self.execute(argv, timeout=min(300, self.config.timeout_seconds))
-                record.commands.append(outcome.to_record())
+                record.commands.append(
+                    self._keep_output("repository", index, argv, outcome)
+                )
                 if not outcome.ok:
                     record.status = PhaseStatus.FAILED
                     record.detail = (
@@ -484,6 +621,15 @@ class _Cycle:
                 return
             # Auth declares what it wants in the per-run settings; this writes
             # that file, so it runs after auth rather than before it.
+            #
+            # It also has to run before anything starts the application, and
+            # here is where that is true: the only launch in this runner is in
+            # `_identity`, which `run` calls after this phase has returned. The
+            # Orca profile seed this writes is read once at startup and then
+            # flushed back over from memory, so the same write placed anywhere
+            # in `_identity` would be undone by the application it is meant to
+            # answer. Moving this call later is not a reordering; it is a
+            # deletion with a receipt.
             first_run = firstrun.apply(
                 run_config=self.config, adapter=self.adapter, handle=self.handle
             )

@@ -569,11 +569,17 @@ class _Cycle:
             for index, argv in enumerate(self._provision_steps(), start=1):
                 outcome = self.execute(list(argv))
                 record.commands.append(self._keep_output("provision", index, argv, outcome))
-                # A step that exited non-zero was kept and not acted on, so a
-                # box that failed to install its own toolchain went on to run
-                # the task with whatever it found instead. The step is what
-                # says the environment carries what the run was told to give
-                # it; there is nothing further to check it against.
+                # A step that exited non-zero was kept and not acted on, so
+                # this phase reported OK about a box that had failed to install
+                # what it was told to. The one run where that happened was
+                # stopped a phase later, by the identity gate noticing the
+                # application was missing — which is how the defect lasted: a
+                # rail further down was catching a consequence, and so nobody
+                # noticed the phase itself concluded nothing. What it permits
+                # is the failure whose consequence nothing downstream happens
+                # to look for. The step is what says the environment carries
+                # what the run pinned; there is nothing further to check it
+                # against, so it is checked here.
                 if not outcome.ok:
                     record.status = PhaseStatus.FAILED
                     record.detail = (

@@ -342,6 +342,9 @@ def _print_residue(reports: Sequence[dict], root: Path, stdout: TextIO) -> None:
             print(f"no run has left state under {root}", file=stdout)
         return
     keyed = [item for item in present if item["state"]["carries_key_material"]]
+    credentialed = [
+        item for item in present if item["state"]["carries_credential_material"]
+    ]
     for item in present:
         print(f"{item['run_id']}: {item['state']['detail']}", file=stdout)
         for entry in item["state"]["entries"]:
@@ -353,6 +356,10 @@ def _print_residue(reports: Sequence[dict], root: Path, stdout: TextIO) -> None:
             )
             for relative in entry["key_material"]:
                 print(f"         {residue.KEY_MATERIAL}: {relative}", file=stdout)
+            for relative in entry["credential_material"]:
+                print(
+                    f"         {residue.CREDENTIAL_MATERIAL}: {relative}", file=stdout
+                )
         for line in item["observed"]:
             print(f"    seen:        {line}", file=stdout)
         for line in item["holders"]:
@@ -371,7 +378,8 @@ def _print_residue(reports: Sequence[dict], root: Path, stdout: TextIO) -> None:
         print("", file=stdout)
     print(
         f"{len(present)} run(s) left state under {root}, "
-        f"{len(keyed)} of them carrying private key material",
+        f"{len(keyed)} of them carrying private key material and "
+        f"{len(credentialed)} of them carrying credential material",
         file=stdout,
     )
 
@@ -407,14 +415,19 @@ def _discard(
     except residue.ResidueRefused as refusal:
         print(f"refused: {refusal}", file=stderr)
         return exit_code(RunStatus.BLOCKED)
+    carried = []
+    if removed.key_material:
+        carried.append(
+            f"{residue.KEY_MATERIAL} at " + ", ".join(removed.key_material)
+        )
+    if removed.credential_material:
+        carried.append(
+            f"{residue.CREDENTIAL_MATERIAL} at "
+            + ", ".join(removed.credential_material)
+        )
     print(
         f"removed {removed.path}: {removed.file_count} file(s)"
-        + (
-            f", including {residue.KEY_MATERIAL} at "
-            + ", ".join(removed.key_material)
-            if removed.key_material
-            else ""
-        ),
+        + (", including " + "; ".join(carried) if carried else ""),
         file=stdout,
     )
     print(

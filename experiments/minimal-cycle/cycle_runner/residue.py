@@ -21,6 +21,21 @@ named as a key, and a file merely called `id_cycle` that holds a public half
 is not. That is the same rule the process survey follows for a different
 reason: a name is what reaches something that was never this run's.
 
+A private key is not the only secret a killed run leaves. The container
+backend mints no transport key at all, and the `existing_login` auth method
+copies the operator's own login into the per-run home on every run — its own
+receipt records `removed_after_run` as false. A killed run leaves that file
+sitting at mode 600 under the state root, and a survey that asked only about
+private key blocks reported the host as carrying none. It was reporting
+truthfully about the wrong question. So credential material is named too, by
+the same rule and from the same bytes: what `redact` recognises as a
+credential *value*, wherever it is and whatever it is called.
+
+The two stay separate names because they are separate facts, and a private
+key is reported as a private key rather than folded into the broader word. A
+false positive here costs a line in a report and nothing else: naming
+something is not what refuses a removal.
+
 And it removes nothing on its own. `discard` takes what a caller established
 about the run — the processes still holding its paths, the resources of it the
 host says are still there, and the questions this host could not answer at
@@ -68,6 +83,8 @@ UNNAMED_ROLE = "left by this run; this runner does not name it"
 
 KEY_MATERIAL = "private key material"
 
+CREDENTIAL_MATERIAL = "credential material"
+
 
 class ResidueRefused(RuntimeError):
     """Nothing established that this run is over, so nothing was removed."""
@@ -83,6 +100,8 @@ class Entry:
     size_bytes: int = 0
     #: Relative paths under this entry whose bytes open a private key block.
     key_material: tuple[str, ...] = ()
+    #: Relative paths under this entry whose bytes carry a credential value.
+    credential_material: tuple[str, ...] = ()
     role: str = UNNAMED_ROLE
 
     def to_document(self) -> dict[str, Any]:
@@ -92,6 +111,7 @@ class Entry:
             "file_count": self.file_count,
             "size_bytes": self.size_bytes,
             "key_material": list(self.key_material),
+            "credential_material": list(self.credential_material),
             "role": self.role,
         }
 
@@ -108,6 +128,8 @@ class StateResidue:
     entries: tuple[Entry, ...] = ()
     #: Every path, relative to the directory, whose bytes open a private key.
     key_material: tuple[str, ...] = ()
+    #: Every path whose bytes carry a credential value but not a private key.
+    credential_material: tuple[str, ...] = ()
     #: Paths that could not be read, so what they hold is not established.
     unreadable: tuple[str, ...] = ()
     #: Symbolic links, which are counted and never followed or opened.
@@ -120,6 +142,19 @@ class StateResidue:
     def carries_key_material(self) -> bool:
         return bool(self.key_material)
 
+    @property
+    def carries_credential_material(self) -> bool:
+        return bool(self.credential_material)
+
+    @property
+    def carries_a_secret(self) -> bool:
+        """Whether anything in here is a secret of either kind.
+
+        What an operator wants from one glance is whether this directory is
+        dangerous, not which of the two words applies to it.
+        """
+        return self.carries_key_material or self.carries_credential_material
+
     def headline(self) -> str:
         """One clause, for a report that is already talking about this run."""
         if not self.present:
@@ -128,6 +163,11 @@ class StateResidue:
         if self.key_material:
             said += (
                 f", {KEY_MATERIAL} among them ({', '.join(self.key_material)})"
+            )
+        if self.credential_material:
+            said += (
+                f", {CREDENTIAL_MATERIAL} among them "
+                f"({', '.join(self.credential_material)})"
             )
         if not self.complete:
             said += f", and the walk stopped at {MAX_ENTRIES} entries"
@@ -144,6 +184,8 @@ class StateResidue:
             )
             for relative in entry.key_material:
                 lines.append(f"         {KEY_MATERIAL}: {relative}")
+            for relative in entry.credential_material:
+                lines.append(f"         {CREDENTIAL_MATERIAL}: {relative}")
         for relative in self.unreadable:
             lines.append(f"    unreadable: {relative}")
         if not self.complete:
@@ -163,6 +205,9 @@ class StateResidue:
             "entries": [entry.to_document() for entry in self.entries],
             "key_material": list(self.key_material),
             "carries_key_material": self.carries_key_material,
+            "credential_material": list(self.credential_material),
+            "carries_credential_material": self.carries_credential_material,
+            "carries_a_secret": self.carries_a_secret,
             "unreadable": list(self.unreadable),
             "links": list(self.links),
             "complete": self.complete,
@@ -178,12 +223,32 @@ class _Branch:
     file_count: int = 0
     size_bytes: int = 0
     key_material: list[str] = field(default_factory=list)
+    credential_material: list[str] = field(default_factory=list)
 
 
 def _opens_a_private_key(path: Path, *, sniff_bytes: int) -> bool:
     """Report whether this file's first bytes open a private key block."""
     with open(path, "rb") as handle:
         return redact.carries_private_key(handle.read(sniff_bytes))
+
+
+def _carries_a_credential(path: Path, *, sniff_bytes: int) -> bool:
+    """Report whether this file's first bytes carry a credential *value*.
+
+    `redact.carries_credential_shape` is the narrow question: something shaped
+    like a secret is present, rather than a name that says one is expected. A
+    configuration that declares which variable will hold a token is therefore
+    not named, and the login this runner's auth method copies into the per-run
+    home is, because the copy holds the token itself.
+
+    The file is opened a second time rather than once for both questions. Each
+    question then stands on its own line and has its own counterexample, and
+    the read is the same bounded, page-cached one the key question makes.
+    """
+    with open(path, "rb") as handle:
+        return redact.carries_credential_shape(
+            handle.read(sniff_bytes).decode("utf-8", errors="replace")
+        )
 
 
 def state_path(root: Path, run_id: str) -> Path:
@@ -236,6 +301,7 @@ def survey(
 
     branches: dict[str, _Branch] = {}
     key_material: list[str] = []
+    credential_material: list[str] = []
     unreadable: list[str] = []
     links: list[str] = []
     visited = 0
@@ -279,6 +345,11 @@ def survey(
                 if _opens_a_private_key(Path(item.path), sniff_bytes=sniff_bytes):
                     key_material.append(relative)
                     branch.key_material.append(relative)
+                elif _carries_a_credential(Path(item.path), sniff_bytes=sniff_bytes):
+                    # Not `if`: a private key block is a credential shape too,
+                    # and a key is reported as a key rather than twice.
+                    credential_material.append(relative)
+                    branch.credential_material.append(relative)
             except OSError:
                 unreadable.append(relative)
 
@@ -289,6 +360,7 @@ def survey(
             file_count=branch.file_count,
             size_bytes=branch.size_bytes,
             key_material=tuple(sorted(branch.key_material)),
+            credential_material=tuple(sorted(branch.credential_material)),
             role=ROLES.get(name, UNNAMED_ROLE),
         )
         for name, branch in sorted(branches.items())
@@ -301,6 +373,7 @@ def survey(
         size_bytes=sum(entry.size_bytes for entry in entries),
         entries=entries,
         key_material=tuple(sorted(key_material)),
+        credential_material=tuple(sorted(credential_material)),
         unreadable=tuple(sorted(unreadable)),
         links=tuple(sorted(links)),
         complete=complete,

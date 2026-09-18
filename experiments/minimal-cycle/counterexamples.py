@@ -1338,6 +1338,38 @@ done""",
         instruments=("tests.test_residue.SurveyTest",),
     ),
     Counterexample(
+        name="the-login-a-dead-run-left-is-named-by-its-bytes",
+        requirement=(
+            "The container backend mints no transport key and copies the "
+            "operator's own login into every per-run home, so a survey that "
+            "reads names finds a placeholder and misses the token beside it"
+        ),
+        path="cycle_runner/residue.py",
+        original=(
+            """                elif _carries_a_credential("""
+            """Path(item.path), sniff_bytes=sniff_bytes):"""
+        ),
+        replacement=(
+            """                elif item.name in ("""
+            """".credentials.json", ".netrc", "credentials"):"""
+        ),
+        instruments=("tests.test_residue.SurveyTest",),
+    ),
+    Counterexample(
+        name="a-secret-a-dead-run-left-is-counted-on-this-host",
+        requirement=(
+            "The closing count is the verdict an operator reads about the "
+            "host; one that counts only private keys is structurally zero on "
+            "the backend that leaves a login instead, and reads as an all-clear"
+        ),
+        path="cycle_runner/cli.py",
+        original="""    credentialed = [
+        item for item in present if item["state"]["carries_credential_material"]
+    ]""",
+        replacement="""    credentialed = []""",
+        instruments=("tests.test_residue.ResidueCommandTest",),
+    ),
+    Counterexample(
         name="a-lease-with-no-live-owner-says-what-its-run-left",
         requirement=(
             "The lease is where an operator meets a dead run; one that reports "

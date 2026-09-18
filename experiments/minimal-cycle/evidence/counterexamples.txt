@@ -103,8 +103,10 @@ RED   a-bounded-log-says-it-was-bounded                        A log cut down to
 RED   a-stream-is-redacted-with-this-runs-own-values           A value this run forwarded has no shape, so shape-matching alone writes it to the host
 RED   a-stream-is-redacted-before-it-is-bounded                A bound taken before redaction cuts a credential in half, and half a shape matches nothing, so the tail is written out as ordinary text
 RED   the-key-a-dead-run-left-is-named-by-its-bytes            A survey that calls a file key material because of its name says nothing about a key written under any other one, and calls the public half a private key
+RED   the-login-a-dead-run-left-is-named-by-its-bytes          The container backend mints no transport key and copies the operator's own login into every per-run home, so a survey that reads names finds a placeholder and misses the token beside it
+RED   a-secret-a-dead-run-left-is-counted-on-this-host         The closing count is the verdict an operator reads about the host; one that counts only private keys is structurally zero on the backend that leaves a login instead, and reads as an all-clear
 RED   a-lease-with-no-live-owner-says-what-its-run-left        The lease is where an operator meets a dead run; one that reports the run as gone without saying what it left on disk is how three private keys sat on this host unnoticed
 RED   nothing-is-discarded-while-the-run-may-be-alive          State is removed because the run is over, never because nobody checked; a lease with a live owner, a container or a domain still on the host each mean it is not
 RED   a-question-this-host-could-not-ask-is-not-an-answer      `resource_exists` returns False both for a domain that is gone and for a libvirt this host cannot reach, and removing state on the second is removing it blind
 
-all 108 counterexamples discriminated
+all 110 counterexamples discriminated

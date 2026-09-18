@@ -1,83 +1,106 @@
-RED   a-process-left-running-is-residue                     A run whose declared resources are gone while its processes are still on the host has not been destroyed
-RED   the-survey-matches-a-path-not-a-program               A survey that matches a program name reaches the operator's own application instead of this run's
-RED   the-terminal-says-which-machine-it-is-on              A coordinator terminal opened on the host looks identical to one opened in the environment until it is asked
-RED   an-unverifiable-dispatch-keeps-its-terminal           A dispatch the plane could not verify keeps what its agent's terminal held, which is the only thing that explains it
-RED   the-outcome-is-the-workers-own-verdict                Reporting the message type as the outcome says the worker finished and nothing about how
-RED   a-settling-message-is-read-from-the-delivery          A wait read from the request envelope reports a worker that finished as one that never answered
-RED   the-reply-that-decided-the-run-is-kept                A run that exports only its verdict keeps nothing to check it against
-RED   first-run-state-names-the-environment-copy            First-run state keyed to a path the agent will never open leaves every prompt unanswered
-RED   first-run-answers-every-question-it-names             A receipt that lists four answered questions while the state answers one is rejected
-RED   no-host-fallback                                      A probe result equal to the host's own snapshot is rejected
-RED   orca-is-the-environments-own                          An orca that resolves to the host's installation is not present
-RED   export-before-destroy                                 Cleanup runs only after a confirmed export
-RED   stop-must-be-confirmed                                Cleanup runs only after a confirmed stop
-RED   destroy-after-export                                  Evidence is collected and exported before anything is destroyed
-RED   receipt-is-a-re-read                                  The receipt proves bytes on the host, not bytes in memory
-RED   cleanup-only-per-run                                  A per-run path that contains a shared resource is refused
-RED   redaction-by-shape                                    Redaction catches a credential this run has never seen
-RED   manifest-required-fields                              The manifest carries every required field on every path
-RED   run-id-carries-no-name                                The run identifier discloses neither the host name nor the auth reference
-RED   config-refuses-a-secret                               A secret-shaped value under a dull key is refused
-RED   auth-leaves-no-material                               No credential value, length or prefix reaches a receipt
-RED   host-home-mount-acknowledged                          An unacknowledged host-home mount blocks the run
-RED   preflight-leaves-no-residue                           Preflight inspects without creating the run's state
-RED   base-is-only-a-backing-file                           The preserved base image is a backing volume, never a per-run one
-RED   overlay-is-not-the-base                               The rendered program creates an overlay, not a volume named like the base
-RED   failed-create-names-its-residue                       A create that fails partway records what it may have left behind
-RED   the-host-session-does-not-leak                        The host's own session identity is removed before a command runs inside
-RED   an-error-is-reported-by-its-code                      A refusal is reported by its code, not by the tail of raw output
-RED   the-wait-takes-a-terminal-not-a-sender                The completion wait names the terminal with the flag it accepts
-RED   an-unobserved-start-still-waits                       A dispatch the plane could not observe is still waited for
-RED   unverifiable-is-not-failed                            A dispatch the plane cannot judge settles unknown, not error
-RED   the-request-is-not-the-run                            The Run identifier is read from the Run, not from the request
-RED   provisioning-comes-first                              Provisioning runs before anything that needs what it installs
-RED   the-copy-is-a-repository                              The project copy is made into a repository Orca can register
-RED   metadata-is-not-the-change                            Repository metadata stays out of the patch
-RED   the-same-path-is-not-the-same-file                    An environment with its own Orca at the host's path is not the host's
-RED   the-application-is-started                            The runner starts the application rather than hoping something did
-RED   a-present-orca-is-not-a-ready-one                     A dispatch waits for Orca's runtime, not just for its binary
-RED   dispatch-needs-a-sender-terminal                      Every orchestration command names the terminal it is sent from
-RED   an-address-is-not-readiness                           Creation waits for the guest to answer, not just to take an address
-RED   remote-command-is-quoted                              An argument vector survives the transport intact
-RED   forwarded-value-is-redacted                           A value forwarded into the guest is redacted from captured output
-RED   provider-schema-verified                              A program the provider cannot be checked against blocks the run
-RED   state-backend-is-local                                A cloud state backend blocks the machine backend
-RED   graphics-type-is-supported                            A graphics type this emulator lacks blocks the run
-RED   transport-address-is-the-right-one                    Another interface's address is not mistaken for the transport's
-RED   a-branch-is-found-where-a-clone-keeps-it              A checkout cloned while its origin was on another branch has the wanted branch only under remotes/, and naming it plainly finds nothing
-RED   the-count-is-taken-under-a-lock                       Two runners starting in the same instant both read 'nothing active' unless the count is taken under a lock they share
-RED   an-orphaned-lease-still-occupies-its-slot             A run whose process died without confirming its cleanup left something nobody has looked at; its slot is not free
-RED   an-unconfirmed-cleanup-keeps-the-slot                 A run that ended in residue must stop the next run, not hand it the same host to create on top of
-RED   the-budget-counts-what-is-already-running             A budget checked against one run alone is not a budget for the host the runs share
-RED   the-switch-is-what-raises-the-ceiling                 A ceiling that rises from a number alone lets a configuration run many environments without ever opting in
-RED   the-registry-is-searched-for-this-run                 A host registry nobody looked in is not a host registry the environment stayed out of
-RED   a-registry-that-cannot-be-read-is-not-clean           A file the runner could not open is the one place an escaped registration would hide
-RED   scrollback-is-not-a-registration                      A terminal transcript holds the run identifier because the run printed it; counting that would fail every run started from Orca
-RED   a-registry-entry-naming-the-run-is-residue            An environment that registered itself into the operator's own application left something behind, wherever it sits
-RED   a-named-skill-is-not-a-present-skill                  An install that says it succeeded, in a directory the agent never looks in, is indistinguishable from no install at all
-RED   a-skill-is-pinned-by-its-bytes                        `skills add` fetches what is current; only the digest tells that apart from what was pinned
-RED   an-unanswered-skill-is-not-a-present-one              A probe the environment never answered leaves the question open, which is not the same as a pass
-RED   a-checkout-is-not-a-skill-the-agent-can-read          A repository at the pinned commit says nothing about whether its skills are anywhere an agent looks
-RED   the-installed-skills-are-the-pinned-bytes             Counting skill directories finds the same number whether or not their contents are what the pin names
-RED   a-missing-skill-blocks-the-run                        A run that goes on to dispatch a worker without the skills it was pinned to reports on something else than what was configured
-RED   an-unpinned-image-is-not-a-verified-one               With nothing saying what the image should hash to, computing its digest establishes nothing
-RED   the-examples-carry-no-placeholders                    One documented command means the shipped configuration runs as it stands, not after the reader guesses what to substitute
-RED   the-container-example-installs-what-it-requires       A container image carries no Orca and no skills; an empty provision list cannot put them there
-RED   the-reviewer-waits-on-its-own-message                 A bound Run replays a delivery until it is acknowledged, so a second dispatch's wait wakes on the first one's message and reports the first agent's outcome as the second agent's
-RED   two-panes-are-not-two-agents                          One dispatch answering twice looks exactly like two agents until the identifiers are compared
-RED   an-unnamed-dispatch-is-not-a-separate-one             Comparing two identifiers the plane never gave compares nothing, and nothing equals nothing
-RED   the-reviewer-answered-about-this-diff                 A verdict that names no subject is not a review of the change the implementer made
-RED   the-diff-did-not-move-under-the-review                A diff rewritten while the review ran makes the verdict about something the implementer did not write
-RED   the-capture-includes-a-file-that-is-new               `git diff` omits an untracked file, and a new file is exactly what this task produces — the reviewer would be handed an empty patch
-RED   the-operators-compositor-is-not-reachable-by-default  A box that inherits WAYLAND_DISPLAY finds the operator's compositor and opens a window there, whatever screen the run made
-RED   the-runtime-directory-is-the-environments-own         `/run/user/<uid>` is the operator's, mounted into the box, and it holds the compositor socket
-RED   a-window-on-this-screen-is-the-evidence               Setting DISPLAY is not where the application went; a run with its own virtual screen still put a window on somebody's desktop
-RED   a-copied-file-is-not-a-working-login                  A bootstrap receipt says a file was copied; whether the agent in the environment is signed in is a different claim
-RED   an-expired-login-blocks-rather-than-passes            An agent that answers 'not signed in' has told the run everything it needs to stop
-RED   the-receipt-names-no-person                           The agent's own answer carries an email address, an organisation and a home directory, and a run's artifacts are shared
-RED   the-box-is-created-without-the-operators-session      A container's first process inherits whatever created it, so a box created from an unscrubbed environment holds the operator's display at its root and hands it to everything under it
-RED   a-variable-leaks-by-where-it-points                   The application sets a message bus address for itself under the runtime directory the run gave it; the name is the same one the operator's carries, and only the value tells them apart
-RED   the-launcher-is-not-the-environment                   `distrobox enter` carries this run's home on its command line and the operator's session in its environment, because it is the operator's process; counting it fails every run, the probe included
-RED   an-unreachable-screen-says-nothing                    A screen that did not answer cannot report the window that is not on it
+RED   a-process-left-running-is-residue                        A run whose declared resources are gone while its processes are still on the host has not been destroyed
+RED   the-survey-matches-a-path-not-a-program                  A survey that matches a program name reaches the operator's own application instead of this run's
+RED   the-terminal-says-which-machine-it-is-on                 A coordinator terminal opened on the host looks identical to one opened in the environment until it is asked
+RED   an-unverifiable-dispatch-keeps-its-terminal              A dispatch the plane could not verify keeps what its agent's terminal held, which is the only thing that explains it
+RED   the-outcome-is-the-workers-own-verdict                   Reporting the message type as the outcome says the worker finished and nothing about how
+RED   a-settling-message-is-read-from-the-delivery             A wait read from the request envelope reports a worker that finished as one that never answered
+RED   the-reply-that-decided-the-run-is-kept                   A run that exports only its verdict keeps nothing to check it against
+RED   first-run-state-names-the-environment-copy               First-run state keyed to a path the agent will never open leaves every prompt unanswered
+RED   first-run-answers-every-question-it-names                A receipt that lists every answered question while the state answers one of them is rejected
+RED   the-first-run-flow-is-closed-not-merely-recorded         A seed that records the flow without closing it leaves the wizard modal over the whole window, and every capture photographs it instead of the agents' panels
+RED   the-whole-tip-catalogue-is-seen-not-the-one-that-showed  The application picks the first tip whose id is in neither the seen set nor the completed set, so a seed naming only the tip a capture photographed promotes the next entry in the catalogue and buys the run exactly one clean frame before the same modal sits in the same place with different words in it
+RED   the-seeded-profile-answers-the-banner-it-causes          The application reads a profile file that already exists at startup as one that predates its analytics release, and owes such a profile a consent banner until it answers, so seeding the wizard closed without seeding an answer trades the wizard for a banner over the same window and photographs that instead
+RED   the-star-prompt-is-finished-rather-than-postponed        Every path that raises the repository-star prompt returns on the finished flag first, so a seed that leaves it unset postpones the prompt instead of answering it and the toast returns over the corner the right-hand agent panel is drawn in
+RED   the-profile-seed-lands-before-the-application-starts     The profile is read once at startup and flushed back over from memory, so a seed written after the launch is undone by the state it was meant to replace and leaves a home indistinguishable from one that answered in time
+RED   no-host-fallback                                         A probe result equal to the host's own snapshot is rejected
+RED   orca-is-the-environments-own                             An orca that resolves to the host's installation is not present
+RED   export-before-destroy                                    Cleanup runs only after a confirmed export
+RED   stop-must-be-confirmed                                   Cleanup runs only after a confirmed stop
+RED   destroy-after-export                                     Evidence is collected and exported before anything is destroyed
+RED   receipt-is-a-re-read                                     The receipt proves bytes on the host, not bytes in memory
+RED   cleanup-only-per-run                                     A per-run path that contains a shared resource is refused
+RED   redaction-by-shape                                       Redaction catches a credential this run has never seen
+RED   manifest-required-fields                                 The manifest carries every required field on every path
+RED   run-id-carries-no-name                                   The run identifier discloses neither the host name nor the auth reference
+RED   config-refuses-a-secret                                  A secret-shaped value under a dull key is refused
+RED   auth-leaves-no-material                                  No credential value, length or prefix reaches a receipt
+RED   host-home-mount-acknowledged                             An unacknowledged host-home mount blocks the run
+RED   preflight-leaves-no-residue                              Preflight inspects without creating the run's state
+RED   base-is-only-a-backing-file                              The preserved base image is a backing volume, never a per-run one
+RED   overlay-is-not-the-base                                  The rendered program creates an overlay, not a volume named like the base
+RED   failed-create-names-its-residue                          A create that fails partway records what it may have left behind
+RED   the-host-session-does-not-leak                           The host's own session identity is removed before a command runs inside
+RED   an-error-is-reported-by-its-code                         A refusal is reported by its code, not by the tail of raw output
+RED   the-wait-takes-a-terminal-not-a-sender                   The completion wait names the terminal with the flag it accepts
+RED   an-unobserved-start-still-waits                          A dispatch the plane could not observe is still waited for
+RED   unverifiable-is-not-failed                               A dispatch the plane cannot judge settles unknown, not error
+RED   the-request-is-not-the-run                               The Run identifier is read from the Run, not from the request
+RED   provisioning-comes-first                                 Provisioning runs before anything that needs what it installs
+RED   the-copy-is-a-repository                                 The project copy is made into a repository Orca can register
+RED   metadata-is-not-the-change                               Repository metadata stays out of the patch
+RED   the-same-path-is-not-the-same-file                       An environment with its own Orca at the host's path is not the host's
+RED   the-application-is-started                               The runner starts the application rather than hoping something did
+RED   a-present-orca-is-not-a-ready-one                        A dispatch waits for Orca's runtime, not just for its binary
+RED   dispatch-needs-a-sender-terminal                         Every orchestration command names the terminal it is sent from
+RED   an-address-is-not-readiness                              Creation waits for the guest to answer, not just to take an address
+RED   remote-command-is-quoted                                 An argument vector survives the transport intact
+RED   forwarded-value-is-redacted                              A value forwarded into the guest is redacted from captured output
+RED   provider-schema-verified                                 A program the provider cannot be checked against blocks the run
+RED   state-backend-is-local                                   A cloud state backend blocks the machine backend
+RED   graphics-type-is-supported                               A graphics type this emulator lacks blocks the run
+RED   transport-address-is-the-right-one                       Another interface's address is not mistaken for the transport's
+RED   a-branch-is-found-where-a-clone-keeps-it                 A checkout cloned while its origin was on another branch has the wanted branch only under remotes/, and naming it plainly finds nothing
+RED   the-count-is-taken-under-a-lock                          Two runners starting in the same instant both read 'nothing active' unless the count is taken under a lock they share
+RED   an-orphaned-lease-still-occupies-its-slot                A run whose process died without confirming its cleanup left something nobody has looked at; its slot is not free
+RED   an-unconfirmed-cleanup-keeps-the-slot                    A run that ended in residue must stop the next run, not hand it the same host to create on top of
+RED   the-budget-counts-what-is-already-running                A budget checked against one run alone is not a budget for the host the runs share
+RED   the-switch-is-what-raises-the-ceiling                    A ceiling that rises from a number alone lets a configuration run many environments without ever opting in
+RED   the-registry-is-searched-for-this-run                    A host registry nobody looked in is not a host registry the environment stayed out of
+RED   a-registry-that-cannot-be-read-is-not-clean              A file the runner could not open is the one place an escaped registration would hide
+RED   scrollback-is-not-a-registration                         A terminal transcript holds the run identifier because the run printed it; counting that would fail every run started from Orca
+RED   a-registry-entry-naming-the-run-is-residue               An environment that registered itself into the operator's own application left something behind, wherever it sits
+RED   a-named-skill-is-not-a-present-skill                     An install that says it succeeded, in a directory the agent never looks in, is indistinguishable from no install at all
+RED   a-skill-is-pinned-by-its-bytes                           A named pin says what should have landed; only the digest says what did, whatever the install claims
+RED   an-unanswered-skill-is-not-a-present-one                 A probe the environment never answered leaves the question open, which is not the same as a pass
+RED   a-checkout-is-not-a-skill-the-agent-can-read             A repository at the pinned commit says nothing about whether its skills are anywhere an agent looks
+RED   the-installed-skills-are-the-pinned-bytes                Counting skill directories finds the same number whether or not their contents are what the pin names
+RED   a-missing-skill-blocks-the-run                           A run that goes on to dispatch a worker without the skills it was pinned to reports on something else than what was configured
+RED   an-unpinned-image-is-not-a-verified-one                  With nothing saying what the image should hash to, computing its digest establishes nothing
+RED   the-examples-carry-no-placeholders                       One documented command means the shipped configuration runs as it stands, not after the reader guesses what to substitute
+RED   the-container-example-installs-what-it-requires          A container image carries no Orca and no skills; an empty provision list cannot put them there
+RED   an-install-that-names-no-revision-is-not-a-pin           `npx skills add <repo>` names no revision and has no flag that takes one, so it installs the repository's tip; it lands the bytes the pinned Orca ships only on the days the tip happens to be them
+RED   an-image-freezes-whichever-tip-it-was-built-on           A built image is frozen, so an unrevisioned install bakes in whatever upstream happened to be on build day and says nothing
+RED   the-reviewer-waits-on-its-own-message                    A bound Run replays a delivery until it is acknowledged, so a second dispatch's wait wakes on the first one's message and reports the first agent's outcome as the second agent's
+RED   two-panes-are-not-two-agents                             One dispatch answering twice looks exactly like two agents until the identifiers are compared
+RED   an-unnamed-dispatch-is-not-a-separate-one                Comparing two identifiers the plane never gave compares nothing, and nothing equals nothing
+RED   the-reviewer-answered-about-this-diff                    A verdict that names no subject is not a review of the change the implementer made
+RED   the-diff-did-not-move-under-the-review                   A diff rewritten while the review ran makes the verdict about something the implementer did not write
+RED   the-capture-includes-a-file-that-is-new                  `git diff` omits an untracked file, and a new file is exactly what this task produces — the reviewer would be handed an empty patch
+RED   the-operators-compositor-is-not-reachable-by-default     A box that inherits WAYLAND_DISPLAY finds the operator's compositor and opens a window there, whatever screen the run made
+RED   the-runtime-directory-is-the-environments-own            `/run/user/<uid>` is the operator's, mounted into the box, and it holds the compositor socket
+RED   a-window-on-this-screen-is-the-evidence                  Setting DISPLAY is not where the application went; a run with its own virtual screen still put a window on somebody's desktop
+RED   a-copied-file-is-not-a-working-login                     A bootstrap receipt says a file was copied; whether the agent in the environment is signed in is a different claim
+RED   an-expired-login-blocks-rather-than-passes               An agent that answers 'not signed in' has told the run everything it needs to stop
+RED   the-receipt-names-no-person                              The agent's own answer carries an email address, an organisation and a home directory, and a run's artifacts are shared
+RED   the-box-is-created-without-the-operators-session         A container's first process inherits whatever created it, so a box created from an unscrubbed environment holds the operator's display at its root and hands it to everything under it
+RED   a-variable-leaks-by-where-it-points                      The application sets a message bus address for itself under the runtime directory the run gave it; the name is the same one the operator's carries, and only the value tells them apart
+RED   the-launcher-is-not-the-environment                      `distrobox enter` carries this run's home on its command line and the operator's session in its environment, because it is the operator's process; counting it fails every run, the probe included
+RED   a-capture-is-never-pointed-at-the-operators-screen       The box has the operator's X socket mounted, so a capture is one screen number away from writing their desktop into a shared artifact directory
+RED   an-image-that-never-reached-the-host-is-not-a-picture    A capture command that reports an image and a host that holds one are different claims, and only the second can be looked at
+RED   a-failed-capture-is-not-a-failed-run                     A picture is evidence, not a gate: a screen that did not answer would otherwise cost a whole cycle that proved everything else
+RED   an-unreachable-screen-says-nothing                       A screen that did not answer cannot report the window that is not on it
+RED   a-live-terminal-is-not-a-drawn-panel                     Nothing selects a workspace, and workspace selection is what mounts a terminal panel; a run that dispatches two agents and asks for neither panel photographs the application's empty state with both agents live behind it
+RED   a-switch-that-exits-zero-is-not-a-window-that-moved      The switch succeeds and the window stays where it was whenever the terminal has no live process, no window is attached to the runtime, or a later switch superseded this one; reading the exit code instead of the receipt reports every one of those as a panel that was drawn
+RED   a-coordinator-that-ends-its-turn-still-owing-terminals   A worker_done settles the Task and leaves the terminal live, so a turn that ends without disposing of it hands the plane a resource nobody has claimed
+RED   an-unverified-release-is-not-a-released-terminal         The one answer worker-release gives to say it does not know what happened is the one that must not count as a disposition
+RED   a-release-receipt-is-not-a-closed-terminal               A terminal that is still in the live list was not closed, whatever its receipt said and whatever its panel did
+RED   a-provisioning-step-keeps-what-it-printed                A provisioning step that failed leaves an exit code and no output, so why it failed cannot be read once the environment is gone
+RED   a-bounded-log-says-it-was-bounded                        A log cut down to its tail and left unannotated reads as a complete one, and a reader draws a conclusion from the part that happened to survive
+RED   a-stream-is-redacted-with-this-runs-own-values           A value this run forwarded has no shape, so shape-matching alone writes it to the host
+RED   a-stream-is-redacted-before-it-is-bounded                A bound taken before redaction cuts a credential in half, and half a shape matches nothing, so the tail is written out as ordinary text
+RED   the-key-a-dead-run-left-is-named-by-its-bytes            A survey that calls a file key material because of its name says nothing about a key written under any other one, and calls the public half a private key
+RED   a-lease-with-no-live-owner-says-what-its-run-left        The lease is where an operator meets a dead run; one that reports the run as gone without saying what it left on disk is how three private keys sat on this host unnoticed
+RED   nothing-is-discarded-while-the-run-may-be-alive          State is removed because the run is over, never because nobody checked; a lease with a live owner, a container or a domain still on the host each mean it is not
+RED   a-question-this-host-could-not-ask-is-not-an-answer      `resource_exists` returns False both for a domain that is gone and for a libvirt this host cannot reach, and removing state on the second is removing it blind
 
-all 81 counterexamples discriminated
+all 104 counterexamples discriminated

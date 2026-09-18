@@ -478,13 +478,61 @@ CASES: tuple[Counterexample, ...] = (
         requirement="Provisioning runs before anything that needs what it installs",
         path="cycle_runner/lifecycle.py",
         original="""            for index, argv in enumerate(self._provision_steps(), start=1):
-                outcome = self.execute(list(argv))
-                record.commands.append(self._keep_output("provision", index, argv, outcome))
-            # Orca registers a worktree for a repository; the exported copy is
-            # not one until this makes it one.""",
-        replacement="""            # Orca registers a worktree for a repository; the exported copy is
-            # not one until this makes it one.""",
+                outcome = self.execute(list(argv))""",
+        replacement="""            for index, argv in enumerate(()):
+                outcome = self.execute(list(argv))""",
         instruments=("tests.test_lifecycle.BootstrapOrderTest",),
+    ),
+    Counterexample(
+        name="a-failed-provisioning-step-stops-the-run",
+        requirement=(
+            "A provisioning step that exited non-zero leaves an environment "
+            "carrying something other than what the run pinned"
+        ),
+        path="cycle_runner/lifecycle.py",
+        original='                if not outcome.ok:\n                    record.status = PhaseStatus.FAILED\n                    record.detail = (\n                        f"provisioning step {index} exited',
+        replacement='                if False:\n                    record.status = PhaseStatus.FAILED\n                    record.detail = (\n                        f"provisioning step {index} exited',
+        instruments=("tests.test_lifecycle.BootstrapOutputTest",),
+    ),
+    Counterexample(
+        name="the-environments-own-toolchain-wins-the-name",
+        requirement=(
+            "A box that inherits the host's search path runs the operator's "
+            "build of every tool it installed for itself"
+        ),
+        path="cycle_runner/isolate.py",
+        original="""    'if [ -n "${PATH:-}" ]; then PATH="' + ":".join(OWN_DIRECTORIES) + ':$PATH"; '
+    'else PATH="' + ":".join(OWN_DIRECTORIES) + '"; fi; export PATH; '""",
+        replacement="""    'export PATH; '""",
+        instruments=("tests.test_isolate.OwnToolchainFirstTest",),
+    ),
+    Counterexample(
+        name="the-toolchain-is-compared-not-printed",
+        requirement=(
+            "A version that is printed and never compared reads the same "
+            "whatever was installed"
+        ),
+        path="cycle_runner/toolchain.py",
+        original="    if record.selected_version != pinned:",
+        replacement="    if False:",
+        instruments=(
+            "tests.test_toolchain.JudgeTest",
+            "tests.test_lifecycle.ToolchainTest",
+        ),
+    ),
+    Counterexample(
+        name="an-agent-that-could-not-be-read-is-not-a-pass",
+        requirement=(
+            "A run whose agent process had already gone knows nothing about "
+            "what the agent ran, and must not report that it does"
+        ),
+        path="cycle_runner/toolchain.py",
+        original="    record.established = bool(agent_binaries)",
+        replacement="    record.established = True",
+        instruments=(
+            "tests.test_toolchain.JudgeTest",
+            "tests.test_lifecycle.ToolchainTest",
+        ),
     ),
     Counterexample(
         name="the-copy-is-a-repository",

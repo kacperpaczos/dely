@@ -145,6 +145,89 @@ class ProvisionIsRealTest(unittest.TestCase):
         self.assertEqual(run_config.vm.provision, ())
 
 
+class ConfirmationsCompareTest(unittest.TestCase):
+    """A step that prints a version has confirmed nothing.
+
+    Measured on a real run: the step that unpacked node v24.21.0 ended with
+    `node --version` and printed v24.19.0, and the step that installed
+    claude-code 2.1.272 ended with `claude --version` and printed 2.1.276.
+    Both numbers were the operator's own build, reached through the home
+    Distrobox mounts and the search path the box inherits. Neither step
+    failed, because neither step compared anything.
+
+    So a confirmation has to read the binary it just installed by its absolute
+    path, compare what it reports to the pin, and refuse on a mismatch.
+    """
+
+    #: Where each pinned tool lands, and the pin it has to agree with.
+    PINNED = {
+        "node": (
+            "/usr/local/bin/node",
+            VERSIONS["tool_image"]["contents"]["node"]["version"],
+        ),
+        "claude": (
+            "/usr/local/bin/claude",
+            VERSIONS["tool_image"]["contents"]["claude_code"]["version"],
+        ),
+    }
+
+    IMAGE_PROVISION = (ROOT / "host" / "packer" / "provision.sh").read_text(
+        encoding="utf-8"
+    )
+
+    def installing_step(self, program: str) -> str:
+        """Return the container step that puts this program in /usr/local/bin."""
+        run_config = config_module.load(ROOT / "config.distrobox.example.yaml")
+        where = self.PINNED[program][0]
+        found = [
+            " ".join(argv)
+            for argv in run_config.distrobox.provision
+            if f"ln -sf" in " ".join(argv) and where in " ".join(argv)
+        ]
+        self.assertEqual(len(found), 1, f"{program} is installed by {len(found)} steps")
+        return found[0]
+
+    def test_each_pinned_tool_is_read_by_its_absolute_path(self):
+        for program, (where, _) in self.PINNED.items():
+            with self.subTest(program=program):
+                self.assertIn(f"{where} --version", self.installing_step(program))
+
+    def test_no_step_confirms_a_pinned_tool_by_bare_name(self):
+        """The bare name reads the search path, which is what went wrong."""
+        for program in self.PINNED:
+            with self.subTest(program=program):
+                step = self.installing_step(program)
+                self.assertNotIn(f"; {program} --version", step)
+
+    def test_each_pinned_tool_is_compared_to_the_pin(self):
+        for program, (_, pinned) in self.PINNED.items():
+            with self.subTest(program=program):
+                self.assertIn(f"!= {pinned}", self.installing_step(program))
+
+    def test_a_mismatch_fails_the_step_rather_than_printing(self):
+        for program in self.PINNED:
+            with self.subTest(program=program):
+                self.assertIn("exit 5", self.installing_step(program))
+
+    def test_the_image_build_compares_too(self):
+        """No host home is mounted there, but a confirmation still confirms."""
+        for program, (where, _) in self.PINNED.items():
+            with self.subTest(program=program):
+                self.assertIn(f"{where} --version", self.IMAGE_PROVISION)
+                self.assertNotIn(f"\n{program} --version\n", self.IMAGE_PROVISION)
+
+    def test_the_container_example_gives_the_box_an_orca_of_its_own(self):
+        """Otherwise the name resolves through the operator's mounted home."""
+        run_config = config_module.load(ROOT / "config.distrobox.example.yaml")
+        steps = " ".join(" ".join(argv) for argv in run_config.distrobox.provision)
+        self.assertIn("/usr/local/bin/orca", steps)
+
+    def test_the_machine_example_confirms_nothing_because_it_installs_nothing(self):
+        """Its toolchain is in the image; the config has no step to fix."""
+        run_config = config_module.load(ROOT / "config.vm.example.yaml")
+        self.assertEqual(run_config.vm.provision, ())
+
+
 class SkillsComeFromAPinnedRevisionTest(unittest.TestCase):
     """An install that names no revision installs the tip, which is not a pin.
 

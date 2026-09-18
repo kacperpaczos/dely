@@ -30,7 +30,16 @@ rm -f /tmp/node.tar.xz
 for binary in node npm npx; do
   sudo ln -sf "/usr/local/node/bin/${binary}" "/usr/local/bin/${binary}"
 done
-node --version
+# Read by absolute path and compared to the pin. A bare name reads the search
+# path, which is a confirmation of the search path rather than of the install;
+# no host home is mounted into this guest, so it resolves correctly here, but
+# a confirmation that compares nothing is weak wherever it runs.
+installed="$(/usr/local/bin/node --version)"
+if [ "${installed}" != "${NODE_VERSION}" ]; then
+  echo "node at /usr/local/bin/node is ${installed}, not the pinned ${NODE_VERSION}" >&2
+  exit 5
+fi
+echo "node ${installed} confirmed at /usr/local/bin/node"
 
 # -- orca, at the pinned version and digest ------------------------------
 curl -fsSL -o /tmp/orca.deb "${ORCA_URL}"
@@ -43,7 +52,12 @@ sudo ln -sf /opt/Orca/resources/bin/orca-ide /usr/local/bin/orca
 # -- claude code, at the pinned version ----------------------------------
 sudo npm install -g --no-fund --no-audit "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
 sudo ln -sf /usr/local/node/bin/claude /usr/local/bin/claude
-claude --version
+installed="$(/usr/local/bin/claude --version | head -n 1 | awk '{print $1}')"
+if [ "${installed}" != "${CLAUDE_CODE_VERSION}" ]; then
+  echo "claude at /usr/local/bin/claude is ${installed}, not the pinned ${CLAUDE_CODE_VERSION}" >&2
+  exit 5
+fi
+echo "claude ${installed} confirmed at /usr/local/bin/claude"
 
 # -- the skills the agent must be able to reach --------------------------
 # Pinned by commit, because a tag moves. The plugin is installed for the guest

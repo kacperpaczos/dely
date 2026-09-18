@@ -110,6 +110,7 @@ class SettledCycleTest(CycleTestCase):
                 "bootstrap",
                 "identity",
                 "task",
+                "toolchain",
                 "review",
                 "check",
                 "collect",
@@ -1290,6 +1291,72 @@ class TerminalDispositionTest(CycleTestCase):
         self.assertIn("ever owned an agent terminal", outcome.run_result.terminals.detail)
 
 
+class ToolchainTest(CycleTestCase):
+    """Which Claude Code the environment runs, not which one it installed.
+
+    The provisioning steps establish what landed on the disk. They cannot
+    establish what the agent was: the agent is spawned by the application, not
+    by this runner, and it finds its own name through the search path that
+    application holds. On a real box that path opened with the operator's
+    mounted home, so the box installed 2.1.272 and a bare `claude` meant
+    2.1.276.
+    """
+
+    PINNED = "pinned-by-the-operator"
+    HOSTS_OWN = "the-operators-own-build"
+    SHADOW = "/home/someone/.local/bin/claude"
+
+    def test_the_environments_own_build_winning_settles_the_run(self):
+        _, outcome = self.run_cycle(toolchain_shadow=self.SHADOW)
+        self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+        self.assertEqual(
+            outcome.run_result.phase("toolchain").status, status.PhaseStatus.OK
+        )
+
+    def test_the_hosts_build_winning_blocks_the_run(self):
+        _, outcome = self.run_cycle(
+            toolchain_binary=self.SHADOW, toolchain_version=self.HOSTS_OWN
+        )
+        self.assertEqual(outcome.run_result.status, status.RunStatus.BLOCKED)
+        self.assertIn(self.HOSTS_OWN, outcome.run_result.failure_classification)
+        self.assertIn(self.PINNED, outcome.run_result.failure_classification)
+
+    def test_the_shadow_that_lost_is_kept_beside_the_one_that_won(self):
+        """The record says what it would have resolved to, in the same run."""
+        _, outcome = self.run_cycle(toolchain_shadow=self.SHADOW)
+        document = json.loads(
+            self.artifact("toolchain.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(document["shadowed"], [self.SHADOW])
+        self.assertEqual(document["selected"], "/usr/local/bin/claude")
+        self.assertEqual(document["selected_version"], self.PINNED)
+
+    def test_what_this_runs_own_process_was_running_is_recorded(self):
+        _, outcome = self.run_cycle()
+        document = json.loads(
+            self.artifact("toolchain.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(document["agent_binaries"], ["/usr/local/bin/claude"])
+        self.assertTrue(document["established"])
+
+    def test_a_process_already_gone_is_recorded_as_unestablished(self):
+        """A question that could not be answered is not answered with a pass."""
+        _, outcome = self.run_cycle(agent_process_gone=True)
+        document = json.loads(
+            self.artifact("toolchain.json").read_text(encoding="utf-8")
+        )
+        self.assertFalse(document["established"])
+        self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+
+    def test_it_is_asked_before_the_terminals_that_hold_the_agent_are_released(self):
+        adapter, _ = self.run_cycle()
+        self.assertIn("toolchain-processes", adapter.calls)
+        self.assertLess(
+            adapter.calls.index("toolchain-processes"),
+            adapter.calls.index("worker-release"),
+        )
+
+
 class BootstrapOutputTest(CycleTestCase):
     """What a bootstrap command printed outlives the environment that printed it.
 
@@ -1300,17 +1367,28 @@ class BootstrapOutputTest(CycleTestCase):
     be. These tests are what stops that shape of record coming back.
     """
 
-    #: One step that says something and succeeds, and one that fails the way a
-    #: package install does: naming a file it could not read.
+    #: Two steps that say something and succeed, so the bootstrap reaches the
+    #: repository steps and there is a whole sequence to keep the streams of.
     PROVISION = [
+        ["printf", "the deps are installed\n"],
+        ["cat", "/etc/hostname"],
+    ]
+
+    #: The second step fails the way a package install does: naming a file it
+    #: could not read. Its own fixture, because a failed step now ends the
+    #: bootstrap, and a run that stops at step two has no later steps to keep.
+    PROVISION_REFUSES = [
         ["printf", "the deps are installed\n"],
         ["cat", "/nonexistent/orca-package"],
     ]
 
-    def cycle(self):
+    def cycle(self, provision=None):
         document = self.make_config().to_document()
-        document["distrobox"]["provision"] = self.PROVISION
+        document["distrobox"]["provision"] = provision or self.PROVISION
         return self.run_cycle(config_document=document)
+
+    def refused(self):
+        return self.cycle(self.PROVISION_REFUSES)
 
     def commands(self, outcome):
         return outcome.run_result.phase("bootstrap").commands
@@ -1336,7 +1414,7 @@ class BootstrapOutputTest(CycleTestCase):
         )
 
     def test_a_step_that_failed_left_what_it_printed(self):
-        _, outcome = self.cycle()
+        _, outcome = self.refused()
         failed = [c for c in self.commands(outcome) if c.exit_code not in (0, None)]
         self.assertEqual(len(failed), 1, [c.argv for c in self.commands(outcome)])
         command = failed[0]
@@ -1373,9 +1451,30 @@ class BootstrapOutputTest(CycleTestCase):
         self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
 
     def test_a_failed_step_is_narrated_with_where_to_read_it(self):
-        _, outcome = self.cycle()
+        _, outcome = self.refused()
         log = self.artifact("logs/runner.log").read_text(encoding="utf-8")
         self.assertIn("bootstrap/provision-02-cat.stderr", log)
+
+    def test_a_failed_step_ends_the_bootstrap_rather_than_continuing(self):
+        """A step's exit code was kept and never read, so the run went on.
+
+        Provisioning is what gives the environment the toolchain the run
+        pinned. A step that exited non-zero and was merely logged left a box
+        that carried something else, and everything after it — the repository,
+        the identity gate, the task — ran against whatever happened to be
+        there. Keeping the output is not the same as acting on it.
+        """
+        _, outcome = self.refused()
+        self.assertEqual(outcome.run_result.status, status.RunStatus.ERROR)
+        record = outcome.run_result.phase("bootstrap")
+        self.assertEqual(record.status, status.PhaseStatus.FAILED)
+        self.assertIn("provisioning step 2", record.detail)
+        # Nothing that needs what the step was installing may have run.
+        names = [command.stdout_path or "" for command in self.commands(outcome)]
+        self.assertEqual([name for name in names if "repository-" in name], [])
+        self.assertEqual(
+            outcome.run_result.phase("task").status, status.PhaseStatus.SKIPPED
+        )
 
     def test_a_failed_repository_step_keeps_its_output_too(self):
         adapter, outcome = self.run_cycle(refuse_repository=True)

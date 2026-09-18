@@ -20,6 +20,23 @@ had its own virtual screen still opened a window on somebody's desktop.
 So these are removed too. Removing them is not isolation and this module does
 not pretend otherwise: the sockets are still there for anything that goes
 looking by hand. It is what stops a toolkit finding them by default.
+
+The host's *toolchain* leaks by the same route and was found the same way. A
+box inherits the host's ``PATH`` literally, and on this host that path opens
+with directories under the operator's home. So the box installed a pinned node
+and a pinned Claude Code into ``/usr/local``, and then every bare program name
+inside it — including the one the execution plane uses to launch an agent —
+resolved to the operator's own build instead. The provisioning steps said so
+out loud and nobody read it: a step that unpacked node v24.21.0 ended by
+printing v24.19.0, because that is what ``node`` meant in there.
+
+A search path is not a session variable, so it cannot be unset; the box needs
+one. What it can be is *ordered*. The environment's own program directories go
+in front of whatever was inherited, which is what makes the box's installation
+win for anything launched inside it while leaving the rest of the inherited
+path reachable. Nothing is removed: the mounted home still carries the
+credential this run deliberately reaches, and an entry the box has no
+replacement for still resolves.
 """
 
 from __future__ import annotations
@@ -48,6 +65,31 @@ LEAKING_NAMES = (
 )
 
 
+#: The environment's own program directories, in the order a system lists them.
+#: They are put in front of the inherited search path, so a program the
+#: environment installed is the one a bare name finds there.
+OWN_DIRECTORIES = (
+    "/usr/local/sbin",
+    "/usr/local/bin",
+    "/usr/sbin",
+    "/usr/bin",
+    "/sbin",
+    "/bin",
+)
+
+
+def own_toolchain_first(path: str) -> str:
+    """Return this search path with the environment's own directories in front.
+
+    Prepending rather than replacing is deliberate. The container backend
+    mounts the operator's home on purpose — that is where the credential comes
+    from — and entries under it may be the only place some tool lives. What
+    must not happen is that they answer for a tool the environment installed
+    itself, and ordering is enough to decide that.
+    """
+    return ":".join((*OWN_DIRECTORIES, *(part for part in [path] if part)))
+
+
 def _cases() -> str:
     patterns = [f"{prefix}*" for prefix in LEAKING_PREFIXES]
     patterns.extend(LEAKING_NAMES)
@@ -66,6 +108,15 @@ _SCRIPT = (
     + ') unset "$name";; '
     '  esac; '
     'done; '
+    # The search path is ordered here rather than in any one caller, because
+    # what this has to reach is the application the runner starts and every
+    # agent that application spawns afterwards, none of which this runner
+    # launches itself.
+    # An empty inherited path must not leave a trailing separator: that is the
+    # working directory, and putting it on a search path is how a file a task
+    # just wrote gets run as a program.
+    'if [ -n "${PATH:-}" ]; then PATH="' + ":".join(OWN_DIRECTORIES) + ':$PATH"; '
+    'else PATH="' + ":".join(OWN_DIRECTORIES) + '"; fi; export PATH; '
     'exec "$@"'
 )
 

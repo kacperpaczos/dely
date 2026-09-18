@@ -76,8 +76,8 @@ python3 -m unittest discover -s tests -t . -v
 ## The cycle
 
 ```
-prepare -> create -> bootstrap -> identity -> task -> review -> check
-        -> collect -> export -> cleanup -> close
+prepare -> create -> bootstrap -> identity -> task -> toolchain -> review
+        -> check -> collect -> export -> cleanup -> close
 ```
 
 Two orderings are the point of the whole runner.
@@ -88,6 +88,19 @@ each one from its host path and recomputes its digest. Only an export where
 every required artifact matches releases the run to stop and destroy anything.
 An unconfirmed export, or an unconfirmed stop, leaves the environment standing
 and records residue with the reason.
+
+**What ran is asked for, not inferred.** `toolchain` comes straight after the
+task and before the terminals holding the agents are released, because the
+agent's own process is the only thing that can say which Claude Code it was.
+The agent is not launched by this runner: the plane's application spawns it,
+through whatever search path that application holds. A box inherits the host's
+search path, and on a host whose path opens with directories under its own home
+that is how a box that installed a pinned Claude Code ran the operator's one
+instead. The phase records the binary a bare name selects, the version it
+reports compared to the pin, the builds that stayed reachable behind it — the
+first of which is what the name resolved to before the ordering was fixed — and
+what this run's own processes were executing. A process that had already exited
+is recorded as unread rather than as a pass.
 
 **The task runs only after the identity gate.** The same shell probe runs on the
 host and inside the environment. A result that carries no environment marker and
@@ -223,6 +236,10 @@ $artifact_root/<run_id>/
   identity/host-probe.txt    the probe as the host answered it
   identity/environment-probe.txt  the probe as the environment answered it
   identity/orca-status.json  what Orca reported inside the environment
+  toolchain.json             which Claude Code a bare name selects in the
+                             environment, its version against the pin, the
+                             builds still reachable behind it, and what this
+                             run's own processes were running
   check.stdout / check.stderr  the independent check, as a process
   diff.patch                 what the task changed, computed on the host
   task-artifact/             the file the task was asked to produce

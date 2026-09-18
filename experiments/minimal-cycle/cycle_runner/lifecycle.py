@@ -38,6 +38,7 @@ from . import (
     screenshot,
     skills,
     terminals,
+    toolchain,
     worker,
 )
 from .adapters.base import BackendAdapter, EnvironmentHandle
@@ -60,6 +61,7 @@ PHASE_ORDER = (
     "bootstrap",
     "identity",
     "task",
+    "toolchain",
     "review",
     "check",
     "collect",
@@ -389,6 +391,17 @@ class _Cycle:
             self._task()
         else:
             self.skip("task", self.blocked_reason or self.error_reason or "no environment")
+        # Here and not later: what the agent ran can only be read from the
+        # agent's own process, and the terminal holding it is released at the
+        # end of the review. A question asked after that reads as if nothing
+        # had ever run.
+        if self.task_ran:
+            self._toolchain()
+        else:
+            self.skip(
+                "toolchain",
+                self.blocked_reason or self.error_reason or "the task never ran",
+            )
         if (
             self.task_ran
             and not self.timed_out
@@ -556,6 +569,20 @@ class _Cycle:
             for index, argv in enumerate(self._provision_steps(), start=1):
                 outcome = self.execute(list(argv))
                 record.commands.append(self._keep_output("provision", index, argv, outcome))
+                # A step that exited non-zero was kept and not acted on, so a
+                # box that failed to install its own toolchain went on to run
+                # the task with whatever it found instead. The step is what
+                # says the environment carries what the run was told to give
+                # it; there is nothing further to check it against.
+                if not outcome.ok:
+                    record.status = PhaseStatus.FAILED
+                    record.detail = (
+                        f"provisioning step {index} exited {outcome.exit_code}, so "
+                        "the environment does not carry what this run pinned: "
+                        + redact.text((outcome.stderr or outcome.stdout).strip()[-300:])
+                    )
+                    self.error_reason = self.error_reason or record.detail
+                    return
             # Orca registers a worktree for a repository; the exported copy is
             # not one until this makes it one.
             for index, argv in enumerate(
@@ -827,6 +854,42 @@ class _Cycle:
                     )
                 else:
                     self.error_reason = self.error_reason or worker_record.detail
+
+    def _toolchain(self) -> None:
+        """Establish which Claude Code the environment runs, and which one ran.
+
+        The provisioning steps say what was installed. They cannot say what the
+        agent was, because the agent is spawned by the application rather than
+        by this runner, and it resolves its own name through the search path
+        that application holds. So the environment is asked directly, and the
+        answer is compared to the pin rather than printed.
+        """
+        assert self.handle is not None
+        with self.phase("toolchain") as record:
+            resolved = self.execute(
+                toolchain.resolution_argv(toolchain.AGENT_PROGRAM),
+                timeout=min(120, self.config.timeout_seconds),
+            )
+            record.commands.append(resolved.to_record())
+            seen = self.execute(
+                toolchain.process_argv(self.handle.home_path),
+                timeout=min(120, self.config.timeout_seconds),
+            )
+            record.commands.append(seen.to_record())
+            judged = toolchain.judge(
+                program=toolchain.AGENT_PROGRAM,
+                pinned=self.config.claude_code_version,
+                resolution=toolchain.parse_resolution(resolved.stdout),
+                agent_binaries=toolchain.running(
+                    toolchain.parse_processes(seen.stdout), toolchain.AGENT_PROGRAM
+                ),
+            )
+            self.exporter.write_json("toolchain.json", judged.to_document())
+            record.status = judged.status
+            record.detail = judged.detail
+            self.log.say(f"toolchain: {judged.detail}")
+            if judged.status is PhaseStatus.BLOCKED:
+                self.blocked_reason = self.blocked_reason or judged.detail
 
     def _gui_mode(self) -> str:
         """Which screen this environment's application is pointed at.

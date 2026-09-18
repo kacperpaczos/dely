@@ -36,6 +36,10 @@ RED   an-unobserved-start-still-waits                          A dispatch the pl
 RED   unverifiable-is-not-failed                               A dispatch the plane cannot judge settles unknown, not error
 RED   the-request-is-not-the-run                               The Run identifier is read from the Run, not from the request
 RED   provisioning-comes-first                                 Provisioning runs before anything that needs what it installs
+RED   a-failed-provisioning-step-stops-the-run                 A provisioning step that exited non-zero leaves an environment carrying something other than what the run pinned
+RED   the-environments-own-toolchain-wins-the-name             A box that inherits the host's search path runs the operator's build of every tool it installed for itself
+RED   the-toolchain-is-compared-not-printed                    A version that is printed and never compared reads the same whatever was installed
+RED   an-agent-that-could-not-be-read-is-not-a-pass            A run whose agent process had already gone knows nothing about what the agent ran, and must not report that it does
 RED   the-copy-is-a-repository                                 The project copy is made into a repository Orca can register
 RED   metadata-is-not-the-change                               Repository metadata stays out of the patch
 RED   the-same-path-is-not-the-same-file                       An environment with its own Orca at the host's path is not the host's
@@ -103,4 +107,4 @@ RED   a-lease-with-no-live-owner-says-what-its-run-left        The lease is wher
 RED   nothing-is-discarded-while-the-run-may-be-alive          State is removed because the run is over, never because nobody checked; a lease with a live owner, a container or a domain still on the host each mean it is not
 RED   a-question-this-host-could-not-ask-is-not-an-answer      `resource_exists` returns False both for a domain that is gone and for a libvirt this host cannot reach, and removing state on the second is removing it blind
 
-all 104 counterexamples discriminated
+all 108 counterexamples discriminated

@@ -10,6 +10,7 @@ That is an identifier of the host leaking into the environment, and one of the
 leaked values is a token.
 """
 
+import shutil
 import unittest
 
 from cycle_runner import isolate, proc
@@ -62,6 +63,77 @@ class ScrubbedArgvTest(unittest.TestCase):
 
     def test_the_prefixes_are_named_and_include_the_session_handle(self):
         self.assertIn("ORCA_", isolate.LEAKING_PREFIXES)
+
+
+class OwnToolchainFirstTest(unittest.TestCase):
+    """The environment's own installation has to win a bare program name.
+
+    Observed on a real box: it unpacked the pinned node into /usr/local and
+    then printed the operator's node, because Distrobox mounts the host home
+    and the inherited search path opens with directories inside it. The same
+    ordering decided which Claude Code the execution plane launched, which is
+    not a cosmetic difference.
+
+    The decoy below shadows a real system program, so this fails for the same
+    reason the box did rather than by inspecting a string.
+    """
+
+    def decoy(self, name: str) -> str:
+        import os
+        import tempfile
+
+        directory = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, directory, True)
+        planted = os.path.join(directory, name)
+        with open(planted, "w", encoding="utf-8") as handle:
+            handle.write("#!/bin/sh\nprintf the-decoy\n")
+        os.chmod(planted, 0o755)
+        return directory
+
+    def test_a_shadowing_binary_earlier_on_the_path_does_not_win(self):
+        directory = self.decoy("uname")
+        outcome = proc.run(
+            isolate.without_host_session(["sh", "-c", "uname"]),
+            timeout=30,
+            context="host",
+            env={"PATH": f"{directory}:/usr/bin:/bin"},
+        )
+        self.assertEqual(outcome.exit_code, 0)
+        self.assertNotIn("the-decoy", outcome.stdout)
+
+    def test_the_shadowed_directory_is_still_reachable(self):
+        """Prepending, not replacing: the mounted home carries the credential."""
+        directory = self.decoy("uname")
+        outcome = proc.run(
+            isolate.without_host_session(["sh", "-c", 'printf %s "$PATH"']),
+            timeout=30,
+            context="host",
+            env={"PATH": f"{directory}:/usr/bin"},
+        )
+        self.assertTrue(outcome.stdout.startswith("/usr/local/sbin:/usr/local/bin:"))
+        self.assertIn(directory, outcome.stdout)
+
+    def test_an_empty_inherited_path_gains_no_trailing_separator(self):
+        """A trailing separator is the working directory, on the search path."""
+        self.assertEqual(
+            isolate.own_toolchain_first(""), ":".join(isolate.OWN_DIRECTORIES)
+        )
+        self.assertFalse(isolate.own_toolchain_first("").endswith(":"))
+
+    def test_the_helper_and_the_script_agree_on_the_order(self):
+        """The name a reader checks and the script a run uses are one rule.
+
+        The inherited path keeps a directory holding a shell, because this
+        launches one; what is being compared is the order, not the contents.
+        """
+        inherited = "/bin:/opt/somewhere"
+        outcome = proc.run(
+            isolate.without_host_session(["sh", "-c", 'printf %s "$PATH"']),
+            timeout=30,
+            context="host",
+            env={"PATH": inherited},
+        )
+        self.assertEqual(outcome.stdout, isolate.own_toolchain_first(inherited))
 
 
 class AdaptersScrubTest(unittest.TestCase):

@@ -14,7 +14,16 @@ from typing import Mapping, Sequence
 import hashlib
 import json
 
-from cycle_runner import display, firstrun, probe, proc, review, screenshot, skills
+from cycle_runner import (
+    display,
+    firstrun,
+    probe,
+    proc,
+    review,
+    screenshot,
+    skills,
+    toolchain,
+)
 from cycle_runner.adapters.base import (
     BackendAdapter,
     DestroyReport,
@@ -171,6 +180,10 @@ class FakeAdapter(BackendAdapter):
         still_owed: bool = False,
         panel_switch_refused: bool = False,
         panel_never_moves: bool = False,
+        toolchain_binary: str = "/usr/local/bin/claude",
+        toolchain_version: str = "pinned-by-the-operator",
+        toolchain_shadow: str = "",
+        agent_process_gone: bool = False,
     ):
         self.root = Path(root)
         self.skill_answers = dict(skill_answers or {})
@@ -184,6 +197,14 @@ class FakeAdapter(BackendAdapter):
         # where it was.
         self.panel_switch_refused = panel_switch_refused
         self.panel_never_moves = panel_never_moves
+        # What a bare `claude` finds in this environment, what it says it is,
+        # and what else the same search path could have reached. The shadow is
+        # the whole point of the probe: an environment with only one candidate
+        # answers the same whether the ordering was ever fixed.
+        self.toolchain_binary = toolchain_binary
+        self.toolchain_version = toolchain_version
+        self.toolchain_shadow = toolchain_shadow
+        self.agent_process_gone = agent_process_gone
         self.release_leaves_the_terminal = release_leaves_the_terminal
         self.still_owed = still_owed
         self.unacknowledged: str | None = None
@@ -421,6 +442,25 @@ class FakeAdapter(BackendAdapter):
             (self.project / "evidence.txt").write_text(self.marker, encoding="utf-8")
         return reply
 
+    def _resolution(self) -> str:
+        """Answer as the environment's own search path would."""
+        lines = [f"selected={self.toolchain_binary}"]
+        if self.toolchain_binary:
+            lines.append(f"selected_version={self.toolchain_version}")
+            lines.append(f"reachable={self.toolchain_binary}")
+        if self.toolchain_shadow:
+            lines.append(f"reachable={self.toolchain_shadow}")
+        return "\n".join(lines) + "\n"
+
+    def _agent_processes(self) -> str:
+        """Answer as this run's own processes would, or say there are none."""
+        if self.agent_process_gone or not self.toolchain_binary:
+            return "examined=0\n"
+        return (
+            f"process={self.toolchain_binary}\t{self.toolchain_binary}\n"
+            "examined=1\n"
+        )
+
     def _review(self) -> None:
         """Write the verdict a reviewer would have written."""
         if self.review_verdict is None:
@@ -577,6 +617,12 @@ class FakeAdapter(BackendAdapter):
         if probe.PROBE_SCRIPT in joined:
             self.calls.append("probe")
             return self._outcome(argv, 0, self._snapshot(), "")
+        if toolchain.RESOLUTION_SCRIPT in joined:
+            self.calls.append("toolchain-resolution")
+            return self._outcome(argv, 0, self._resolution(), "")
+        if toolchain.PROCESS_SCRIPT in joined:
+            self.calls.append("toolchain-processes")
+            return self._outcome(argv, 0, self._agent_processes(), "")
         # Before the dispatch branch: these are orchestration commands too, and
         # they are about the terminal the plane counts rather than the Task.
         if "worker-list" in joined:

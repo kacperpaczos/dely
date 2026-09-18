@@ -100,6 +100,16 @@ ORCA_EMPTY_DELIVERY = (
     '{"id": "request-fake", "ok": true, "result": {"messages": [], "count": 0}}'
 )
 
+#: What the runtime answers when it is asked to bring a terminal's panel to
+#: the front: the handle it moved to, the tab it belongs to, and whether the
+#: window actually navigated. The last is the field worth faking separately,
+#: because a switch that exits zero having moved nothing is how this fails in
+#: a real environment and it is indistinguishable from success by exit code.
+ORCA_SWITCH_REPLY = (
+    '{"ok": true, "result": {"focus": {"handle": "%s", "tabId": "tab-fake", '
+    '"worktreeId": "repo::project", "navigated": %s}}}'
+)
+
 #: The handle of the coordinator's own terminal. It is never a worker row and
 #: nothing here may ever release it: `worker-release` closes only the agent
 #: terminal a dispatch owns, and a fake that forgot that would let the runner
@@ -159,6 +169,8 @@ class FakeAdapter(BackendAdapter):
         release_fails: bool = False,
         release_leaves_the_terminal: bool = False,
         still_owed: bool = False,
+        panel_switch_refused: bool = False,
+        panel_never_moves: bool = False,
     ):
         self.root = Path(root)
         self.skill_answers = dict(skill_answers or {})
@@ -167,6 +179,11 @@ class FakeAdapter(BackendAdapter):
         # terminal per dispatch, its state, and whether it still exists.
         self.worker_terminals: dict[str, dict[str, object]] = {}
         self.release_fails = release_fails
+        # The two ways asking for a panel goes wrong: the runtime refuses the
+        # command outright, and the runtime accepts it and the window stays
+        # where it was.
+        self.panel_switch_refused = panel_switch_refused
+        self.panel_never_moves = panel_never_moves
         self.release_leaves_the_terminal = release_leaves_the_terminal
         self.still_owed = still_owed
         self.unacknowledged: str | None = None
@@ -630,6 +647,13 @@ class FakeAdapter(BackendAdapter):
             self.calls.append("orca-status")
             up = self.orca_present and self.runtime_ready and self.app_started
             return self._outcome(argv, 0, ORCA_STATUS_REPLY if up else ORCA_STATUS_DOWN, "")
+        if "terminal switch" in joined:
+            self.calls.append("terminal-switch")
+            if self.panel_switch_refused:
+                return self._outcome(argv, 1, "", "terminal_exited")
+            handle = self._flag(joined, "--terminal") or ""
+            moved = "false" if self.panel_never_moves else "true"
+            return self._outcome(argv, 0, ORCA_SWITCH_REPLY % (handle, moved), "")
         if "terminal create" in joined:
             self.calls.append("terminal-create")
             if self.terminal_refused:

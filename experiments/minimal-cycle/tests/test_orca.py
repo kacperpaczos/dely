@@ -248,3 +248,82 @@ class CoordinatorTerminalIsInsideTest(unittest.TestCase):
             [argv for argv in environment.seen if "send" in " ".join(argv)],
             "a run that names no machine should ask no question",
         )
+
+
+class Reply:
+    """One command's outcome, as much of it as the judgement reads."""
+
+    def __init__(self, *, ok=True, stdout="", stderr=""):
+        self.ok = ok
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+def focus_reply(handle="terminal-fake-1", navigated=True):
+    return json.dumps(
+        {
+            "ok": True,
+            "result": {
+                "focus": {
+                    "handle": handle,
+                    "tabId": "tab-fake",
+                    "worktreeId": "repo::project",
+                    "navigated": navigated,
+                }
+            },
+        }
+    )
+
+
+class PanelRevealTest(unittest.TestCase):
+    """A terminal the runtime owns is not a terminal the window draws.
+
+    The command is the application's own, addressed by the handle the dispatch
+    already returned, and its receipt carries the one field that separates a
+    panel that was drawn from a command that merely succeeded.
+    """
+
+    def test_the_switch_names_the_terminal_and_asks_for_a_receipt(self):
+        self.assertEqual(
+            orca.switch_argv("terminal-fake-1"),
+            ["orca", "terminal", "switch", "--terminal", "terminal-fake-1", "--json"],
+        )
+
+    def test_a_window_that_moved_is_a_panel_that_was_drawn(self):
+        entry = orca.judge_switch(
+            "reviewer", "terminal-fake-2", Reply(stdout=focus_reply("terminal-fake-2"))
+        )
+        self.assertEqual(entry["role"], "reviewer")
+        self.assertEqual(entry["terminal"], "terminal-fake-2")
+        self.assertTrue(entry["navigated"])
+        self.assertIn("workspace", entry["detail"])
+
+    def test_a_switch_that_succeeded_without_moving_the_window_is_not_a_panel(self):
+        """The failure this exists to catch: exit zero and an empty state."""
+        entry = orca.judge_switch(
+            "implementer",
+            "terminal-fake-1",
+            Reply(stdout=focus_reply(navigated=False)),
+        )
+        self.assertFalse(entry["navigated"])
+        self.assertIn("did not move", entry["detail"])
+
+    def test_a_refused_switch_says_what_the_runtime_said(self):
+        entry = orca.judge_switch(
+            "implementer",
+            "terminal-fake-1",
+            Reply(ok=False, stderr="terminal_exited"),
+        )
+        self.assertFalse(entry["navigated"])
+        self.assertIn("terminal_exited", entry["detail"])
+
+    def test_an_answer_that_names_no_terminal_is_not_read_as_one(self):
+        entry = orca.judge_switch("reviewer", "terminal-fake-2", Reply(stdout="ok\n"))
+        self.assertFalse(entry["navigated"])
+        self.assertIn("nothing that names a terminal", entry["detail"])
+
+    def test_the_receipt_is_read_from_the_result_rather_than_the_envelope(self):
+        reported = orca.parse_switch(focus_reply("terminal-fake-2"))
+        self.assertEqual(reported["handle"], "terminal-fake-2")
+        self.assertEqual(reported["tab"], "tab-fake")
+        self.assertTrue(reported["navigated"])

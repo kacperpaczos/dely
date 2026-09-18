@@ -29,6 +29,15 @@ nothing else, which is why the two are judged apart.
 was never built with, an image that never reached the host: each is recorded
 with its reason, and none of them stops a run. Nothing the runner claims rests
 on a picture, so a missing one cannot be allowed to cost a cycle.
+
+**And a clear screen is not a drawn panel.** Answering the application's own
+first-run questions removed what covered the window and revealed a second
+cause underneath: a run selects no workspace, and workspace selection is what
+mounts a terminal panel. So the agents' terminals were live, counted in the
+status bar and listed in the sidebar, while the centre of every frame was the
+application's empty state. The panels are asked for by name before the last
+picture — see `orca.switch_argv` — and what the window answered is recorded
+beside the image, because an unasked frame and a refused one look the same.
 """
 
 from __future__ import annotations
@@ -257,17 +266,30 @@ def judge(
     )
 
 
-def record(display: str, captures: Sequence[Capture]) -> ScreenshotRecord:
+def record(
+    display: str,
+    captures: Sequence[Capture],
+    revealed: Sequence[Mapping[str, Any]] = (),
+) -> ScreenshotRecord:
     """Turn the attempts into the record the run exports.
 
     A capture that failed is a capture that failed and nothing more. This
     record is the picture of the panels; no phase consults its status, and a
     run that could not take one is not a worse run than one that did.
+
+    `revealed` says what was asked to be on screen before the last picture was
+    taken, one entry per agent terminal, and whether the window actually moved
+    for it. It is carried here rather than beside the dispatch because it
+    explains this image and nothing else: a frame showing the application's
+    empty state and a frame showing an agent's panel differ by exactly these
+    rows, and without them a reader cannot tell a run that never asked from a
+    run that asked and was refused.
     """
     if not captures:
         return ScreenshotRecord(
             status=PhaseStatus.SKIPPED,
             display=display,
+            revealed=[dict(entry) for entry in revealed],
             detail="this run took no picture of its own screen",
         )
     documents = [capture.to_document() for capture in captures]
@@ -277,6 +299,7 @@ def record(display: str, captures: Sequence[Capture]) -> ScreenshotRecord:
             status=PhaseStatus.OK,
             display=display,
             captures=documents,
+            revealed=[dict(entry) for entry in revealed],
             detail=(
                 f"{len(landed)} picture(s) of the screen this run created, each "
                 "taken from outside the application: "
@@ -290,6 +313,7 @@ def record(display: str, captures: Sequence[Capture]) -> ScreenshotRecord:
         status=PhaseStatus.FAILED,
         display=display,
         captures=documents,
+        revealed=[dict(entry) for entry in revealed],
         detail=(
             f"{len(landed)} of {len(captures)} picture(s) reached the host, and "
             f"nothing this run claims rests on the rest — {unresolved}"

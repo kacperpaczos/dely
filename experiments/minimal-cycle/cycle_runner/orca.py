@@ -14,6 +14,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol, Sequence
 
+from . import redact
+
 
 class Environment(Protocol):
     """The part of a backend adapter this module needs."""
@@ -287,3 +289,87 @@ def open_coordinator_terminal(
                 "the coordinator terminal is not in this environment: " + detail
             )
     return handle
+
+
+#: Bringing an agent's panel on screen, which is a separate act from the
+#: dispatch that opened its terminal.
+#:
+#: A terminal exists in the runtime whether or not anything is drawn for it. A
+#: run that registers the project copy, opens a coordinator terminal and
+#: dispatches two agents selects no workspace, and the centre pane is mounted
+#: by workspace selection: every terminal was live, the status bar counted
+#: them, the sidebar held the project and its worktree — and the window still
+#: showed the empty state asking somebody to pick a workspace from the sidebar.
+#: Nothing covered the panels. They were not being drawn.
+#:
+#: `terminal switch` is the command that answers it, and it answers more than
+#: its own summary says. The runtime's focus path reveals the session through
+#: the window, and the window's handler for that reveal selects the worktree
+#: the terminal belongs to before it activates the tab. So one switch per agent
+#: terminal both mounts the workspace and decides which agent's panel is drawn
+#: in it. One tab is foreground at a time, so the last switch names the panel
+#: the picture holds and the rest are its neighbours in the tab strip.
+#:
+#: This is a command the application ships for exactly this, addressed by the
+#: handle the dispatch already returned. It is not a coordinate on a screen and
+#: it is not a key the runner invented: the two alternatives were a synthetic
+#: click, which proves a pixel, and a seeded profile field, which cannot be
+#: written because the selection is keyed by a repository identifier the
+#: application does not mint until after the only launch there is.
+SWITCH_RECEIPT = "focus"
+
+#: The field of that receipt worth reading. `navigated` is the runtime's own
+#: answer to "did the window move", and it is false in every way this can fail
+#: while still exiting zero: a terminal with no live process, a runtime with no
+#: window attached to it, and a switch a later one superseded. A command that
+#: succeeded having navigated nothing is exactly the outcome a picture would
+#: otherwise be blamed for.
+NAVIGATED = "navigated"
+
+
+def switch_argv(handle: str) -> list[str]:
+    """Return the command that brings one terminal's panel to the front."""
+    return ["orca", "terminal", "switch", "--terminal", str(handle), "--json"]
+
+
+def parse_switch(stdout: str) -> dict[str, Any]:
+    """Return what the runtime said it did with the window."""
+    document = _document(stdout) or {}
+    focus = ((document.get(SWITCH_RECEIPT)) or (document.get("result") or {}).get(
+        SWITCH_RECEIPT
+    )) or {}
+    return {
+        "handle": str(focus.get("handle") or ""),
+        "tab": str(focus.get("tabId") or ""),
+        "navigated": bool(focus.get(NAVIGATED)),
+    }
+
+
+def judge_switch(role: str, handle: str, outcome: Any) -> dict[str, Any]:
+    """Turn one switch into the record of it: what moved, or why nothing did.
+
+    A panel that was not drawn is recorded as a panel that was not drawn. This
+    gates nothing — the picture is evidence and never a condition — but a run
+    that asked for a panel and did not get one must not read afterwards as a
+    run whose picture is simply uninteresting.
+    """
+    entry = {"role": role, "terminal": str(handle), "navigated": False, "detail": ""}
+    stdout = getattr(outcome, "stdout", "") or ""
+    stderr = getattr(outcome, "stderr", "") or ""
+    if not getattr(outcome, "ok", False):
+        entry["detail"] = redact.text(
+            "the runtime refused to bring this panel forward: "
+            + ((stderr or stdout).strip()[:200] or "it said nothing")
+        )
+        return entry
+    reported = parse_switch(stdout)
+    if not reported["handle"]:
+        entry["detail"] = "the switch answered nothing that names a terminal"
+        return entry
+    entry["navigated"] = reported["navigated"]
+    entry["detail"] = (
+        "the window selected this terminal's workspace and drew its panel"
+        if reported["navigated"]
+        else "the command was accepted and the window did not move"
+    )
+    return entry

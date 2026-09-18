@@ -313,6 +313,7 @@ class ScreenshotRecord:
     status: PhaseStatus = PhaseStatus.SKIPPED
     display: str = ""
     captures: list[dict[str, Any]] = field(default_factory=list)
+    revealed: list[dict[str, Any]] = field(default_factory=list)
     detail: str = "not attempted"
 
     def to_document(self) -> dict[str, Any]:
@@ -320,6 +321,7 @@ class ScreenshotRecord:
             "status": self.status.value,
             "display": self.display,
             "captures": [dict(entry) for entry in self.captures],
+            "revealed": [dict(entry) for entry in self.revealed],
             "detail": self.detail,
         }
 

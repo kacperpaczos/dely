@@ -301,6 +301,7 @@ class _Cycle:
         self.registry_before: dict[str, Any] = {}
         self.implementer: Any = None
         self.captures: list[screenshot.Capture] = []
+        self.revealed: list[dict[str, Any]] = []
 
     # -- plumbing ---------------------------------------------------------
 
@@ -903,6 +904,40 @@ class _Cycle:
         environ = os.environ if self.environ is None else self.environ
         return str(environ.get("DISPLAY", "") or "")
 
+    def _reveal_agent_panels(self, record) -> None:
+        """Ask the window to draw the agents' terminals, in dispatch order.
+
+        One switch per agent terminal, addressed by the handle its own dispatch
+        returned. Each one selects the workspace that terminal belongs to, so
+        the first is what mounts a panel at all; the application foregrounds one
+        tab at a time, so the last names the panel the picture holds and the
+        others are its neighbours in the tab strip. Dispatch order puts the
+        reviewer last, which is the agent this moment is named after.
+
+        Nothing here gates anything. A refused switch is recorded as a refused
+        switch and the picture is taken regardless — an image of the empty state
+        is still the truth about this run's screen, and it is worth more
+        alongside the reason the panel is missing than it is alone.
+        """
+        if self.handle is None:
+            return
+        agents = (
+            ("implementer", self.implementer),
+            ("reviewer", self.result.reviewer),
+        )
+        for role, worker_record in agents:
+            handle = getattr(worker_record, "terminal", None)
+            if not handle:
+                continue
+            outcome = self.execute(
+                orca.switch_argv(handle),
+                timeout=min(120, self.config.timeout_seconds),
+            )
+            record.commands.append(outcome.to_record())
+            entry = orca.judge_switch(role, handle, outcome)
+            self.revealed.append(entry)
+            self.log.say(f"panel {role}: {entry['detail']}")
+
     def _capture_screen(self, record, moment: str) -> None:
         """Photograph this run's own screen, so the panels can be looked at.
 
@@ -931,7 +966,7 @@ class _Cycle:
                 moment=moment, source=source, display=screen, failure=why
             )
         self.captures.append(capture)
-        self.result.screenshot = screenshot.record(screen, self.captures)
+        self.result.screenshot = screenshot.record(screen, self.captures, self.revealed)
         self.exporter.write_json("screenshot.json", self.result.screenshot.to_document())
         self.log.say(f"screenshot {moment}: {capture.detail}")
 
@@ -1001,8 +1036,12 @@ class _Cycle:
                 if outcome is PhaseStatus.FAILED:
                     self.error_reason = self.error_reason or self.result.review.detail
             # Both agents have a terminal by now, so this is the one moment at
-            # which a single image holds both of them. A review that went wrong
-            # is exactly when somebody will want to look.
+            # which both of them are alive in a single frame. A review that went
+            # wrong is exactly when somebody will want to look. Asking for the
+            # panels comes first: a terminal the runtime owns is not a terminal
+            # the window draws, and until something selects the workspace the
+            # picture is of an empty state with both agents behind it.
+            self._reveal_agent_panels(record)
             self._capture_screen(record, screenshot.AFTER_REVIEW)
 
     def _handoff(self, record) -> PhaseStatus | None:

@@ -1,0 +1,41 @@
+{
+  "captures": [
+    {
+      "artifact": "screenshots/runtime-ready.png",
+      "detail": "89780 byte(s) of the screen :99, taken by the x-server rather than by the application",
+      "display": ":99",
+      "moment": "runtime-ready",
+      "ok": true,
+      "sha256": "1a1c0069931c68b0575ba0ebd2b1c56fdbf3cc4b057ab43622c8b8f11f8a2e92",
+      "size_bytes": 89780,
+      "source": "x-server"
+    },
+    {
+      "artifact": "screenshots/after-review.png",
+      "detail": "215373 byte(s) of the screen :99, taken by the x-server rather than by the application",
+      "display": ":99",
+      "moment": "after-review",
+      "ok": true,
+      "sha256": "d63cf45eeb3a558cca89867aefbb84f74c50734cd45710a4c7a8c0e2221cb9ed",
+      "size_bytes": 215373,
+      "source": "x-server"
+    }
+  ],
+  "detail": "2 picture(s) of the screen this run created, each taken from outside the application: runtime-ready (screenshots/runtime-ready.png), after-review (screenshots/after-review.png)",
+  "display": ":99",
+  "revealed": [
+    {
+      "detail": "the window selected this terminal's workspace and drew its panel",
+      "navigated": true,
+      "role": "implementer",
+      "terminal": "term_cde3cc37-aa99-44b3-8bfb-280470771896"
+    },
+    {
+      "detail": "the window selected this terminal's workspace and drew its panel",
+      "navigated": true,
+      "role": "reviewer",
+      "terminal": "term_e1c0c39c-7e3d-4eca-a4b6-b654d88ce1eb"
+    }
+  ],
+  "status": "OK"
+}

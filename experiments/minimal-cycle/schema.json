@@ -704,6 +704,32 @@
         "display": {
           "type": "string"
         },
+        "revealed": {
+          "items": {
+            "properties": {
+              "detail": {
+                "type": "string"
+              },
+              "navigated": {
+                "type": "boolean"
+              },
+              "role": {
+                "type": "string"
+              },
+              "terminal": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "role",
+              "terminal",
+              "navigated",
+              "detail"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
         "status": {
           "enum": [
             "OK",
@@ -719,6 +745,7 @@
         "status",
         "display",
         "captures",
+        "revealed",
         "detail"
       ],
       "type": "object"

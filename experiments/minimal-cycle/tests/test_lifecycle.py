@@ -16,6 +16,7 @@ from cycle_runner import (
     lifecycle,
     status,
 )
+from tests import fakes
 from tests.fakes import FakeAdapter
 from tests.test_config import minimal_document
 
@@ -953,6 +954,105 @@ class ScreenCaptureTest(CycleTestCase):
         self.assertEqual([entry["source"] for entry in captures], ["hypervisor"] * 2)
         self.assertTrue(captures[0]["artifact"].endswith(".ppm"))
         self.assertTrue(self.artifact(captures[0]["artifact"]).is_file())
+
+
+class AgentPanelsTest(CycleTestCase):
+    """The picture is of a window that was asked to draw the agents' panels.
+
+    Closing the application's own first-run questions cleared the frame and
+    uncovered the real cause: nothing selects a workspace, and workspace
+    selection is what mounts a terminal panel. The terminals were live the
+    whole time — the runtime counted them and the sidebar listed them — and the
+    centre of the frame was the empty state asking somebody to pick one.
+    """
+
+    def cycle(self, **adapter_options):
+        adapter = FakeAdapter(
+            self.state / RUN_ID, host_project=self.repo, **adapter_options
+        )
+        return adapter, lifecycle.run_cycle(
+            run_config=self.make_config(),
+            adapter=adapter,
+            run_id=RUN_ID,
+            host_home=self.host_home,
+            environ={},
+            tool_versions={"runner": "one"},
+        )
+
+    @staticmethod
+    def switches(outcome):
+        """Every switch this run sent, as argv, in the order it sent them."""
+        return [
+            list(command.argv)
+            for phase in outcome.run_result.phases
+            for command in phase.commands
+            if "switch" in " ".join(str(item) for item in command.argv)
+        ]
+
+    def test_each_agents_own_terminal_is_asked_for_by_its_dispatchs_handle(self):
+        _, outcome = self.cycle()
+        self.assertEqual(
+            [argv[-2] for argv in self.switches(outcome)],
+            ["terminal-fake-1", "terminal-fake-2"],
+        )
+
+    def test_the_coordinators_terminal_is_never_the_one_brought_forward(self):
+        """It is Control's own; a picture of it holds neither agent."""
+        _, outcome = self.cycle()
+        for argv in self.switches(outcome):
+            self.assertNotIn(fakes.COORDINATOR_HANDLE, argv)
+
+    def test_the_panels_are_asked_for_before_the_picture_is_taken(self):
+        adapter, _ = self.cycle()
+        self.assertEqual(adapter.calls.count("terminal-switch"), 2)
+        last_picture = len(adapter.calls) - 1 - adapter.calls[::-1].index("screenshot")
+        asked = [
+            index
+            for index, name in enumerate(adapter.calls)
+            if name == "terminal-switch"
+        ]
+        self.assertTrue(
+            all(index < last_picture for index in asked),
+            "a panel asked for after the picture is a panel the picture misses",
+        )
+
+    def test_the_record_says_the_window_moved_for_each_agent(self):
+        _, outcome = self.cycle()
+        revealed = outcome.run_result.screenshot.revealed
+        self.assertEqual([entry["role"] for entry in revealed], ["implementer", "reviewer"])
+        self.assertTrue(all(entry["navigated"] for entry in revealed), revealed)
+
+    def test_a_switch_that_moved_nothing_is_not_recorded_as_a_drawn_panel(self):
+        """Exit zero and an empty state is the failure worth telling apart."""
+        _, outcome = self.cycle(panel_never_moves=True)
+        revealed = outcome.run_result.screenshot.revealed
+        self.assertEqual(len(revealed), 2)
+        self.assertFalse(any(entry["navigated"] for entry in revealed), revealed)
+        for entry in revealed:
+            self.assertIn("did not move", entry["detail"])
+        self.assertEqual(outcome.run_result.status, status.RunStatus.SETTLED)
+
+    def test_a_refused_switch_is_recorded_and_costs_the_run_nothing(self):
+        _, outcome = self.cycle(panel_switch_refused=True)
+        revealed = outcome.run_result.screenshot.revealed
+        self.assertFalse(any(entry["navigated"] for entry in revealed), revealed)
+        self.assertIn("refused", revealed[0]["detail"])
+        self.assertEqual(
+            outcome.run_result.status,
+            status.RunStatus.SETTLED,
+            outcome.run_result.failure_classification,
+        )
+        self.assertTrue(outcome.run_result.screenshot.captures)
+
+    def test_what_was_asked_for_is_exported_beside_the_image(self):
+        _, outcome = self.cycle()
+        document = json.loads(
+            self.artifact("screenshot.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            [entry["terminal"] for entry in document["revealed"]],
+            ["terminal-fake-1", "terminal-fake-2"],
+        )
 
 
 class PluginSkillsReachTheAgentTest(SkillsGateTest):

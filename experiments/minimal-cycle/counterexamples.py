@@ -1120,11 +1120,11 @@ done""",
         ),
         path="cycle_runner/lifecycle.py",
         original="""        self.captures.append(capture)
-        self.result.screenshot = screenshot.record(screen, self.captures)""",
+        self.result.screenshot = screenshot.record(screen, self.captures, self.revealed)""",
         replacement="""        self.captures.append(capture)
         if not capture.ok:
             self.blocked_reason = self.blocked_reason or capture.detail
-        self.result.screenshot = screenshot.record(screen, self.captures)""",
+        self.result.screenshot = screenshot.record(screen, self.captures, self.revealed)""",
         instruments=("tests.test_lifecycle.ScreenCaptureTest",),
     ),
     Counterexample(
@@ -1139,6 +1139,37 @@ done""",
         instruments=(
             "tests.test_display.VerdictTest",
             "tests.test_lifecycle.DisplayGateTest",
+        ),
+    ),
+    Counterexample(
+        name="a-live-terminal-is-not-a-drawn-panel",
+        requirement=(
+            "Nothing selects a workspace, and workspace selection is what "
+            "mounts a terminal panel; a run that dispatches two agents and "
+            "asks for neither panel photographs the application's empty state "
+            "with both agents live behind it"
+        ),
+        path="cycle_runner/lifecycle.py",
+        original="""            self._reveal_agent_panels(record)
+            self._capture_screen(record, screenshot.AFTER_REVIEW)""",
+        replacement="""            self._capture_screen(record, screenshot.AFTER_REVIEW)""",
+        instruments=("tests.test_lifecycle.AgentPanelsTest",),
+    ),
+    Counterexample(
+        name="a-switch-that-exits-zero-is-not-a-window-that-moved",
+        requirement=(
+            "The switch succeeds and the window stays where it was whenever "
+            "the terminal has no live process, no window is attached to the "
+            "runtime, or a later switch superseded this one; reading the exit "
+            "code instead of the receipt reports every one of those as a panel "
+            "that was drawn"
+        ),
+        path="cycle_runner/orca.py",
+        original='    entry["navigated"] = reported["navigated"]',
+        replacement='    entry["navigated"] = True',
+        instruments=(
+            "tests.test_orca.PanelRevealTest",
+            "tests.test_lifecycle.AgentPanelsTest",
         ),
     ),
     Counterexample(

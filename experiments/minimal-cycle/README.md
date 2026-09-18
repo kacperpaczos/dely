@@ -150,12 +150,26 @@ asked again afterwards: an answer that is not empty is a coordinator ending its
 turn in debt, and it costs the run its status.
 
 Two orderings around that are worth stating. Both releases wait for the picture
-taken at the end of the review, because that picture is the only artifact in
-which both agents' panels exist at once — a deliberate deviation from disposing
+taken at the end of the review, because that is the one moment at which both
+agents' terminals are alive at once — a deliberate deviation from disposing
 immediately, and the debt is still paid inside the same turn. And the terminals
 are listed either side of the release, because a released terminal drops out of
 `orca terminal list` and a terminal whose panel is merely off screen does not.
 That comparison is the only thing here that tells the two apart.
+
+**A live terminal is not a drawn panel.** Closing the application's own
+first-run questions cleared the frame and uncovered a second cause underneath:
+the run selects no workspace, and workspace selection is what mounts a terminal
+panel. Every terminal was live, the status bar counted them and the sidebar
+listed the project and its worktree, while the centre of the frame was the empty
+state asking somebody to pick a workspace. So before that picture the run asks
+the application for each agent's panel by the handle that agent's own dispatch
+returned — `orca terminal switch`, which selects that terminal's workspace and
+then activates its tab. The application foregrounds one tab at a time, so the
+last switch names the panel the image holds and the other is its neighbour in
+the tab strip. What the receipt answered is exported beside the image, because a
+switch can exit zero having moved nothing, and an unasked frame and a refused
+one look identical.
 
 **The review is a second agent, not a second pane.** When the implementer
 settles, Control captures the diff inside the environment, takes its digest, and
@@ -191,7 +205,8 @@ $artifact_root/<run_id>/
                              name, the application's own among them
   admission.json             the slot this run held, and what else held one
   skills.json                each required skill, where it was and what it hashed to
-  screenshot.json            each picture of this run's own screen, and what it cost
+  screenshot.json            each picture of this run's own screen, what it cost,
+                             and which agent panels were asked for before the last one
   screenshots/               the images themselves, one per moment
   review.json                the handoff: the diff, the two agents, the verdict
   handoff-diff.patch         the diff the reviewer was given
@@ -417,12 +432,15 @@ the table with the tests each row runs. The recorded sweep is in
 | A capture is never pointed at the operator's own screen | case `a-capture-is-never-pointed-at-the-operators-screen` | `python3 counterexamples.py` |
 | An image that never reached the host is not a picture | case `an-image-that-never-reached-the-host-is-not-a-picture` | `python3 counterexamples.py` |
 | A capture that failed does not fail the run | case `a-failed-capture-is-not-a-failed-run` | `python3 counterexamples.py` |
+| A live terminal is not a drawn panel; the panels are asked for by name | case `a-live-terminal-is-not-a-drawn-panel` | `python3 counterexamples.py` |
+| A switch that exited zero is not a window that moved | case `a-switch-that-exits-zero-is-not-a-window-that-moved` | `python3 counterexamples.py` |
 | A checkout at the pinned commit is not a skill the agent can read | case `a-checkout-is-not-a-skill-the-agent-can-read` | `evidence/tool-image-with-skills/` |
 | The installed skills are the pinned bytes, not just the right names | case `the-installed-skills-are-the-pinned-bytes` | `evidence/tool-image-with-skills/` |
 | An install that names no revision cannot be pinned | case `an-install-that-names-no-revision-is-not-a-pin` | `python3 counterexamples.py` |
 | A built image freezes whichever tip it was built on | case `an-image-freezes-whichever-tip-it-was-built-on` | `python3 counterexamples.py` |
 | A branch is found where a clone actually keeps it | case `a-branch-is-found-where-a-clone-keeps-it` | `evidence/counterexamples.txt` |
 | A full cycle completes on the container backend, review and all | `./run-cycle run` on this host | `evidence/distrobox-reviewed-cycle/` |
+| An agent's panel is drawn in the window, not merely a terminal the runtime owns | `./run-cycle run` on this host | `evidence/distrobox-agent-panel/` |
 | A full cycle completes on the machine backend | `./run-cycle run` on this host | `evidence/vm-reviewed-cycle/` |
 | The guest's processor is the reason, tested both ways | the same run with `cpu_mode: default` | `evidence/vm-processor-control/` |
 | A session variable leaks by where its value points, not by its name | case `a-variable-leaks-by-where-it-points` | `evidence/counterexamples.txt` |
@@ -476,13 +494,16 @@ application rewrites its own environment block to set its process title and
 `/proc/<pid>/environ` then reads empty. The window check is what carries the
 claim; this only ever contradicts it.
 
-**That a real terminal was closed.** The disposition is exercised end to end
-against a fake that answers as the plane does: the argv, the outcomes
-`worker-release` may give, the debt query and the live-list comparison either
-side. Nothing here has released a terminal in a live Orca. Where the outcome
-sits in a real receipt, and whether a `release_pending` has completed by the
-time the debt is asked about again, are read from the command's own help and
-from one recorded `worker-list`, not observed.
+**That a `release_pending` ever completes.** Closing a terminal itself is no
+longer a fake's answer. Live runs have released both of their agents'
+terminals: the plane answered `released`, `worker-list` moved each dispatch
+from `reclaimable` to `released`, and the live list went from three terminals
+to the coordinator alone — which is a closure and not a disappearance, because
+a terminal whose panel is merely off screen stays in that list. What no run has
+produced is the other outcome. Every live release so far answered outright, so
+the `release_pending` branch, and whether such a release has completed by the
+time the debt is asked about again, are still read from the command's own help
+and exercised only against a fake that answers as it describes.
 
 **That a real credential ever passed through a provisioning log.** A stream
 artifact is redacted before it is bounded, and both halves of that are exercised
@@ -493,14 +514,13 @@ provisioning runs before any auth material is placed, so the list of forwarded
 values is empty while it runs. What is established is that the artifact would
 remove one; that a live run produced one to remove is not.
 
-**That the first-run wizard is actually gone from a screen.** The seed that
-closes it is written into the per-run profile before the application is
-started, and that ordering is read back from the environment at the instant of
-the launch. What no run has yet shown is the consequence: no capture has been
-taken since, so no image here holds the agents' panels rather than *"welcome to
-Orca"*. Until one does, this is a mechanism read out of the application's bundle
-and a write placed where the application will read it — not an observation that
-the window is clear.
+**Both agents' panels in one frame.** The application foregrounds one terminal
+tab at a time, so the picture holds the panel the last switch named and the
+other agent's tab beside it in the tab strip. Nothing on the command line moves
+a live terminal into another tab's layout, and the run does not fake one: it
+asks for each panel, records what the window answered for each, and photographs
+whichever it ended on. `evidence/distrobox-agent-panel/` is the frame that
+holds one of them, and says which.
 
 **Which profile a cold start selects.** The seed is written to
 `local-default`, because that is the profile the bundle's own factory mints.

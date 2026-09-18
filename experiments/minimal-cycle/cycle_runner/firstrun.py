@@ -8,13 +8,29 @@ the dispatch cannot answer, so the agent holds the task unsent and the
 execution plane reports a turn that never started — the same symptom as a
 worker that died, with none of the cause.
 
-The application the agents work inside asks one of its own. A freshly
+The application the agents work inside asks several of its own. A freshly
 provisioned environment opens Orca on its first-run wizard, modal over the
-whole window. That one does not block orchestration — a complete two-agent
-cycle was observed running from behind it — but it costs the run the only
-thing a picture of the screen is for: both frames of a settled run showed the
-wizard rather than the agents' panels. It is answered here because it is the
-same kind of question, asked of the same fresh home, at the same moment.
+whole window. Those do not block orchestration — a complete two-agent cycle
+was observed running from behind the wizard — but they cost the run the only
+thing a picture of the screen is for: every frame of a settled run showed an
+overlay rather than the agents' panels. They are answered here because they
+are the same kind of question, asked of the same fresh home, at the same
+moment, and decided by named fields in the same file.
+
+Closing the wizard uncovered the next three, and one of them was caused by
+the closure itself. The application decides whether a profile predates its
+analytics release by asking whether the profile file already exists when it
+starts; a seed written before the launch makes that answer yes, and a profile
+that predates the release with no recorded answer is owed the consent banner.
+So the first fix bought the wizard and sold a banner. The rest were simply
+next in a queue the wizard had been standing in front of.
+
+What makes this a short list rather than an endless one is that the
+application enumerates it. The tips are a fixed catalogue compiled into the
+bundle, and the bundle carries a single routine that closes the flow and
+marks the whole catalogue seen in one go. So the question is not "what else
+might appear" but "what does that catalogue contain", and it contains three
+entries, all seeded here.
 
 The answers are recorded state, not credentials. They are written here from
 what the configuration already says and from what the applications themselves
@@ -54,6 +70,52 @@ ONBOARDING_FLOW_VERSION = 4
 ONBOARDING_OUTCOME = "completed"
 ONBOARDING_LAST_STEP = 5
 
+#: The two other top-level keys of that same profile. The load path reads the
+#: file, strips a couple of retired entries, and spreads whatever object it
+#: finds under each of these over the application's own defaults without
+#: validating it — the same unguarded merge the onboarding seed already rides.
+UI_KEY = "ui"
+SETTINGS_KEY = "settings"
+
+#: The catalogue of first-run tips, and the key the application filters it by.
+#: The catalogue is a fixed array in the bundle, not something fetched, and the
+#: picker is one line: keep the tips whose id is in neither the seen set nor
+#: the completed set, and open the first survivor. So a seed naming every id in
+#: the catalogue leaves the picker nothing to return, and that is the whole
+#: difference between answering this overlay and answering only the one that
+#: happened to be first. Seeding just the tip a capture photographed would
+#: promote the next entry, and the capture after that would photograph that.
+FEATURE_TIPS_KEY = "featureTipsSeenIds"
+FEATURE_TIP_IDS = ("orca-cli", "cmd-j-palette", "voice-dictation")
+
+#: The repository-star prompt, and the pair of values the application itself
+#: writes when it decides the prompt is finished with. Every path that could
+#: raise it opens by returning on the first of them, so the first is the gate
+#: and the second is there to leave a consistent record rather than to cause
+#: anything. It is a toast rather than a modal, so it covers a corner of the
+#: window instead of all of it — which is a difference in how much of the
+#: capture it costs, not in whether it costs any.
+STAR_NAG_COMPLETED_KEY = "starNagCompleted"
+STAR_NAG_DEFERRED_KEY = "starNagDeferredUntil"
+STAR_NAG_COMPLETED = True
+STAR_NAG_DEFERRED_UNTIL = None
+
+#: The consent banner, and the two fields its one predicate reads: it appears
+#: for a profile that is marked as predating the analytics release and has no
+#: recorded answer. A per-run home is neither. The cohort is false because the
+#: bundle's own classifier reads exactly that value as a fresh install, and the
+#: answer is a refusal because a disposable environment provisioned by a runner
+#: has nobody in it who could have agreed to anything.
+#:
+#: The identifier the application keeps beside these is deliberately not
+#: written. Leaving it out is what makes the application mint its own on load,
+#: which is better than this runner inventing one: an identifier invented here
+#: would be a value that is neither a constant of the bundle nor a moment of
+#: this run, and the rule for this file is that it writes neither.
+TELEMETRY_KEY = "telemetry"
+TELEMETRY_EXISTED_BEFORE_RELEASE = False
+TELEMETRY_OPTED_IN = False
+
 # On `orca-profile-index.json`, the file beside the profiles that says which
 # one is selected: it is deliberately not written, and that is a decision
 # rather than an omission. Whether it must already exist for `local-default`
@@ -81,6 +143,12 @@ QUESTIONS = (
     "the permission mode the execution plane launches the agent with",
     "the application's own first-run wizard, which otherwise sits modal over "
     "the whole window and hides every agent panel from the screen capture",
+    "the application's catalogue of first-run tips, every entry of it, which "
+    "otherwise opens one modal per run in the same place the wizard was",
+    "the consent banner the seeded profile itself makes the application owe, "
+    "by looking to it like a profile that predates the analytics release",
+    "the repository-star prompt, which otherwise sits over the corner of the "
+    "window the right-hand agent panel is drawn in",
 )
 
 
@@ -137,6 +205,56 @@ def onboarding_document(*, closed_at_ms: int | None = None) -> dict[str, Any]:
     }
 
 
+def education_document() -> dict[str, Any]:
+    """Return the profile seed that answers the overlays behind the wizard.
+
+    Three values, each one the gate its overlay is decided by. The tip
+    catalogue is named in full rather than by the entry a capture happened to
+    show, because naming one entry promotes the next and buys a run exactly
+    one clean frame.
+
+    Nothing here records an interaction that did not happen. The application's
+    own routine for this also stamps a first-interaction time against each
+    feature it tracks; that is bookkeeping for its analytics, it gates none of
+    these overlays, and inventing it would be this runner writing history.
+    """
+    return {
+        FEATURE_TIPS_KEY: list(FEATURE_TIP_IDS),
+        STAR_NAG_COMPLETED_KEY: STAR_NAG_COMPLETED,
+        STAR_NAG_DEFERRED_KEY: STAR_NAG_DEFERRED_UNTIL,
+    }
+
+
+def telemetry_document() -> dict[str, Any]:
+    """Return the profile seed that answers the consent banner.
+
+    Both fields are constants, and the field the application would otherwise
+    invent for itself is left to it. The refusal is the honest answer as well
+    as the quiet one: nothing in a per-run home consented, so nothing in a
+    per-run home should be reporting.
+    """
+    return {
+        TELEMETRY_KEY: {
+            "existedBeforeTelemetryRelease": TELEMETRY_EXISTED_BEFORE_RELEASE,
+            "optedIn": TELEMETRY_OPTED_IN,
+        }
+    }
+
+
+def profile_document(*, closed_at_ms: int | None = None) -> dict[str, Any]:
+    """Return the whole profile seed: the wizard and everything behind it.
+
+    Three top-level keys, because the overlays are decided from three of them.
+    Each is merged over the application's defaults on load, so an omitted key
+    keeps the application's own value and only the named fields move.
+    """
+    return {
+        **onboarding_document(closed_at_ms=closed_at_ms),
+        UI_KEY: education_document(),
+        SETTINGS_KEY: telemetry_document(),
+    }
+
+
 def apply(
     *, run_config: RunConfig, adapter: BackendAdapter, handle: EnvironmentHandle
 ) -> FirstRunRecord:
@@ -156,7 +274,7 @@ def apply(
     for relative, document in (
         (STATE_RELATIVE, state_document(handle.project_path)),
         (SETTINGS_RELATIVE, settings_document(run_config)),
-        (PROFILE_RELATIVE, onboarding_document()),
+        (PROFILE_RELATIVE, profile_document()),
     ):
         adapter.write_file(
             str(home / relative), json.dumps(document, indent=2) + "\n", mode=0o600

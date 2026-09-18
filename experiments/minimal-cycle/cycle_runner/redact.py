@@ -31,6 +31,13 @@ _PRIVATE_KEY_BLOCK = re.compile(
     r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----"
 )
 
+#: The opening of a private key block, on its own and in bytes.
+#: `_PRIVATE_KEY_BLOCK` needs both ends because it removes what lies between
+#: them. Asking whether a *file* is key material needs only the opening, and
+#: needs it in bytes, because a key on disk is opened before anything has
+#: established that it is text at all.
+PRIVATE_KEY_OPENING = re.compile(rb"-----BEGIN [A-Z ]*PRIVATE KEY-----")
+
 _BEARER = re.compile(r"\bBearer\s+[A-Za-z0-9._\-+/=]+", re.IGNORECASE)
 
 _ASSIGNMENT = re.compile(
@@ -110,6 +117,16 @@ def carries_credential_shape(value: str) -> bool:
     if _PRIVATE_KEY_BLOCK.search(value) or _BEARER.search(value):
         return True
     return any(shape.search(value) for shape in _TOKEN_SHAPES)
+
+
+def carries_private_key(raw: bytes) -> bool:
+    """Report whether these bytes open a private key block.
+
+    Used to say what a directory holds, not to remove anything from a stream.
+    The question is answered from the bytes so that a key under a dull name is
+    still named as a key, and a file merely *called* `id_cycle` is not.
+    """
+    return bool(PRIVATE_KEY_OPENING.search(raw))
 
 
 def looks_secret_free(value: str) -> bool:

@@ -56,6 +56,8 @@ Two more commands exist for when a run does not end cleanly:
 ```bash
 ./run-cycle leases        --config <config>   # which run holds this host's slot
 ./run-cycle release       --config <config> --run-id <id>
+./run-cycle residue       --config <config>   # what a run that never finished left
+./run-cycle residue       --config <config> --run-id <id> --discard
 ./run-cycle host-registry --config <config>   # what the operator's own Orca knows
 ```
 
@@ -120,6 +122,20 @@ per-run paths — as bytes, so a repository entry, a worktree, the record that a
 terminal exists and a row in the orchestration store are all caught the same
 way. An entry naming the run makes the cleanup residue. Nothing here removes
 it: it is in somebody's own profile.
+
+**A run that never finished still left something.** Cleanup is the last phase,
+so it only ever runs for a run that reached the end. A killed or interrupted
+one leaves its whole per-run state on the host, and on the machine backend that
+state is a private transport key. Three were found that way, for domains that
+no longer existed. The admission lease already survives a dead run and already
+knows its owner is gone; it now also says what that run left on disk, and names
+a private key among it as one. `run-cycle residue` is the same report for the
+host as a whole, including for a run whose lease somebody has already cleared,
+and `--discard` removes one named run's state — never before its processes, its
+container or domain, and its lease have each been asked, and never on a
+question this host could not put at all. Key material is named from its bytes,
+so a key under a dull name is still named and a public half under `id_cycle` is
+not.
 
 **A settled Task is not a released terminal.** A valid `worker_done` settles the
 Task and the Dispatch on its own and leaves the terminal the plane opened for
@@ -425,6 +441,10 @@ the table with the tests each row runs. The recorded sweep is in
 | A bounded log says it was bounded, and by how much | case `a-bounded-log-says-it-was-bounded` | `python3 counterexamples.py` |
 | A value this run forwarded is removed from a stream it has no shape in | case `a-stream-is-redacted-with-this-runs-own-values` | `python3 counterexamples.py` |
 | A credential lying across the bound is not kept as its tail | case `a-stream-is-redacted-before-it-is-bounded` | `python3 counterexamples.py` |
+| A key left by a dead run is named from its bytes, not from its name | case `the-key-a-dead-run-left-is-named-by-its-bytes` | `python3 counterexamples.py` |
+| A lease with no live owner names what that run left on disk | case `a-lease-with-no-live-owner-says-what-its-run-left` | `python3 counterexamples.py` |
+| Nothing of a run is discarded while anything says it may be alive | case `nothing-is-discarded-while-the-run-may-be-alive` | `python3 counterexamples.py` |
+| A question this host could not ask is not an answer of no | case `a-question-this-host-could-not-ask-is-not-an-answer` | `python3 counterexamples.py` |
 
 ## What no instrument here observes
 
@@ -494,6 +514,17 @@ still shows the wizard with the seed on disk, that index is what to read next.
 handed the implementer's diff, that the diff did not change underneath it, and
 that the reviewer named that diff in its verdict. Whether it read every line is
 not observable here and is not claimed.
+
+**That a run was ever killed mid-flight here on purpose.** The rail for state a
+dead run left is exercised against directories laid out as each backend's
+adapter writes them, and against a lease whose owner the test then makes gone.
+Nobody here has killed a live run between `create` and `cleanup` and watched
+this find what it left: the three keys that prompted it were found by looking,
+not by an instrument, and by then their domains were already gone. What a run
+interrupted at a different moment leaves — a half-created domain, an overlay
+with no domain, a lease still held by a process that is wedged rather than dead
+— is not observed, and the report would say of each only what its own three
+questions can establish.
 
 **That a skill was loaded or obeyed in a session.** The runner establishes that
 each pinned skill is present in the environment, where an agent looks, and is

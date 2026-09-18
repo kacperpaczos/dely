@@ -161,6 +161,17 @@ class BackendAdapter(abc.ABC):
     def resource_exists(self, resource: Resource) -> bool:
         """Report whether a resource is still present, for cleanup verification."""
 
+    def can_see_environment(self) -> tuple[bool, str]:
+        """Whether this host can be asked if a per-run environment still exists.
+
+        `resource_exists` answers with a boolean, and a boolean cannot tell a
+        container that is gone from a container manager that is not installed:
+        both come back False. Anything deciding that a run is over — and so
+        that what it left on disk is nobody's — has to know which of the two it
+        was told, so it asks this first.
+        """
+        return False, "this backend does not say how its resources are observed"
+
     def plan_handle(self) -> EnvironmentHandle | None:
         """Describe the environment this adapter *would* create, before it does.
 

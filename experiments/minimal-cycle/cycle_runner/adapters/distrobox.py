@@ -406,6 +406,15 @@ class DistroboxAdapter(BackendAdapter):
             outcomes=(outcome,),
         )
 
+    def can_see_environment(self) -> tuple[bool, str]:
+        """Whether this host still has the tool that lists the boxes."""
+        if not self.which(self.binary):
+            return False, f"{self.binary} is not on this host's path"
+        manager = self._manager()
+        if manager is None:
+            return False, "no container manager is on this host's path"
+        return True, f"{self.binary} over {manager} lists the boxes on this host"
+
     def resource_exists(self, resource: Resource) -> bool:
         """Report whether a declared resource is still on this host."""
         if resource.kind == "path":

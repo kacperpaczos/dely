@@ -1004,6 +1004,17 @@ class VmAdapter(BackendAdapter):
             outcomes=tuple(outcomes),
         )
 
+    def can_see_environment(self) -> tuple[bool, str]:
+        """Whether this host still has virsh, and libvirt still answers it."""
+        if not self.which("virsh"):
+            return False, "virsh is not on this host's path"
+        listed = self._virsh("list", "--all", "--name")
+        if listed.exit_code != 0:
+            return False, (
+                f"libvirt at {self.settings.connect_uri} did not list its domains"
+            )
+        return True, f"virsh lists the domains at {self.settings.connect_uri}"
+
     def resource_exists(self, resource: Resource) -> bool:
         """Report whether a declared resource is still on this host."""
         if resource.kind in ("path", "image", "volume"):

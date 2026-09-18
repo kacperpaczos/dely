@@ -143,8 +143,8 @@ CASES: tuple[Counterexample, ...] = (
     Counterexample(
         name="first-run-answers-every-question-it-names",
         requirement=(
-            "A receipt that lists five answered questions while the state "
-            "answers one is rejected"
+            "A receipt that lists every answered question while the state "
+            "answers one of them is rejected"
         ),
         path="cycle_runner/firstrun.py",
         original="""                "hasTrustDialogAccepted": True,
@@ -166,6 +166,47 @@ CASES: tuple[Counterexample, ...] = (
             "tests.test_firstrun.OrcaFirstRunTest",
             "tests.test_lifecycle.OrcaFirstRunSeedTest",
         ),
+    ),
+    Counterexample(
+        name="the-whole-tip-catalogue-is-seen-not-the-one-that-showed",
+        requirement=(
+            "The application picks the first tip whose id is in neither the "
+            "seen set nor the completed set, so a seed naming only the tip a "
+            "capture photographed promotes the next entry in the catalogue "
+            "and buys the run exactly one clean frame before the same modal "
+            "sits in the same place with different words in it"
+        ),
+        path="cycle_runner/firstrun.py",
+        original='FEATURE_TIP_IDS = ("orca-cli", "cmd-j-palette", "voice-dictation")',
+        replacement='FEATURE_TIP_IDS = ("orca-cli",)',
+        instruments=("tests.test_firstrun.OrcaOverlaySeedTest",),
+    ),
+    Counterexample(
+        name="the-seeded-profile-answers-the-banner-it-causes",
+        requirement=(
+            "The application reads a profile file that already exists at "
+            "startup as one that predates its analytics release, and owes such "
+            "a profile a consent banner until it answers, so seeding the "
+            "wizard closed without seeding an answer trades the wizard for a "
+            "banner over the same window and photographs that instead"
+        ),
+        path="cycle_runner/firstrun.py",
+        original="        SETTINGS_KEY: telemetry_document(),",
+        replacement="        SETTINGS_KEY: {},",
+        instruments=("tests.test_firstrun.OrcaOverlaySeedTest",),
+    ),
+    Counterexample(
+        name="the-star-prompt-is-finished-rather-than-postponed",
+        requirement=(
+            "Every path that raises the repository-star prompt returns on the "
+            "finished flag first, so a seed that leaves it unset postpones the "
+            "prompt instead of answering it and the toast returns over the "
+            "corner the right-hand agent panel is drawn in"
+        ),
+        path="cycle_runner/firstrun.py",
+        original="STAR_NAG_COMPLETED = True",
+        replacement="STAR_NAG_COMPLETED = False",
+        instruments=("tests.test_firstrun.OrcaOverlaySeedTest",),
     ),
     Counterexample(
         name="the-profile-seed-lands-before-the-application-starts",
@@ -1204,6 +1245,68 @@ done""",
             relative,
             redact.data(bounded_stream(text, limit=limit), extra_values),""",
         instruments=("tests.test_export.BoundedStreamTest",),
+    ),
+    Counterexample(
+        name="the-key-a-dead-run-left-is-named-by-its-bytes",
+        requirement=(
+            "A survey that calls a file key material because of its name says "
+            "nothing about a key written under any other one, and calls the "
+            "public half a private key"
+        ),
+        path="cycle_runner/residue.py",
+        original="""                if _opens_a_private_key(Path(item.path), sniff_bytes=sniff_bytes):""",
+        replacement="""                if item.name in ("id_cycle", "id_rsa", "identity"):""",
+        instruments=("tests.test_residue.SurveyTest",),
+    ),
+    Counterexample(
+        name="a-lease-with-no-live-owner-says-what-its-run-left",
+        requirement=(
+            "The lease is where an operator meets a dead run; one that reports "
+            "the run as gone without saying what it left on disk is how three "
+            "private keys sat on this host unnoticed"
+        ),
+        path="cycle_runner/admission.py",
+        original="""        record
+        if record.state == HELD
+        else replace(record, state_residue=residue.survey(root, record.run_id))""",
+        replacement="""        record
+        if record.state != UNREADABLE
+        else replace(record, state_residue=residue.survey(root, record.run_id))""",
+        instruments=("tests.test_residue.LeaseNamesWhatTheRunLeftTest",),
+    ),
+    Counterexample(
+        name="nothing-is-discarded-while-the-run-may-be-alive",
+        requirement=(
+            "State is removed because the run is over, never because nobody "
+            "checked; a lease with a live owner, a container or a domain still "
+            "on the host each mean it is not"
+        ),
+        path="cycle_runner/residue.py",
+        original="""    if still_present:
+        listed = ", ".join(str(item) for item in still_present)""",
+        replacement="""    if False:
+        listed = ", ".join(str(item) for item in still_present)""",
+        instruments=(
+            "tests.test_residue.DiscardTest",
+            "tests.test_residue.ResidueCommandTest",
+        ),
+    ),
+    Counterexample(
+        name="a-question-this-host-could-not-ask-is-not-an-answer",
+        requirement=(
+            "`resource_exists` returns False both for a domain that is gone "
+            "and for a libvirt this host cannot reach, and removing state on "
+            "the second is removing it blind"
+        ),
+        path="cycle_runner/residue.py",
+        original="""    if unanswered:
+        listed = ", ".join(str(item) for item in unanswered)""",
+        replacement="""    if False:
+        listed = ", ".join(str(item) for item in unanswered)""",
+        instruments=(
+            "tests.test_residue.DiscardTest",
+            "tests.test_residue.ResidueCommandTest",
+        ),
     ),
 )
 

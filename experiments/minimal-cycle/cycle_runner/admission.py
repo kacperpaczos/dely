@@ -16,6 +16,12 @@ knows what it left behind. Clearing it is a separate command that looks for the
 processes first. Everything uncertain — an unreadable lease, a `/proc` that
 will not answer, a lock that will not come — occupies the slot rather than
 freeing it.
+
+A lease with no live owner also says what that run left on disk. The two facts
+belong together: the lease is where an operator meets a dead run, and "nobody
+knows what it left behind" is worth more when it names a private key than when
+it is an adjective. A held lease is not surveyed — that run is still using its
+state, and the survey walks a tree.
 """
 
 from __future__ import annotations
@@ -29,6 +35,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
+from . import residue
 from .probe import digest
 from .proc import utc_now
 
@@ -189,6 +196,10 @@ class LeaseRecord:
     acquired_at: str = ""
     reason: str = ""
     claim: Claim = field(default_factory=Claim)
+    #: What this run left in its own state directory, for a lease with no live
+    #: owner. `None` where the question was not put: a held lease is a run
+    #: still using its state, not a run that left it.
+    state_residue: residue.StateResidue | None = None
 
     @property
     def occupies(self) -> bool:
@@ -198,13 +209,20 @@ class LeaseRecord:
         if self.state == HELD:
             return f"{self.run_id} is running as pid {self.pid}"
         if self.state == RETAINED:
-            return f"{self.run_id} finished without confirming its cleanup: {self.reason}"
-        if self.state == ORPHANED:
-            return (
+            said = (
+                f"{self.run_id} finished without confirming its cleanup: "
+                f"{self.reason}"
+            )
+        elif self.state == ORPHANED:
+            said = (
                 f"{self.run_id} left a lease behind with no live owner; what it "
                 "created was never confirmed gone"
             )
-        return f"{self.run_id} has a lease this runner cannot read: {self.reason}"
+        else:
+            said = f"{self.run_id} has a lease this runner cannot read: {self.reason}"
+        if self.state_residue is not None and self.state_residue.present:
+            said += f"; {self.state_residue.headline()}"
+        return said
 
     def to_document(self) -> dict[str, Any]:
         return {
@@ -216,6 +234,11 @@ class LeaseRecord:
             "reason": self.reason,
             "claim": self.claim.to_document(),
             "occupies": self.occupies,
+            "state_residue": (
+                self.state_residue.to_document()
+                if self.state_residue is not None
+                else None
+            ),
         }
 
 
@@ -353,7 +376,15 @@ def read_leases(
                 claim=Claim.from_document(document.get("claim") or {}),
             )
         )
-    return records
+    # A lease with no live owner is asked what that run left on disk. A held
+    # one is not: its state is the running environment's, and the survey walks
+    # a tree that a live run is still writing to.
+    return [
+        record
+        if record.state == HELD
+        else replace(record, state_residue=residue.survey(root, record.run_id))
+        for record in records
+    ]
 
 
 # -- taking a slot --------------------------------------------------------

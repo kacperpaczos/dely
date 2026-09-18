@@ -151,7 +151,7 @@ class OrcaFirstRunTest(FirstRunCase):
             any("wizard" in question for question in record.questions),
             record.questions,
         )
-        self.assertEqual(len(record.questions), 5)
+        self.assertEqual(len(record.questions), 8)
 
     def test_every_value_is_a_constant_or_this_runs_own_moment(self):
         """Nothing here is copied from a profile, so nothing here can leak one."""
@@ -174,6 +174,105 @@ class OrcaFirstRunTest(FirstRunCase):
         self.assertNotIn(str(Path.home()), rendered)
         for key in ("repos", "projects", "worktreeMeta", "sshTargets", "userId"):
             self.assertNotIn(key, rendered)
+
+
+class OrcaOverlaySeedTest(FirstRunCase):
+    """The overlays the closed wizard was standing in front of.
+
+    Closing the flow uncovered three more, and one of them the closure caused:
+    the application decides a profile predates its analytics release by asking
+    whether the profile file was already there when it started, and a seed
+    written before the launch answers yes. So a run that fixes only the wizard
+    trades one overlay for another and photographs that instead.
+    """
+
+    def ui(self):
+        return self.profile()[firstrun.UI_KEY]
+
+    def app_settings(self):
+        return self.profile()[firstrun.SETTINGS_KEY]
+
+    def test_the_whole_tip_catalogue_is_seen_not_only_the_one_that_showed(self):
+        """Seeding one entry promotes the next, and buys exactly one frame."""
+        self.apply()
+        self.assertEqual(
+            set(self.ui()[firstrun.FEATURE_TIPS_KEY]),
+            set(firstrun.FEATURE_TIP_IDS),
+        )
+
+    def test_the_catalogue_is_the_one_the_application_carries(self):
+        self.assertEqual(
+            firstrun.FEATURE_TIP_IDS,
+            ("orca-cli", "cmd-j-palette", "voice-dictation"),
+        )
+
+    def test_the_tip_the_capture_photographed_is_among_them(self):
+        self.apply()
+        self.assertIn("orca-cli", self.ui()[firstrun.FEATURE_TIPS_KEY])
+
+    def test_the_repository_star_prompt_is_answered_rather_than_deferred(self):
+        """Deferring it schedules it; only the finished flag closes every path."""
+        self.apply()
+        self.assertIs(self.ui()[firstrun.STAR_NAG_COMPLETED_KEY], True)
+        self.assertIsNone(self.ui()[firstrun.STAR_NAG_DEFERRED_KEY])
+
+    def test_the_environment_is_declared_the_fresh_install_it_is(self):
+        """This is the field the seeded profile itself would otherwise flip."""
+        self.apply()
+        telemetry = self.app_settings()[firstrun.TELEMETRY_KEY]
+        self.assertIs(telemetry["existedBeforeTelemetryRelease"], False)
+
+    def test_consent_is_settled_rather_than_left_for_a_banner_to_ask(self):
+        self.apply()
+        telemetry = self.app_settings()[firstrun.TELEMETRY_KEY]
+        self.assertIs(telemetry["optedIn"], False)
+
+    def test_no_identifier_is_invented_for_an_environment_that_has_none(self):
+        """The application mints its own on load; this runner has no business."""
+        self.apply()
+        self.assertNotIn("installId", self.app_settings()[firstrun.TELEMETRY_KEY])
+
+    def test_every_overlay_value_is_a_constant_or_this_runs_own_moment(self):
+        document = firstrun.profile_document(closed_at_ms=1_700_000_000_000)
+        self.assertEqual(
+            document,
+            {
+                "onboarding": {
+                    "flowVersion": 4,
+                    "closedAt": 1_700_000_000_000,
+                    "outcome": "completed",
+                    "lastCompletedStep": 5,
+                },
+                "ui": {
+                    "featureTipsSeenIds": [
+                        "orca-cli",
+                        "cmd-j-palette",
+                        "voice-dictation",
+                    ],
+                    "starNagCompleted": True,
+                    "starNagDeferredUntil": None,
+                },
+                "settings": {
+                    "telemetry": {
+                        "existedBeforeTelemetryRelease": False,
+                        "optedIn": False,
+                    }
+                },
+            },
+        )
+
+    def test_the_receipt_names_each_overlay_it_answered(self):
+        record = self.apply()
+        for word in ("tips", "consent banner", "repository-star"):
+            self.assertTrue(
+                any(word in question for question in record.questions),
+                (word, record.questions),
+            )
+
+    def test_the_overlay_seed_invents_no_history_of_using_the_application(self):
+        """Interaction counts gate none of this; writing them would be fiction."""
+        self.apply()
+        self.assertNotIn("featureInteractions", self.ui())
 
 
 if __name__ == "__main__":

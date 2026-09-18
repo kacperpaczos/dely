@@ -405,6 +405,8 @@ the table with the tests each row runs. The recorded sweep is in
 | A coordinator that ends its turn still owing terminals is not a settled run | case `a-coordinator-that-ends-its-turn-still-owing-terminals` | `python3 counterexamples.py` |
 | The answer the plane gives to say it does not know is not a release | case `an-unverified-release-is-not-a-released-terminal` | `python3 counterexamples.py` |
 | A release receipt is not a closed terminal; the live list is | case `a-release-receipt-is-not-a-closed-terminal` | `python3 counterexamples.py` |
+| Two environments hold slots at once and the ceiling refuses the next | `./run-cycle run` with `limits.parallel: true` on this host | `evidence/distrobox-parallel/` |
+| The budget refuses a claim that overruns it across the live leases, before anything is created | `./run-cycle run` with `limits.parallel: true` on this host | `evidence/distrobox-parallel/` |
 
 ## What no instrument here observes
 

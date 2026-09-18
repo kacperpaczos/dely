@@ -32,6 +32,15 @@ message and reported that agent's outcome as its own — a review that never ran
 reporting success. What caught it was the missing verdict artifact, not the
 outcome.
 
+### `distrobox-parallel/`
+
+Four runs against `limits.parallel: true`, `max_active: 2` and a budget of 6144
+megabytes, the first exercise of the admission rail on real environments. Two
+boxes held slots at the same instant, one refusal came from the budget and a
+different one from the ceiling, and both slots were released. It also carries
+the awkward part: of the two boxes, one installed everything it needed and the
+other did not, and the artifacts do not establish why.
+
 ### `vm-reviewed-cycle/`
 
 The machine backend completing, `SETTLED` in 153 seconds: a per-run libvirt
@@ -45,6 +54,19 @@ that found what had been stopping it.
 The same configuration with the processor put back the way it was, and nothing
 else changed: `BLOCKED` again. The guest's default processor is `QEMU Virtual
 CPU version 2.5+`, whose flags stop at `sse2`.
+
+Two days later a run in the same configuration found one line of its diagnosis
+changed, so the file now says which day that line was measured on. The processor
+result is untouched by it.
+
+### `vm-processor-deadline/`
+
+The probe that asks whether `claude auth status` ever finishes on that
+processor, this time with room to run: 355.791 s against a 420 s deadline,
+`timed_out: false`, and the command killed at its own bound after 240 seconds
+having printed nothing. The first real measurement of that question, and it
+still does not separate stuck from unusably slow, because a bounded probe
+cannot.
 
 ### `vm-unobserved-turn/`
 
@@ -136,5 +158,7 @@ A second, different task. A run on any host but this one. Isolation on the
 container backend: it mounts the operator's home, shares their process table
 and mounts the directories holding their display sockets, and the runner
 records that rather than claiming otherwise. And whether the agent that spins
-on a processor without those flags would ever finish — the probe meant to
-answer that was itself cut short.
+on a processor without those flags would ever finish: the probe has since run
+to completion, in `vm-processor-deadline/`, and stuck and unusably slow are
+still not separated, because a bounded probe can only establish "not by time
+T".

@@ -1,0 +1,573 @@
+{
+  "admission": {
+    "backend": "distrobox",
+    "claim": {
+      "disk_bytes": 8589934592,
+      "memory_mb": 4096,
+      "pids": 2048,
+      "timeout_seconds": 1800,
+      "vcpus": 2
+    },
+    "detail": "the distrobox backend would be asked for 7168 megabytes of memory against a budget of 6144",
+    "granted": false,
+    "occupants": [
+      {
+        "acquired_at": "2026-09-18T09:27:35Z",
+        "backend": "distrobox",
+        "claim": {
+          "disk_bytes": 8589934592,
+          "memory_mb": 3072,
+          "pids": 2048,
+          "timeout_seconds": 1800,
+          "vcpus": 2
+        },
+        "occupies": true,
+        "pid": 1394831,
+        "reason": "",
+        "run_id": "20260918T092735Z-bbc5e6-a5defabd",
+        "state": "held"
+      }
+    ],
+    "policy": {
+      "budget": {
+        "disk_bytes": 17179869184,
+        "memory_mb": 6144,
+        "pids": 4096,
+        "timeout_seconds": 1800,
+        "vcpus": 4
+      },
+      "effective_max_active": 2,
+      "max_active": 2,
+      "parallel": true
+    },
+    "released": false,
+    "status": "BLOCKED"
+  },
+  "artifact_root": "/var/tmp/dely-cycle/artifacts/20260918T092748Z-bbc5e6-7a14796a",
+  "artifacts": [
+    {
+      "path": "admission.json",
+      "sha256": "4de0c505fddf190f4769e8de0b99819c932a69dd7857a68e7c365e61f6fd3cb9",
+      "size_bytes": 983
+    },
+    {
+      "path": "logs/commands.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    {
+      "path": "logs/runner.log",
+      "sha256": "578392a16bd7f0a2907d3b42b36933effaf6ad3ff99547fc54f4e380b6a44f4f",
+      "size_bytes": 1012
+    },
+    {
+      "path": "run-before-cleanup.json",
+      "sha256": "e106317da7ed2049d6f9db4ee7e3ce2a3813c6a1d4ca3f80bad6f564cbbc995a",
+      "size_bytes": 6757
+    }
+  ],
+  "auth": {
+    "detail": "not attempted",
+    "entries": [],
+    "mode": "unknown",
+    "observed": {},
+    "reference": "",
+    "removed_after_run": false,
+    "status": "SKIPPED",
+    "target": null,
+    "verified": false,
+    "verify_detail": "not attempted"
+  },
+  "backend": "distrobox",
+  "check": {
+    "argv": [],
+    "detail": "not attempted",
+    "elapsed_seconds": null,
+    "exit_code": null,
+    "expected_marker": null,
+    "finished_at": null,
+    "started_at": null,
+    "status": "SKIPPED",
+    "stderr_path": null,
+    "stdout_path": null
+  },
+  "cleanup": {
+    "host_registry": {},
+    "processes": {},
+    "reason": "no environment was created, so no per-run resource existed",
+    "removed": [],
+    "retained": [],
+    "shared_preserved": [],
+    "status": "DESTROYED",
+    "verified": true
+  },
+  "config": {
+    "artifact_root": "/var/tmp/dely-cycle/artifacts",
+    "auth": {
+      "allowlist": [
+        ".claude/.credentials.json"
+      ],
+      "mode": "existing_login",
+      "reference": "workshop-host-login"
+    },
+    "backend": "distrobox",
+    "check": {
+      "expected_marker": "dely-cycle-marker",
+      "relative_path": "evidence.txt"
+    },
+    "claude_code_version": "2.1.272",
+    "dely_revision": "main",
+    "distrobox": {
+      "accept_host_home_mount": true,
+      "container_prefix": "dely-cycle",
+      "disk_bytes": 8589934592,
+      "extra_mounts": [],
+      "gui": "virtual",
+      "image": "docker.io/library/ubuntu:24.04",
+      "memory_mb": 4096,
+      "pids": 2048,
+      "provision": [
+        [
+          "sh",
+          "-c",
+          "set -eu; export DEBIAN_FRONTEND=noninteractive; sudo apt-get update -qq; sudo apt-get install -y -qq curl ca-certificates git xz-utils xvfb x11-xserver-utils xdotool x11-apps netpbm libgtk-3-0t64 libnss3 libasound2t64 libatk-bridge2.0-0t64 libcups2t64 libdrm2 libgbm1 libxkbcommon0 libpango-1.0-0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libsecret-1-0 xdg-utils > /dev/null; echo deps installed"
+        ],
+        [
+          "sh",
+          "-c",
+          "set -eu; curl -fsSL -o /tmp/node.tar.xz 'https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz'; echo 'fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6  /tmp/node.tar.xz' | sha256sum -c -; sudo mkdir -p /usr/local/node; sudo tar -xJf /tmp/node.tar.xz -C /usr/local/node --strip-components=1; rm -f /tmp/node.tar.xz; sudo ln -sf /usr/local/node/bin/node /usr/local/bin/node; sudo ln -sf /usr/local/node/bin/npm /usr/local/bin/npm; sudo ln -sf /usr/local/node/bin/npx /usr/local/bin/npx; node --version"
+        ],
+        [
+          "sh",
+          "-c",
+          "set -eu; curl -fsSL -o /tmp/orca.deb 'https://github.com/stablyai/orca/releases/download/v1.4.201/orca-ide_1.4.201_amd64.deb'; echo '9dab79a5223837fc91992e04ed54f92f45d6f4b486d7128c08166bfb1a15a573  /tmp/orca.deb' | sha256sum -c -; sudo apt-get install -y -qq /tmp/orca.deb > /dev/null; rm -f /tmp/orca.deb; test -x /opt/Orca/resources/bin/orca-ide; echo orca installed"
+        ],
+        [
+          "sh",
+          "-c",
+          "set -eu; sudo npm install -g --no-fund --no-audit --silent '@anthropic-ai/claude-code@2.1.272' > /dev/null; sudo ln -sf /usr/local/node/bin/claude /usr/local/bin/claude; claude --version"
+        ],
+        [
+          "sh",
+          "-c",
+          "set -eu; sudo mkdir -p /opt/dely-cycle; sudo chown \"$(id -u):$(id -g)\" /opt/dely-cycle; git clone -q --filter=blob:none https://github.com/obra/superpowers.git /opt/dely-cycle/superpowers; git -C /opt/dely-cycle/superpowers checkout -q b36e0829c6d0140e93cfef2ca599b1b07d4a7797; mkdir -p \"$HOME/.claude/skills\"; for d in /opt/dely-cycle/superpowers/skills/*/; do [ -f \"${d}SKILL.md\" ] || continue; cp -r \"$d\" \"$HOME/.claude/skills/\"; done; ls \"$HOME/.claude/skills\""
+        ],
+        [
+          "sh",
+          "-c",
+          "set -eu; rev=fb322046e82b0e60ff2949f8360f0e0f071f42d4; sudo mkdir -p /opt/dely-cycle; sudo chown \"$(id -u):$(id -g)\" /opt/dely-cycle; git init -q /opt/dely-cycle/orca-skills; git -C /opt/dely-cycle/orca-skills remote add origin https://github.com/stablyai/orca.git; git -C /opt/dely-cycle/orca-skills fetch -q --depth 1 --filter=blob:none origin \"$rev\"; git -C /opt/dely-cycle/orca-skills sparse-checkout set --no-cone skills/orca-cli skills/orchestration; git -C /opt/dely-cycle/orca-skills checkout -q FETCH_HEAD; test \"$(git -C /opt/dely-cycle/orca-skills rev-parse HEAD)\" = \"$rev\"; mkdir -p \"$HOME/.claude/skills\"; for d in /opt/dely-cycle/orca-skills/skills/*/; do [ -f \"${d}SKILL.md\" ] || continue; cp -r \"$d\" \"$HOME/.claude/skills/\"; done; ls \"$HOME/.claude/skills\""
+        ],
+        [
+          "sh",
+          "-c",
+          "set -eu; if DISPLAY=:99 xset -q > /dev/null 2>&1; then echo 'virtual display already up'; exit 0; fi; setsid nohup Xvfb :99 -screen 0 1280x800x24 -nolisten tcp > /tmp/xvfb.log 2>&1 < /dev/null & waited=0; while ! DISPLAY=:99 xset -q > /dev/null 2>&1; do waited=$((waited + 1)); if [ $waited -ge 60 ]; then echo 'no virtual display' >&2; exit 3; fi; sleep 1; done; echo \"virtual display ready after ${waited}s\""
+        ]
+      ],
+      "vcpus": 2
+    },
+    "limits": {
+      "budget": {
+        "disk_bytes": 17179869184,
+        "memory_mb": 6144,
+        "pids": 4096,
+        "timeout_seconds": 1800,
+        "vcpus": 4
+      },
+      "max_active": 2,
+      "parallel": true
+    },
+    "orca": {
+      "agent": "claude",
+      "app_argv": [
+        "/opt/Orca/orca-ide",
+        "--disable-gpu"
+      ],
+      "command": "/opt/Orca/resources/bin/orca-ide",
+      "display": ":99",
+      "effort": "high",
+      "model": "claude-opus-5",
+      "ready_timeout_seconds": 300,
+      "run_objective": "dely minimal cycle",
+      "status_argv": [
+        "/opt/Orca/resources/bin/orca-ide",
+        "status",
+        "--json"
+      ],
+      "version": "1.4.201",
+      "version_argv": [
+        "/opt/Orca/resources/bin/orca-ide",
+        "--version"
+      ],
+      "worktree_selector": "current"
+    },
+    "project": {
+      "environment_path": "project",
+      "revision": "main",
+      "source": "/var/tmp/dely-cycle/project-source"
+    },
+    "review": {
+      "enabled": false
+    },
+    "skills": {
+      "bundled": [
+        {
+          "name": "orchestration",
+          "sha256": "f7da0dd40d8681e2b0303fa0fa2f7ee4e36f2eca6495a4af57b92b9857dff732"
+        },
+        {
+          "name": "orca-cli",
+          "sha256": "b21b9b80475c35996b9c046379b9c9fa788f2d357c9e917befd8ab1b37df2e77"
+        }
+      ],
+      "plugins": [
+        {
+          "marketplace": "superpowers-dev",
+          "name": "superpowers",
+          "path": "/opt/dely-cycle/superpowers",
+          "repository": "https://github.com/obra/superpowers.git",
+          "revision": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797",
+          "version": "6.3.0"
+        }
+      ],
+      "required": true,
+      "roots": [
+        ".agents/skills",
+        ".claude/skills"
+      ]
+    },
+    "state_root": "/var/tmp/dely-cycle/state",
+    "task": {
+      "marker": "dely-cycle-marker",
+      "relative_path": "evidence.txt"
+    },
+    "tested_revision": "main",
+    "timeout_seconds": 1800
+  },
+  "dely_revision": "main",
+  "display": {
+    "after": [],
+    "appeared": [],
+    "before": [],
+    "detail": "not attempted",
+    "display": "",
+    "mode": "",
+    "reachable": false,
+    "status": "SKIPPED"
+  },
+  "elapsed_seconds": 0.006,
+  "environment": {},
+  "environment_id": null,
+  "export": {
+    "artifacts": [
+      {
+        "path": "admission.json",
+        "sha256": "4de0c505fddf190f4769e8de0b99819c932a69dd7857a68e7c365e61f6fd3cb9",
+        "size_bytes": 983
+      },
+      {
+        "path": "logs/commands.jsonl",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      },
+      {
+        "path": "logs/runner.log",
+        "sha256": "578392a16bd7f0a2907d3b42b36933effaf6ad3ff99547fc54f4e380b6a44f4f",
+        "size_bytes": 1012
+      },
+      {
+        "path": "run-before-cleanup.json",
+        "sha256": "e106317da7ed2049d6f9db4ee7e3ce2a3813c6a1d4ca3f80bad6f564cbbc995a",
+        "size_bytes": 6757
+      }
+    ],
+    "confirmed_at": "2026-09-18T09:27:49Z",
+    "detail": "4 artifact(s) re-read from the host; 0 unresolved",
+    "missing": [],
+    "receipt_path": "export-receipt.json",
+    "status": "CONFIRMED"
+  },
+  "failure_classification": "the distrobox backend would be asked for 7168 megabytes of memory against a budget of 6144",
+  "finished_at": "2026-09-18T09:27:49Z",
+  "first_run": {
+    "detail": "not attempted",
+    "entries": [],
+    "questions": [],
+    "status": "SKIPPED",
+    "target": null
+  },
+  "generated_at": "2026-09-18T09:27:49Z",
+  "host_after": {
+    "architecture": "x86_64",
+    "artifact_root": {
+      "entries": [
+        "20260914T230000Z-aaaaaa-00000001",
+        "20260914T231500Z-aaaaaa-00000002",
+        "20260915T001500Z-aaaaaa-00000003",
+        "20260915T003000Z-aaaaaa-00000004",
+        "20260915T130000Z-bbbbbb-00000001",
+        "20260915T131500Z-bbbbbb-00000002",
+        "20260915T134500Z-bbbbbb-00000003",
+        "20260915T140000Z-bbbbbb-00000004",
+        "20260915T143000Z-bbbbbb-00000005",
+        "20260915T150000Z-bbbbbb-00000006",
+        "20260915T160000Z-bbbbbb-00000007",
+        "20260915T170000Z-bbbbbb-00000008",
+        "20260915T182804Z-bbc5e6-366fa4a0",
+        "20260915T183739Z-bbc5e6-9088bc04",
+        "20260915T184612Z-bbc5e6-9fb2fb6e",
+        "20260915T190618Z-bbc5e6-c588ade8",
+        "20260915T200000Z-bbbbbb-00000009",
+        "20260915T210000Z-bbbbbb-00000010",
+        "20260915T220000Z-bbbbbb-00000011",
+        "20260915T230000Z-bbbbbb-00000012",
+        "20260916T000000Z-bbbbbb-00000013",
+        "20260916T010000Z-bbbbbb-00000014",
+        "20260916T020000Z-cccccc-00000001",
+        "20260916T030000Z-cccccc-00000002",
+        "20260916T040000Z-cccccc-00000003",
+        "20260916T050000Z-cccccc-00000004",
+        "20260916T084754Z-bbc5e6-a6d0c4b5",
+        "20260916T085001Z-bbc5e6-a2468632",
+        "20260916T085443Z-bbc5e6-bf792f16",
+        "20260916T085922Z-bbc5e6-3d37156e",
+        "20260916T090743Z-bbc5e6-593712b7",
+        "20260916T091038Z-bbc5e6-39646e78",
+        "20260916T091353Z-bbc5e6-0a223d47",
+        "20260916T091832Z-bbc5e6-8ae6e3e3",
+        "20260916T092223Z-bbc5e6-957d71d3",
+        "20260916T092744Z-bbc5e6-237322f5",
+        "20260916T093600Z-bbc5e6-c9376289",
+        "20260916T093915Z-bbc5e6-1caedb1f",
+        "20260917T224759Z-bbc5e6-48582ced",
+        "20260917T233020Z-bbc5e6-3e46a992",
+        "20260918T091124Z-bbc5e6-f0bd3fa8",
+        "20260918T092735Z-bbc5e6-a5defabd",
+        "20260918T092748Z-bbc5e6-7a14796a"
+      ],
+      "exists": true,
+      "path": "/var/tmp/dely-cycle/artifacts"
+    },
+    "boot_id_digest": "de0d3220ff53399e",
+    "captured_at": "2026-09-18T09:27:49Z",
+    "extra": {
+      "backend": "distrobox"
+    },
+    "hostname_digest": "bbc5e661e106c6dc",
+    "kernel": "7.2.5-200.fc44.x86_64",
+    "machine_id_digest": "907fa710d6d1c501",
+    "python_version": "3.14.7",
+    "state_root": {
+      "entries": [
+        "20260916T080551Z-bbc5e6-b74d6b65",
+        "20260916T084631Z-bbc5e6-74b492c8",
+        "20260916T093552Z-bbc5e6-f20be0dc",
+        "20260918T092735Z-bbc5e6-a5defabd",
+        "leases"
+      ],
+      "exists": true,
+      "path": "/var/tmp/dely-cycle/state"
+    },
+    "user_digest": "8fda3821c06d512d"
+  },
+  "host_before": {},
+  "identity": {
+    "environment": {},
+    "host": {},
+    "markers": [],
+    "orca_is_host_installation": false,
+    "orca_present": false,
+    "orca_runtime": {},
+    "orca_status_exit_code": null,
+    "orca_version": null,
+    "reason": "not attempted",
+    "verdict": "UNKNOWN"
+  },
+  "phases": [
+    {
+      "commands": [],
+      "detail": "",
+      "elapsed_seconds": 0.002,
+      "finished_at": "2026-09-18T09:27:49Z",
+      "name": "prepare",
+      "started_at": "2026-09-18T09:27:49Z",
+      "status": "OK"
+    },
+    {
+      "commands": [],
+      "detail": "the distrobox backend would be asked for 7168 megabytes of memory against a budget of 6144",
+      "elapsed_seconds": null,
+      "finished_at": null,
+      "name": "create",
+      "started_at": null,
+      "status": "SKIPPED"
+    },
+    {
+      "commands": [],
+      "detail": "no environment was created",
+      "elapsed_seconds": null,
+      "finished_at": null,
+      "name": "bootstrap",
+      "started_at": null,
+      "status": "SKIPPED"
+    },
+    {
+      "commands": [],
+      "detail": "no environment was created",
+      "elapsed_seconds": null,
+      "finished_at": null,
+      "name": "identity",
+      "started_at": null,
+      "status": "SKIPPED"
+    },
+    {
+      "commands": [],
+      "detail": "the distrobox backend would be asked for 7168 megabytes of memory against a budget of 6144",
+      "elapsed_seconds": null,
+      "finished_at": null,
+      "name": "task",
+      "started_at": null,
+      "status": "SKIPPED"
+    },
+    {
+      "commands": [],
+      "detail": "the distrobox backend would be asked for 7168 megabytes of memory against a budget of 6144",
+      "elapsed_seconds": null,
+      "finished_at": null,
+      "name": "review",
+      "started_at": null,
+      "status": "SKIPPED"
+    },
+    {
+      "commands": [],
+      "detail": "the distrobox backend would be asked for 7168 megabytes of memory against a budget of 6144",
+      "elapsed_seconds": null,
+      "finished_at": null,
+      "name": "check",
+      "started_at": null,
+      "status": "SKIPPED"
+    },
+    {
+      "commands": [],
+      "detail": "no environment was created",
+      "elapsed_seconds": null,
+      "finished_at": null,
+      "name": "collect",
+      "started_at": null,
+      "status": "SKIPPED"
+    },
+    {
+      "commands": [],
+      "detail": "4 artifact(s) re-read from the host; 0 unresolved",
+      "elapsed_seconds": 0.003,
+      "finished_at": "2026-09-18T09:27:49Z",
+      "name": "export",
+      "started_at": "2026-09-18T09:27:49Z",
+      "status": "OK"
+    },
+    {
+      "commands": [],
+      "detail": "no environment was created, so no per-run resource existed",
+      "elapsed_seconds": null,
+      "finished_at": null,
+      "name": "cleanup",
+      "started_at": null,
+      "status": "SKIPPED"
+    },
+    {
+      "commands": [],
+      "detail": "",
+      "elapsed_seconds": null,
+      "finished_at": null,
+      "name": "close",
+      "started_at": "2026-09-18T09:27:49Z",
+      "status": "OK"
+    }
+  ],
+  "review": {
+    "detail": "not attempted",
+    "diff_lines": 0,
+    "diff_path": null,
+    "diff_reported_by_reviewer": "",
+    "diff_sha256": "",
+    "diff_sha256_after": "",
+    "reason": "",
+    "reviewer": {},
+    "same_diff": false,
+    "same_diff_detail": "",
+    "separation": {},
+    "status": "SKIPPED",
+    "verdict": ""
+  },
+  "reviewer": {
+    "agent": null,
+    "commands": [],
+    "delivery_id": null,
+    "detail": "not attempted",
+    "dispatch_id": null,
+    "effort": null,
+    "model": null,
+    "outcome": null,
+    "prompt_path": null,
+    "role": "reviewer",
+    "run_id": null,
+    "status": "SKIPPED",
+    "terminal": null
+  },
+  "run_id": "20260918T092748Z-bbc5e6-7a14796a",
+  "schema_version": 1,
+  "screenshot": {
+    "captures": [],
+    "detail": "not attempted",
+    "display": "",
+    "status": "SKIPPED"
+  },
+  "skills": {
+    "detail": "not attempted",
+    "findings": [],
+    "status": "SKIPPED"
+  },
+  "started_at": "2026-09-18T09:27:49Z",
+  "status": "BLOCKED",
+  "terminals": {
+    "clean": false,
+    "detail": "no coordinator terminal existed, so no dispatch of this run ever owned an agent terminal",
+    "dispositions": [],
+    "distinction_detail": "",
+    "distinguished": false,
+    "live_after": [],
+    "live_before": [],
+    "owed_after": [],
+    "owed_before": [],
+    "run_id": null,
+    "status": "SKIPPED",
+    "workers_after": [],
+    "workers_before": []
+  },
+  "tested_revision": "main",
+  "timeout_seconds": 1800,
+  "versions": {
+    "distrobox": "distrobox: 1.8.2.5",
+    "git": "git version 2.55.0",
+    "podman": "podman version 5.8.4",
+    "pulumi": "v3.262.0",
+    "python": "3.14.7",
+    "qemu_img": "Copyright (c) 2003-2025 Fabrice Bellard and the QEMU Project developers",
+    "runner": "minimal-cycle",
+    "virsh": "12.0.0"
+  },
+  "worker": {
+    "agent": null,
+    "commands": [],
+    "delivery_id": null,
+    "detail": "not attempted",
+    "dispatch_id": null,
+    "effort": null,
+    "model": null,
+    "outcome": null,
+    "prompt_path": null,
+    "role": "implementer",
+    "run_id": null,
+    "status": "SKIPPED",
+    "terminal": null
+  }
+}

@@ -24,6 +24,16 @@ The path to the cause, with what each step ruled out:
 | is it a message bus | refusing one outright changes nothing, and it spawned no child |
 | **what is it doing** | `STAT Rl`, empty wait channel, **no descendants, no open sockets** |
 
+**The row for the sixth family is dated, and a later run changed it.** On
+18 September the same configuration reached `api.anthropic.com` over that family
+in 60 ms with an http 404, where this table records a refusal: see
+`../vm-processor-deadline/`. Nothing in the run's configuration differs between
+the two, so what moved is the path from this host to that address, not anything
+the guest was given. The row is what that step measured on 16 September and not
+a standing property. What the step was eliminating, a network that swallows
+rather than answers, is eliminated either way, and none of the rows below it
+changed.
+
 A process that is running rather than waiting, holding nothing open and having
 started nothing, is not blocked on anything. It is doing work. And the domain
 said nothing at all about its processor, so the emulator had been choosing a

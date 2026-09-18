@@ -1,0 +1,1783 @@
+{
+  "admission": {
+    "backend": "vm",
+    "claim": {
+      "disk_bytes": 25769803776,
+      "memory_mb": 4096,
+      "pids": 0,
+      "timeout_seconds": 3600,
+      "vcpus": 2
+    },
+    "detail": "this run holds 20260918T091124Z-bbc5e6-f0bd3fa8 against a ceiling of 1 active vm environment(s); the slot was released",
+    "granted": true,
+    "occupants": [],
+    "policy": {
+      "budget": null,
+      "effective_max_active": 1,
+      "max_active": 1,
+      "parallel": false
+    },
+    "released": true,
+    "status": "OK"
+  },
+  "artifact_root": "/var/tmp/dely-cycle/artifacts/20260918T091124Z-bbc5e6-f0bd3fa8",
+  "artifacts": [
+    {
+      "path": "admission.json",
+      "sha256": "009324a0b4566f364d7613463ae3c84bb24572d347546c5e80c6588a001a1782",
+      "size_bytes": 454
+    },
+    {
+      "path": "auth-diagnosis.txt",
+      "sha256": "9c7c02096e619da383b54f028a26dfd91449d9b0501a5986c3a80084a94ee996",
+      "size_bytes": 1340
+    },
+    {
+      "path": "auth-receipt.json",
+      "sha256": "5b873c1ab08805bdee25d7e87cca3a3683e2e28b6e0acca656491b733cf649b0",
+      "size_bytes": 426
+    },
+    {
+      "path": "backend-status.json",
+      "sha256": "67f9f2749657bd47485a82e71e53f4c7c3532443c28ce11333caaefd93416d8b",
+      "size_bytes": 1950
+    },
+    {
+      "path": "diff.patch",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    {
+      "path": "display.json",
+      "sha256": "bda2d0518f308e6281d26df5c6820e217c0981b9bcfff8cea530b160baa99230",
+      "size_bytes": 1097
+    },
+    {
+      "path": "host-before.json",
+      "sha256": "88a6960927b6c32112723e615d5b76ebe87e76e5867fb4974ab88e512ce66de2",
+      "size_bytes": 2421
+    },
+    {
+      "path": "host-registry-before.json",
+      "sha256": "931adcb8f2606655ed2b7d4eeaefdfc4e29fe1809c2a7e25318ced784cd114dd",
+      "size_bytes": 5863
+    },
+    {
+      "path": "identity/environment-probe.txt",
+      "sha256": "cc5a67296f5548a0dc1e6e683238c20f5cf3a4b19ce002646ee9a3b17a7b1126",
+      "size_bytes": 471
+    },
+    {
+      "path": "identity/host-probe.txt",
+      "sha256": "c850124469b28205151eb33cdeba621bf039b8a2154e95e1c7d55edcc09553a1",
+      "size_bytes": 1685
+    },
+    {
+      "path": "identity/orca-runtime.json",
+      "sha256": "476cf8727b9504df98ad2cacdfa7284e2fc766811e17e530865bec263cb6535c",
+      "size_bytes": 3178
+    },
+    {
+      "path": "identity/orca-status.json",
+      "sha256": "86222f82dc556d15cb413be50082d0c6670a8d1d3c0dae8212c695c995a130e7",
+      "size_bytes": 363
+    },
+    {
+      "path": "logs/commands.jsonl",
+      "sha256": "7d3c433f9feb25d170ec1b8fa42e5e7b2c6552dfee9eea44e0a9b7803e8e6926",
+      "size_bytes": 20605
+    },
+    {
+      "path": "logs/runner.log",
+      "sha256": "3d9df1e173b5064071c71f74c0bd2bf47bd9e9e01175b919f281a6f4fc3ceb81",
+      "size_bytes": 2736
+    },
+    {
+      "path": "preflight.json",
+      "sha256": "656ba6ca2cf8cff7d453b44b9814e39b7ec9323b484ef62ffec6a3fcb6ee19ef",
+      "size_bytes": 1836
+    },
+    {
+      "path": "run-before-cleanup.json",
+      "sha256": "4b9656872d17e206220da7ba6153e9f17c77386db60b431b295d708f62bcf57e",
+      "size_bytes": 35703
+    },
+    {
+      "path": "screenshot.json",
+      "sha256": "107ce45dcade18b02d1cd38b05f2a2c700588bacc030d48590fb81ace0ba9e21",
+      "size_bytes": 591
+    },
+    {
+      "path": "screenshots/runtime-ready.ppm",
+      "sha256": "24262e1536cb1eda1c73da4c68aeee0203d592f8ce6f3dc4365daccee0d1613b",
+      "size_bytes": 68264
+    }
+  ],
+  "auth": {
+    "detail": "1 allowlisted entry(s) copied into the per-run home with owner-only permissions",
+    "entries": [
+      ".claude/.credentials.json"
+    ],
+    "mode": "existing_login",
+    "observed": {},
+    "reference": "workshop-host-login",
+    "removed_after_run": false,
+    "status": "BLOCKED",
+    "target": "/home/cycle",
+    "verified": false,
+    "verify_detail": "the agent did not answer whether it is signed in before the deadline"
+  },
+  "backend": "vm",
+  "check": {
+    "argv": [],
+    "detail": "not attempted",
+    "elapsed_seconds": null,
+    "exit_code": null,
+    "expected_marker": null,
+    "finished_at": null,
+    "started_at": null,
+    "status": "SKIPPED",
+    "stderr_path": null,
+    "stdout_path": null
+  },
+  "cleanup": {
+    "host_registry": {
+      "after": {
+        "captured_at": "2026-09-18T09:20:00Z",
+        "collection_sizes": {
+          "automations": 0,
+          "folderWorkspaces": 0,
+          "projectGroups": 0,
+          "projectHostSetups": 4,
+          "projects": 4,
+          "repos": 4,
+          "settings": 192,
+          "sshTargets": 0,
+          "ui": 97,
+          "worktreeMeta": 10,
+          "worktreeMetaByIdentity": 0
+        },
+        "entries_naming_this_run": [],
+        "file_count": 39,
+        "files": [
+          {
+            "name": "account-session-mutation.json",
+            "names_this_run": 0,
+            "path_digest": "b62fee92331dcd00",
+            "size_bytes": 205
+          },
+          {
+            "name": "account-session.json.enc",
+            "names_this_run": 0,
+            "path_digest": "bf681242a2976fcd",
+            "size_bytes": 1114
+          },
+          {
+            "name": "active-view.json",
+            "names_this_run": 0,
+            "path_digest": "dd9c707306af18e5",
+            "size_bytes": 26
+          },
+          {
+            "name": "browser-host-client-identity.json",
+            "names_this_run": 0,
+            "path_digest": "d595efe3ad02f8ad",
+            "size_bytes": 75
+          },
+          {
+            "name": "browser-session-meta.json",
+            "names_this_run": 0,
+            "path_digest": "5dac5b6279ac25c6",
+            "size_bytes": 165
+          },
+          {
+            "name": "orca-data.json",
+            "names_this_run": 0,
+            "path_digest": "288f60e7586de76a",
+            "size_bytes": 67808
+          },
+          {
+            "name": "orca-data.json.bak.0",
+            "names_this_run": 0,
+            "path_digest": "2fe6991bb4bc03a9",
+            "size_bytes": 67493
+          },
+          {
+            "name": "orca-data.json.bak.1",
+            "names_this_run": 0,
+            "path_digest": "bb90cb34e0bc5886",
+            "size_bytes": 64227
+          },
+          {
+            "name": "orca-data.json.bak.2",
+            "names_this_run": 0,
+            "path_digest": "f0341477900781b4",
+            "size_bytes": 69093
+          },
+          {
+            "name": "orca-data.json.bak.3",
+            "names_this_run": 0,
+            "path_digest": "6722af70be72543e",
+            "size_bytes": 70633
+          },
+          {
+            "name": "orca-data.json.bak.4",
+            "names_this_run": 0,
+            "path_digest": "d0562e35ff40ba4c",
+            "size_bytes": 66503
+          },
+          {
+            "name": "orca-github-cache.json",
+            "names_this_run": 0,
+            "path_digest": "7e7e14883a4905db",
+            "size_bytes": 1180
+          },
+          {
+            "name": "orca-secret-protection.json",
+            "names_this_run": 0,
+            "path_digest": "85148a3f3548bcf9",
+            "size_bytes": 24
+          },
+          {
+            "name": "orchestration.db",
+            "names_this_run": 0,
+            "path_digest": "104714bcbf8a7655",
+            "size_bytes": 598016
+          },
+          {
+            "name": "orchestration.db-wal",
+            "names_this_run": 0,
+            "path_digest": "a2355586bbf5809f",
+            "size_bytes": 4124152
+          },
+          {
+            "name": "orca-profile-index.json",
+            "names_this_run": 0,
+            "path_digest": "7f0f60b4e7445fa1",
+            "size_bytes": 671
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "7df4c52d8052320d",
+            "size_bytes": 176
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "096033b505491fec",
+            "size_bytes": 133
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "c62247f2f0e2eefe",
+            "size_bytes": 140
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "9902d6cdd626447d",
+            "size_bytes": 128
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "e266e6d7e26b8bfa",
+            "size_bytes": 171
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "2524d1c936554d6c",
+            "size_bytes": 171
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "ee75ee621801f33f",
+            "size_bytes": 138
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "4eb1cc23b2689121",
+            "size_bytes": 135
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "e3b5639ade37f68b",
+            "size_bytes": 188
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "f47b8780c7017cb3",
+            "size_bytes": 176
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "41dea81d59d42525",
+            "size_bytes": 137
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "3dce950608bc2bed",
+            "size_bytes": 169
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "2a6e449d4e03162e",
+            "size_bytes": 183
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "92e7fe95b2ddba91",
+            "size_bytes": 165
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "a72dd99f3714368f",
+            "size_bytes": 184
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "e1149604744aeb6e",
+            "size_bytes": 167
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "011511b38a701710",
+            "size_bytes": 170
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "c94075a914866d60",
+            "size_bytes": 170
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "a91e8c53db817027",
+            "size_bytes": 159
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "4367ef710b93450a",
+            "size_bytes": 159
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "ad8d33374fb28a7d",
+            "size_bytes": 159
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "16400ee95cc7a86f",
+            "size_bytes": 159
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "301341e80d272134",
+            "size_bytes": 176
+          }
+        ],
+        "home_digest": "8fda3821c06d512d",
+        "markers_searched": 5,
+        "present": true,
+        "unreadable": []
+      },
+      "before": {
+        "captured_at": "2026-09-18T09:11:24Z",
+        "collection_sizes": {
+          "automations": 0,
+          "folderWorkspaces": 0,
+          "projectGroups": 0,
+          "projectHostSetups": 4,
+          "projects": 4,
+          "repos": 4,
+          "settings": 192,
+          "sshTargets": 0,
+          "ui": 97,
+          "worktreeMeta": 10,
+          "worktreeMetaByIdentity": 0
+        },
+        "entries_naming_this_run": [],
+        "file_count": 39,
+        "files": [
+          {
+            "name": "account-session-mutation.json",
+            "names_this_run": 0,
+            "path_digest": "b62fee92331dcd00",
+            "size_bytes": 205
+          },
+          {
+            "name": "account-session.json.enc",
+            "names_this_run": 0,
+            "path_digest": "bf681242a2976fcd",
+            "size_bytes": 1114
+          },
+          {
+            "name": "active-view.json",
+            "names_this_run": 0,
+            "path_digest": "dd9c707306af18e5",
+            "size_bytes": 26
+          },
+          {
+            "name": "browser-host-client-identity.json",
+            "names_this_run": 0,
+            "path_digest": "d595efe3ad02f8ad",
+            "size_bytes": 75
+          },
+          {
+            "name": "browser-session-meta.json",
+            "names_this_run": 0,
+            "path_digest": "5dac5b6279ac25c6",
+            "size_bytes": 165
+          },
+          {
+            "name": "orca-data.json",
+            "names_this_run": 0,
+            "path_digest": "288f60e7586de76a",
+            "size_bytes": 68370
+          },
+          {
+            "name": "orca-data.json.bak.0",
+            "names_this_run": 0,
+            "path_digest": "2fe6991bb4bc03a9",
+            "size_bytes": 67493
+          },
+          {
+            "name": "orca-data.json.bak.1",
+            "names_this_run": 0,
+            "path_digest": "bb90cb34e0bc5886",
+            "size_bytes": 64227
+          },
+          {
+            "name": "orca-data.json.bak.2",
+            "names_this_run": 0,
+            "path_digest": "f0341477900781b4",
+            "size_bytes": 69093
+          },
+          {
+            "name": "orca-data.json.bak.3",
+            "names_this_run": 0,
+            "path_digest": "6722af70be72543e",
+            "size_bytes": 70633
+          },
+          {
+            "name": "orca-data.json.bak.4",
+            "names_this_run": 0,
+            "path_digest": "d0562e35ff40ba4c",
+            "size_bytes": 66503
+          },
+          {
+            "name": "orca-github-cache.json",
+            "names_this_run": 0,
+            "path_digest": "7e7e14883a4905db",
+            "size_bytes": 1180
+          },
+          {
+            "name": "orca-secret-protection.json",
+            "names_this_run": 0,
+            "path_digest": "85148a3f3548bcf9",
+            "size_bytes": 24
+          },
+          {
+            "name": "orchestration.db",
+            "names_this_run": 0,
+            "path_digest": "104714bcbf8a7655",
+            "size_bytes": 598016
+          },
+          {
+            "name": "orchestration.db-wal",
+            "names_this_run": 0,
+            "path_digest": "a2355586bbf5809f",
+            "size_bytes": 4124152
+          },
+          {
+            "name": "orca-profile-index.json",
+            "names_this_run": 0,
+            "path_digest": "7f0f60b4e7445fa1",
+            "size_bytes": 671
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "7df4c52d8052320d",
+            "size_bytes": 176
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "096033b505491fec",
+            "size_bytes": 133
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "c62247f2f0e2eefe",
+            "size_bytes": 140
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "9902d6cdd626447d",
+            "size_bytes": 128
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "e266e6d7e26b8bfa",
+            "size_bytes": 171
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "2524d1c936554d6c",
+            "size_bytes": 171
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "ee75ee621801f33f",
+            "size_bytes": 138
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "4eb1cc23b2689121",
+            "size_bytes": 135
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "e3b5639ade37f68b",
+            "size_bytes": 188
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "f47b8780c7017cb3",
+            "size_bytes": 176
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "41dea81d59d42525",
+            "size_bytes": 137
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "3dce950608bc2bed",
+            "size_bytes": 169
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "2a6e449d4e03162e",
+            "size_bytes": 183
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "92e7fe95b2ddba91",
+            "size_bytes": 165
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "a72dd99f3714368f",
+            "size_bytes": 184
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "e1149604744aeb6e",
+            "size_bytes": 167
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "011511b38a701710",
+            "size_bytes": 170
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "c94075a914866d60",
+            "size_bytes": 170
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "a91e8c53db817027",
+            "size_bytes": 159
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "4367ef710b93450a",
+            "size_bytes": 159
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "ad8d33374fb28a7d",
+            "size_bytes": 159
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "16400ee95cc7a86f",
+            "size_bytes": 159
+          },
+          {
+            "name": "meta.json",
+            "names_this_run": 0,
+            "path_digest": "301341e80d272134",
+            "size_bytes": 176
+          }
+        ],
+        "home_digest": "8fda3821c06d512d",
+        "markers_searched": 3,
+        "present": true,
+        "unreadable": []
+      },
+      "clean": true,
+      "difference": {
+        "collections_changed": {},
+        "files_after": 39,
+        "files_before": 39
+      },
+      "reason": "none of the 39 host registry file(s) names this run"
+    },
+    "processes": {
+      "clean": true,
+      "detail": "no process on the host was still holding a path of this run",
+      "found": [],
+      "stopped": [],
+      "surviving": []
+    },
+    "reason": "every declared per-run resource is gone, every shared one remains, and no process on the host was still holding a path of this run",
+    "removed": [
+      "domain:dely-cycle-20260918t091124z-bbc5e6-f0bd3fa8",
+      "path:/var/tmp/dely-cycle/state/20260918T091124Z-bbc5e6-f0bd3fa8"
+    ],
+    "retained": [],
+    "shared_preserved": [
+      "image:/var/tmp/dely-cycle/images/tool-image.qcow2"
+    ],
+    "status": "DESTROYED",
+    "verified": true
+  },
+  "config": {
+    "artifact_root": "/var/tmp/dely-cycle/artifacts",
+    "auth": {
+      "allowlist": [
+        ".claude/.credentials.json"
+      ],
+      "mode": "existing_login",
+      "reference": "workshop-host-login"
+    },
+    "backend": "vm",
+    "check": {
+      "expected_marker": "dely-cycle-marker",
+      "relative_path": "evidence.txt"
+    },
+    "claude_code_version": "2.1.272",
+    "dely_revision": "main",
+    "limits": {
+      "budget": null,
+      "max_active": 1,
+      "parallel": false
+    },
+    "orca": {
+      "agent": "claude",
+      "app_argv": [
+        "/opt/Orca/orca-ide"
+      ],
+      "command": "orca",
+      "display": ":0",
+      "effort": "high",
+      "model": "claude-opus-5",
+      "ready_timeout_seconds": 300,
+      "run_objective": "dely minimal cycle",
+      "status_argv": [
+        "orca",
+        "status",
+        "--json"
+      ],
+      "version": "1.4.201",
+      "version_argv": [
+        "orca",
+        "--version"
+      ],
+      "worktree_selector": "current"
+    },
+    "project": {
+      "environment_path": "project",
+      "revision": "main",
+      "source": "/var/tmp/dely-cycle/project-source"
+    },
+    "review": {
+      "enabled": true
+    },
+    "skills": {
+      "bundled": [
+        {
+          "name": "orchestration",
+          "sha256": "f7da0dd40d8681e2b0303fa0fa2f7ee4e36f2eca6495a4af57b92b9857dff732"
+        },
+        {
+          "name": "orca-cli",
+          "sha256": "b21b9b80475c35996b9c046379b9c9fa788f2d357c9e917befd8ab1b37df2e77"
+        }
+      ],
+      "plugins": [
+        {
+          "marketplace": "superpowers-dev",
+          "name": "superpowers",
+          "path": "/opt/dely-cycle/superpowers",
+          "repository": "https://github.com/obra/superpowers.git",
+          "revision": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797",
+          "version": "6.3.0"
+        }
+      ],
+      "required": true,
+      "roots": [
+        ".agents/skills",
+        ".claude/skills"
+      ]
+    },
+    "state_root": "/var/tmp/dely-cycle/state",
+    "task": {
+      "marker": "dely-cycle-marker",
+      "relative_path": "evidence.txt"
+    },
+    "tested_revision": "main",
+    "timeout_seconds": 3600,
+    "vm": {
+      "address_timeout_seconds": 600,
+      "base_image": "/var/tmp/dely-cycle/images/tool-image.qcow2",
+      "base_image_sha256": "",
+      "connect_uri": "qemu:///system",
+      "cpu_mode": "default",
+      "egress": true,
+      "graphics": "vnc",
+      "guest_user": "cycle",
+      "listen_address": "127.0.0.1",
+      "memory_mb": 4096,
+      "network": "default",
+      "overlay_size_bytes": 25769803776,
+      "pool": "dely-cycle",
+      "provider": "pulumi-libvirt",
+      "provider_version": "0.5.4",
+      "provision": [],
+      "pulumi_binary": "pulumi",
+      "qemu_agent": false,
+      "ssh_port": 22,
+      "stack_prefix": "dely-cycle",
+      "transport": "ssh",
+      "vcpus": 2,
+      "venv": "/var/tmp/dely-cycle/venv",
+      "video": "virtio"
+    }
+  },
+  "dely_revision": "main",
+  "display": {
+    "after": [
+      {
+        "id": "541",
+        "name": ""
+      },
+      {
+        "id": "4194677",
+        "name": ""
+      },
+      {
+        "id": "4194591",
+        "name": "Openbox"
+      },
+      {
+        "id": "4194678",
+        "name": ""
+      },
+      {
+        "id": "6291459",
+        "name": "Orca"
+      },
+      {
+        "id": "4194679",
+        "name": ""
+      }
+    ],
+    "appeared": [
+      {
+        "id": "4194677",
+        "name": ""
+      },
+      {
+        "id": "4194678",
+        "name": ""
+      },
+      {
+        "id": "6291459",
+        "name": "Orca"
+      },
+      {
+        "id": "4194679",
+        "name": ""
+      }
+    ],
+    "before": [
+      {
+        "id": "541",
+        "name": ""
+      },
+      {
+        "id": "4194591",
+        "name": "Openbox"
+      }
+    ],
+    "detail": "4 window(s) appeared on the screen this run created that were not there before it started the application, of 6 there now. This is where it rendered; that no process was seen carrying a host session variable is not part of the finding, because the application rewrites its own environment block",
+    "display": ":0",
+    "mode": "virtual",
+    "reachable": true,
+    "status": "OK"
+  },
+  "elapsed_seconds": 516.319,
+  "environment": {
+    "backend": {
+      "address": "192.168.122.24",
+      "backend": "vm",
+      "base_image": "/var/tmp/dely-cycle/images/tool-image.qcow2",
+      "base_image_sha256": "",
+      "base_volume": "tool-image.qcow2",
+      "connect_uri": "qemu:///system",
+      "domain": "dely-cycle-20260918t091124z-bbc5e6-f0bd3fa8",
+      "egress_interface": true,
+      "graphics": "vnc",
+      "listen_address": "127.0.0.1",
+      "network": "default",
+      "pool": "dely-cycle",
+      "provider": "pulumi-libvirt@0.5.4",
+      "stack": "dely-cycle-20260918t091124z-bbc5e6-f0bd3fa8",
+      "transport_mac": "52:54:00:3a:fb:b1",
+      "video": "virtio"
+    },
+    "description": {
+      "address": "192.168.122.24",
+      "base_image": "/var/tmp/dely-cycle/images/tool-image.qcow2",
+      "base_volume": "tool-image.qcow2",
+      "connect_uri": "qemu:///system",
+      "domain": "dely-cycle-20260918t091124z-bbc5e6-f0bd3fa8",
+      "egress": true,
+      "graphics": "vnc",
+      "network": "default",
+      "pool": "dely-cycle",
+      "provider": "pulumi-libvirt@0.5.4",
+      "stack": "/var/tmp/dely-cycle/state/20260918T091124Z-bbc5e6-f0bd3fa8/stack",
+      "transport_mac": "52:54:00:3a:fb:b1",
+      "video": "virtio"
+    },
+    "environment_id": "dely-cycle-20260918t091124z-bbc5e6-f0bd3fa8",
+    "home_path": "/home/cycle",
+    "per_run_resources": [
+      {
+        "identifier": "dely-cycle-20260918t091124z-bbc5e6-f0bd3fa8",
+        "kind": "domain"
+      },
+      {
+        "identifier": "/var/tmp/dely-cycle/state/20260918T091124Z-bbc5e6-f0bd3fa8",
+        "kind": "path"
+      },
+      {
+        "identifier": "/var/tmp/dely-cycle/images/dely-cycle-20260918t091124z-bbc5e6-f0bd3fa8-overlay.qcow2",
+        "kind": "volume"
+      },
+      {
+        "identifier": "/var/tmp/dely-cycle/images/dely-cycle-20260918t091124z-bbc5e6-f0bd3fa8-seed.iso",
+        "kind": "volume"
+      }
+    ],
+    "project_path": "/home/cycle/project",
+    "shared_resources": [
+      {
+        "identifier": "/var/tmp/dely-cycle/images/tool-image.qcow2",
+        "kind": "image"
+      }
+    ]
+  },
+  "environment_id": "dely-cycle-20260918t091124z-bbc5e6-f0bd3fa8",
+  "export": {
+    "artifacts": [
+      {
+        "path": "admission.json",
+        "sha256": "009324a0b4566f364d7613463ae3c84bb24572d347546c5e80c6588a001a1782",
+        "size_bytes": 454
+      },
+      {
+        "path": "auth-diagnosis.txt",
+        "sha256": "9c7c02096e619da383b54f028a26dfd91449d9b0501a5986c3a80084a94ee996",
+        "size_bytes": 1340
+      },
+      {
+        "path": "auth-receipt.json",
+        "sha256": "5b873c1ab08805bdee25d7e87cca3a3683e2e28b6e0acca656491b733cf649b0",
+        "size_bytes": 426
+      },
+      {
+        "path": "backend-status.json",
+        "sha256": "67f9f2749657bd47485a82e71e53f4c7c3532443c28ce11333caaefd93416d8b",
+        "size_bytes": 1950
+      },
+      {
+        "path": "diff.patch",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      },
+      {
+        "path": "display.json",
+        "sha256": "bda2d0518f308e6281d26df5c6820e217c0981b9bcfff8cea530b160baa99230",
+        "size_bytes": 1097
+      },
+      {
+        "path": "host-before.json",
+        "sha256": "88a6960927b6c32112723e615d5b76ebe87e76e5867fb4974ab88e512ce66de2",
+        "size_bytes": 2421
+      },
+      {
+        "path": "host-registry-before.json",
+        "sha256": "931adcb8f2606655ed2b7d4eeaefdfc4e29fe1809c2a7e25318ced784cd114dd",
+        "size_bytes": 5863
+      },
+      {
+        "path": "identity/environment-probe.txt",
+        "sha256": "cc5a67296f5548a0dc1e6e683238c20f5cf3a4b19ce002646ee9a3b17a7b1126",
+        "size_bytes": 471
+      },
+      {
+        "path": "identity/host-probe.txt",
+        "sha256": "c850124469b28205151eb33cdeba621bf039b8a2154e95e1c7d55edcc09553a1",
+        "size_bytes": 1685
+      },
+      {
+        "path": "identity/orca-runtime.json",
+        "sha256": "476cf8727b9504df98ad2cacdfa7284e2fc766811e17e530865bec263cb6535c",
+        "size_bytes": 3178
+      },
+      {
+        "path": "identity/orca-status.json",
+        "sha256": "86222f82dc556d15cb413be50082d0c6670a8d1d3c0dae8212c695c995a130e7",
+        "size_bytes": 363
+      },
+      {
+        "path": "logs/commands.jsonl",
+        "sha256": "7d3c433f9feb25d170ec1b8fa42e5e7b2c6552dfee9eea44e0a9b7803e8e6926",
+        "size_bytes": 20605
+      },
+      {
+        "path": "logs/runner.log",
+        "sha256": "3d9df1e173b5064071c71f74c0bd2bf47bd9e9e01175b919f281a6f4fc3ceb81",
+        "size_bytes": 2736
+      },
+      {
+        "path": "preflight.json",
+        "sha256": "656ba6ca2cf8cff7d453b44b9814e39b7ec9323b484ef62ffec6a3fcb6ee19ef",
+        "size_bytes": 1836
+      },
+      {
+        "path": "run-before-cleanup.json",
+        "sha256": "4b9656872d17e206220da7ba6153e9f17c77386db60b431b295d708f62bcf57e",
+        "size_bytes": 35703
+      },
+      {
+        "path": "screenshot.json",
+        "sha256": "107ce45dcade18b02d1cd38b05f2a2c700588bacc030d48590fb81ace0ba9e21",
+        "size_bytes": 591
+      },
+      {
+        "path": "screenshots/runtime-ready.ppm",
+        "sha256": "24262e1536cb1eda1c73da4c68aeee0203d592f8ce6f3dc4365daccee0d1613b",
+        "size_bytes": 68264
+      }
+    ],
+    "confirmed_at": "2026-09-18T09:19:53Z",
+    "detail": "18 artifact(s) re-read from the host; 1 unresolved",
+    "missing": [
+      "task-artifact/evidence.txt (absent from the host)"
+    ],
+    "receipt_path": "export-receipt.json",
+    "status": "CONFIRMED"
+  },
+  "failure_classification": "the agent did not answer whether it is signed in before the deadline",
+  "finished_at": "2026-09-18T09:20:00Z",
+  "first_run": {
+    "detail": "not attempted",
+    "entries": [],
+    "questions": [],
+    "status": "SKIPPED",
+    "target": null
+  },
+  "generated_at": "2026-09-18T09:20:00Z",
+  "host_after": {
+    "architecture": "x86_64",
+    "artifact_root": {
+      "entries": [
+        "20260914T230000Z-aaaaaa-00000001",
+        "20260914T231500Z-aaaaaa-00000002",
+        "20260915T001500Z-aaaaaa-00000003",
+        "20260915T003000Z-aaaaaa-00000004",
+        "20260915T130000Z-bbbbbb-00000001",
+        "20260915T131500Z-bbbbbb-00000002",
+        "20260915T134500Z-bbbbbb-00000003",
+        "20260915T140000Z-bbbbbb-00000004",
+        "20260915T143000Z-bbbbbb-00000005",
+        "20260915T150000Z-bbbbbb-00000006",
+        "20260915T160000Z-bbbbbb-00000007",
+        "20260915T170000Z-bbbbbb-00000008",
+        "20260915T182804Z-bbc5e6-366fa4a0",
+        "20260915T183739Z-bbc5e6-9088bc04",
+        "20260915T184612Z-bbc5e6-9fb2fb6e",
+        "20260915T190618Z-bbc5e6-c588ade8",
+        "20260915T200000Z-bbbbbb-00000009",
+        "20260915T210000Z-bbbbbb-00000010",
+        "20260915T220000Z-bbbbbb-00000011",
+        "20260915T230000Z-bbbbbb-00000012",
+        "20260916T000000Z-bbbbbb-00000013",
+        "20260916T010000Z-bbbbbb-00000014",
+        "20260916T020000Z-cccccc-00000001",
+        "20260916T030000Z-cccccc-00000002",
+        "20260916T040000Z-cccccc-00000003",
+        "20260916T050000Z-cccccc-00000004",
+        "20260916T084754Z-bbc5e6-a6d0c4b5",
+        "20260916T085001Z-bbc5e6-a2468632",
+        "20260916T085443Z-bbc5e6-bf792f16",
+        "20260916T085922Z-bbc5e6-3d37156e",
+        "20260916T090743Z-bbc5e6-593712b7",
+        "20260916T091038Z-bbc5e6-39646e78",
+        "20260916T091353Z-bbc5e6-0a223d47",
+        "20260916T091832Z-bbc5e6-8ae6e3e3",
+        "20260916T092223Z-bbc5e6-957d71d3",
+        "20260916T092744Z-bbc5e6-237322f5",
+        "20260916T093600Z-bbc5e6-c9376289",
+        "20260916T093915Z-bbc5e6-1caedb1f",
+        "20260917T224759Z-bbc5e6-48582ced",
+        "20260917T233020Z-bbc5e6-3e46a992",
+        "20260918T091124Z-bbc5e6-f0bd3fa8"
+      ],
+      "exists": true,
+      "path": "/var/tmp/dely-cycle/artifacts"
+    },
+    "boot_id_digest": "de0d3220ff53399e",
+    "captured_at": "2026-09-18T09:20:00Z",
+    "extra": {
+      "backend": "vm"
+    },
+    "hostname_digest": "bbc5e661e106c6dc",
+    "kernel": "7.2.5-200.fc44.x86_64",
+    "machine_id_digest": "907fa710d6d1c501",
+    "python_version": "3.14.7",
+    "state_root": {
+      "entries": [
+        "20260916T080551Z-bbc5e6-b74d6b65",
+        "20260916T084631Z-bbc5e6-74b492c8",
+        "20260916T093552Z-bbc5e6-f20be0dc",
+        "leases"
+      ],
+      "exists": true,
+      "path": "/var/tmp/dely-cycle/state"
+    },
+    "user_digest": "8fda3821c06d512d"
+  },
+  "host_before": {
+    "architecture": "x86_64",
+    "artifact_root": {
+      "entries": [
+        "20260914T230000Z-aaaaaa-00000001",
+        "20260914T231500Z-aaaaaa-00000002",
+        "20260915T001500Z-aaaaaa-00000003",
+        "20260915T003000Z-aaaaaa-00000004",
+        "20260915T130000Z-bbbbbb-00000001",
+        "20260915T131500Z-bbbbbb-00000002",
+        "20260915T134500Z-bbbbbb-00000003",
+        "20260915T140000Z-bbbbbb-00000004",
+        "20260915T143000Z-bbbbbb-00000005",
+        "20260915T150000Z-bbbbbb-00000006",
+        "20260915T160000Z-bbbbbb-00000007",
+        "20260915T170000Z-bbbbbb-00000008",
+        "20260915T182804Z-bbc5e6-366fa4a0",
+        "20260915T183739Z-bbc5e6-9088bc04",
+        "20260915T184612Z-bbc5e6-9fb2fb6e",
+        "20260915T190618Z-bbc5e6-c588ade8",
+        "20260915T200000Z-bbbbbb-00000009",
+        "20260915T210000Z-bbbbbb-00000010",
+        "20260915T220000Z-bbbbbb-00000011",
+        "20260915T230000Z-bbbbbb-00000012",
+        "20260916T000000Z-bbbbbb-00000013",
+        "20260916T010000Z-bbbbbb-00000014",
+        "20260916T020000Z-cccccc-00000001",
+        "20260916T030000Z-cccccc-00000002",
+        "20260916T040000Z-cccccc-00000003",
+        "20260916T050000Z-cccccc-00000004",
+        "20260916T084754Z-bbc5e6-a6d0c4b5",
+        "20260916T085001Z-bbc5e6-a2468632",
+        "20260916T085443Z-bbc5e6-bf792f16",
+        "20260916T085922Z-bbc5e6-3d37156e",
+        "20260916T090743Z-bbc5e6-593712b7",
+        "20260916T091038Z-bbc5e6-39646e78",
+        "20260916T091353Z-bbc5e6-0a223d47",
+        "20260916T091832Z-bbc5e6-8ae6e3e3",
+        "20260916T092223Z-bbc5e6-957d71d3",
+        "20260916T092744Z-bbc5e6-237322f5",
+        "20260916T093600Z-bbc5e6-c9376289",
+        "20260916T093915Z-bbc5e6-1caedb1f",
+        "20260917T224759Z-bbc5e6-48582ced",
+        "20260917T233020Z-bbc5e6-3e46a992",
+        "20260918T091124Z-bbc5e6-f0bd3fa8"
+      ],
+      "exists": true,
+      "path": "/var/tmp/dely-cycle/artifacts"
+    },
+    "boot_id_digest": "de0d3220ff53399e",
+    "captured_at": "2026-09-18T09:11:24Z",
+    "extra": {
+      "backend": "vm"
+    },
+    "hostname_digest": "bbc5e661e106c6dc",
+    "kernel": "7.2.5-200.fc44.x86_64",
+    "machine_id_digest": "907fa710d6d1c501",
+    "python_version": "3.14.7",
+    "state_root": {
+      "entries": [
+        "20260916T080551Z-bbc5e6-b74d6b65",
+        "20260916T084631Z-bbc5e6-74b492c8",
+        "20260916T093552Z-bbc5e6-f20be0dc",
+        "leases"
+      ],
+      "exists": true,
+      "path": "/var/tmp/dely-cycle/state"
+    },
+    "user_digest": "8fda3821c06d512d"
+  },
+  "identity": {
+    "environment": {
+      "container_marker": "",
+      "home": "/home/cycle",
+      "hostname": "dely-cycle-20260918t091124z-bbc5e6-f0bd3fa8",
+      "orca_fingerprint": "527984:1592:1789327972",
+      "orca_path": "/usr/local/bin/orca",
+      "orca_version": "1.4.201",
+      "path": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin",
+      "pid": "2011",
+      "project_real": "/home/cycle/project",
+      "uname": "Linux 6.8.0-139-generic x86_64",
+      "user": "cycle",
+      "virt": "kvm"
+    },
+    "host": {
+      "boot_id_digest": "de0d3220ff53399e",
+      "home_digest": "8fda3821c06d512d",
+      "hostname_digest": "bbc5e661e106c6dc",
+      "machine_id_digest": "907fa710d6d1c501",
+      "orca_fingerprint_digest": "ea841899bf829047",
+      "orca_path_digest": "6784f600bbc7d6cf",
+      "orca_present": true,
+      "project_real_digest": "0d03c9e72dddfdae",
+      "user_digest": "3cc9cee71b0b967f",
+      "virt": "none"
+    },
+    "markers": [
+      "distinct-machine-identity",
+      "distinct-boot-identity",
+      "distinct-hostname",
+      "reported-virtualisation:kvm"
+    ],
+    "orca_is_host_installation": false,
+    "orca_present": true,
+    "orca_runtime": {
+      "app_pid": 2327,
+      "app_running": true,
+      "app_version": "1.4.201",
+      "capabilities": [
+        "runtime.status.compat.v1",
+        "runtime.environments.v1",
+        "remote-runtime.shared-control.v1",
+        "orchestration.federation.v1",
+        "orchestration.federation-control-mail.v1",
+        "orchestration.federation-lifecycle-settlement.v1",
+        "orchestration.worker-stop-verdict.v1",
+        "orchestration.worker-launch-preferences.v1",
+        "orchestration.federation-structured-read.v1",
+        "orchestration.federation-fleet-snapshot.v1",
+        "orchestration.federation-release-archive.v1",
+        "orchestration.contract.v1",
+        "browser.screencast.v1",
+        "browser.tab-create-known-id.v1",
+        "browser.clientHost.v1",
+        "browser.clientHost.pageMetadata.v1",
+        "browser.clientHost.automation.v1",
+        "browser.clientHost.fileChannel.v1",
+        "network.browserTunnel.v1",
+        "network.browserTunnel.executionHosts.v1",
+        "terminal.binary-stream.v1",
+        "terminal.multiplex.v1",
+        "workspace-ports.v1",
+        "mobile.tasks.v1",
+        "project-host-setup.v1",
+        "task-source-context.v1",
+        "workspace-run-context.v1",
+        "worktree.linked-work-item-context.v1",
+        "worktree.github-pr-suppression.v1",
+        "folder-workspace.path-status.v1",
+        "linear.issue-attribute-filter.v1",
+        "jira.user-fields.v1",
+        "aiVault.v1",
+        "aiVault.session-titles.v1",
+        "terminal.query-reply-input.v1",
+        "terminal.prompt-delivery.v1",
+        "terminal.paired-parking.v1",
+        "terminal.quick-commands.v1",
+        "worktree.create-idempotency.v1",
+        "terminal.create-idempotency.v2",
+        "session-tabs.close-intent.v1",
+        "session-tabs.authoritative-inventory.v1",
+        "agent-session.session-boundary.v1",
+        "updater.remote-control.v1",
+        "agent-session.host-authority.v1",
+        "agent-session.omp-resume-path.v1",
+        "agent-session.structured.v1",
+        "agent-session.pending-send-result.v1",
+        "agent-session.structured.hold.v1",
+        "agent-session.structured.reveal.v1",
+        "agent-session.structured.resume-history.v1",
+        "agent-session.status-feed.v1",
+        "agent-session.rewind.v1",
+        "agent-session.background-task-stop.v1",
+        "agent-session.turn-item.v1",
+        "agent-session.background-task-row-stop.v1",
+        "agent-session.kimi-resume.v1",
+        "files.mutation-ownership.v1",
+        "github.markPRReadyForReview",
+        "gitlab.updateMR.readyForReview.v1",
+        "worktree.visibility-defaults.v1",
+        "worktree.visibility-source-defaults.v1",
+        "accounts.import-host-credentials.v1",
+        "accounts.codex-reset-credit.v1",
+        "skills.install.v1",
+        "skills.install.bundle.v1",
+        "skills.install-cancel.v1",
+        "skills.install-progress.v1",
+        "skills.install-result.v2",
+        "skills.upload.v1",
+        "skills.manage.v1",
+        "skills.install-providers.v1",
+        "skills.delete.v1",
+        "automation.list-host-scope.v1",
+        "automation.owner-fencing.v1",
+        "automation.create-idempotency.v1",
+        "notifications.remote-push.v1",
+        "browser.certificate-trust.v1"
+      ],
+      "desktop_window": "available",
+      "detail": "the runtime is ready and the application is running",
+      "ready": true,
+      "runtime_id": "23e221b1-ced8-4dda-b6bc-42ae5e494fe3",
+      "runtime_state": "ready"
+    },
+    "orca_status_exit_code": 0,
+    "orca_version": "1.4.201",
+    "reason": "the environment answered with its own identity, home and project copy",
+    "verdict": "ENVIRONMENT"
+  },
+  "phases": [
+    {
+      "commands": [],
+      "detail": "",
+      "elapsed_seconds": 4.832,
+      "finished_at": "2026-09-18T09:11:29Z",
+      "name": "prepare",
+      "started_at": "2026-09-18T09:11:24Z",
+      "status": "OK"
+    },
+    {
+      "commands": [],
+      "detail": "",
+      "elapsed_seconds": 14.624,
+      "finished_at": "2026-09-18T09:11:43Z",
+      "name": "create",
+      "started_at": "2026-09-18T09:11:29Z",
+      "status": "OK"
+    },
+    {
+      "commands": [
+        {
+          "argv": [
+            "ssh",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "UserKnownHostsFile=/var/tmp/dely-cycle/state/20260918T091124Z-bbc5e6-f0bd3fa8/known_hosts",
+            "-p",
+            "22",
+            "-i",
+            "<redacted:credential-path>",
+            "cycle@192.168.122.24",
+            "--",
+            "sh -c 'for prefix in \"$@\"; do   case \"$prefix\" in --) shift; break;; esac; done; for name in $(env | sed -n \"s/^\\([A-Za-z_][A-Za-z0-9_]*\\)=.*/\\1/p\"); do   case \"$name\" in ORCA_*|DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|XDG_RUNTIME_DIR|XDG_SESSION_TYPE|XDG_SESSION_ID|XDG_SESSION_DESKTOP|XDG_CURRENT_DESKTOP|DBUS_SESSION_BUS_ADDRESS|GDK_BACKEND|QT_QPA_PLATFORM|ELECTRON_OZONE_PLATFORM_HINT) unset \"$name\";;   esac; done; exec \"$@\"' cycle-isolate -- git -C /home/cycle/project init -q -b main"
+          ],
+          "context": "environment",
+          "elapsed_seconds": 0.205,
+          "exit_code": 0,
+          "finished_at": "2026-09-18T09:11:44Z",
+          "started_at": "2026-09-18T09:11:44Z",
+          "stderr_path": null,
+          "stdout_path": null,
+          "timed_out": false
+        },
+        {
+          "argv": [
+            "ssh",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "UserKnownHostsFile=/var/tmp/dely-cycle/state/20260918T091124Z-bbc5e6-f0bd3fa8/known_hosts",
+            "-p",
+            "22",
+            "-i",
+            "<redacted:credential-path>",
+            "cycle@192.168.122.24",
+            "--",
+            "sh -c 'for prefix in \"$@\"; do   case \"$prefix\" in --) shift; break;; esac; done; for name in $(env | sed -n \"s/^\\([A-Za-z_][A-Za-z0-9_]*\\)=.*/\\1/p\"); do   case \"$name\" in ORCA_*|DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|XDG_RUNTIME_DIR|XDG_SESSION_TYPE|XDG_SESSION_ID|XDG_SESSION_DESKTOP|XDG_CURRENT_DESKTOP|DBUS_SESSION_BUS_ADDRESS|GDK_BACKEND|QT_QPA_PLATFORM|ELECTRON_OZONE_PLATFORM_HINT) unset \"$name\";;   esac; done; exec \"$@\"' cycle-isolate -- git -C /home/cycle/project config user.email dely-cycle@invalid"
+          ],
+          "context": "environment",
+          "elapsed_seconds": 0.208,
+          "exit_code": 0,
+          "finished_at": "2026-09-18T09:11:44Z",
+          "started_at": "2026-09-18T09:11:44Z",
+          "stderr_path": null,
+          "stdout_path": null,
+          "timed_out": false
+        },
+        {
+          "argv": [
+            "ssh",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "UserKnownHostsFile=/var/tmp/dely-cycle/state/20260918T091124Z-bbc5e6-f0bd3fa8/known_hosts",
+            "-p",
+            "22",
+            "-i",
+            "<redacted:credential-path>",
+            "cycle@192.168.122.24",
+            "--",
+            "sh -c 'for prefix in \"$@\"; do   case \"$prefix\" in --) shift; break;; esac; done; for name in $(env | sed -n \"s/^\\([A-Za-z_][A-Za-z0-9_]*\\)=.*/\\1/p\"); do   case \"$name\" in ORCA_*|DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|XDG_RUNTIME_DIR|XDG_SESSION_TYPE|XDG_SESSION_ID|XDG_SESSION_DESKTOP|XDG_CURRENT_DESKTOP|DBUS_SESSION_BUS_ADDRESS|GDK_BACKEND|QT_QPA_PLATFORM|ELECTRON_OZONE_PLATFORM_HINT) unset \"$name\";;   esac; done; exec \"$@\"' cycle-isolate -- git -C /home/cycle/project config user.name dely-cycle"
+          ],
+          "context": "environment",
+          "elapsed_seconds": 0.185,
+          "exit_code": 0,
+          "finished_at": "2026-09-18T09:11:44Z",
+          "started_at": "2026-09-18T09:11:44Z",
+          "stderr_path": null,
+          "stdout_path": null,
+          "timed_out": false
+        },
+        {
+          "argv": [
+            "ssh",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "UserKnownHostsFile=/var/tmp/dely-cycle/state/20260918T091124Z-bbc5e6-f0bd3fa8/known_hosts",
+            "-p",
+            "22",
+            "-i",
+            "<redacted:credential-path>",
+            "cycle@192.168.122.24",
+            "--",
+            "sh -c 'for prefix in \"$@\"; do   case \"$prefix\" in --) shift; break;; esac; done; for name in $(env | sed -n \"s/^\\([A-Za-z_][A-Za-z0-9_]*\\)=.*/\\1/p\"); do   case \"$name\" in ORCA_*|DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|XDG_RUNTIME_DIR|XDG_SESSION_TYPE|XDG_SESSION_ID|XDG_SESSION_DESKTOP|XDG_CURRENT_DESKTOP|DBUS_SESSION_BUS_ADDRESS|GDK_BACKEND|QT_QPA_PLATFORM|ELECTRON_OZONE_PLATFORM_HINT) unset \"$name\";;   esac; done; exec \"$@\"' cycle-isolate -- git -C /home/cycle/project add -A"
+          ],
+          "context": "environment",
+          "elapsed_seconds": 0.24,
+          "exit_code": 0,
+          "finished_at": "2026-09-18T09:11:44Z",
+          "started_at": "2026-09-18T09:11:44Z",
+          "stderr_path": null,
+          "stdout_path": null,
+          "timed_out": false
+        },
+        {
+          "argv": [
+            "ssh",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "UserKnownHostsFile=/var/tmp/dely-cycle/state/20260918T091124Z-bbc5e6-f0bd3fa8/known_hosts",
+            "-p",
+            "22",
+            "-i",
+            "<redacted:credential-path>",
+            "cycle@192.168.122.24",
+            "--",
+            "sh -c 'for prefix in \"$@\"; do   case \"$prefix\" in --) shift; break;; esac; done; for name in $(env | sed -n \"s/^\\([A-Za-z_][A-Za-z0-9_]*\\)=.*/\\1/p\"); do   case \"$name\" in ORCA_*|DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|XDG_RUNTIME_DIR|XDG_SESSION_TYPE|XDG_SESSION_ID|XDG_SESSION_DESKTOP|XDG_CURRENT_DESKTOP|DBUS_SESSION_BUS_ADDRESS|GDK_BACKEND|QT_QPA_PLATFORM|ELECTRON_OZONE_PLATFORM_HINT) unset \"$name\";;   esac; done; exec \"$@\"' cycle-isolate -- git -C /home/cycle/project commit -q -m 'dely-cycle: the pinned revision as exported'"
+          ],
+          "context": "environment",
+          "elapsed_seconds": 0.232,
+          "exit_code": 0,
+          "finished_at": "2026-09-18T09:11:45Z",
+          "started_at": "2026-09-18T09:11:44Z",
+          "stderr_path": null,
+          "stdout_path": null,
+          "timed_out": false
+        },
+        {
+          "argv": [
+            "ssh",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "UserKnownHostsFile=/var/tmp/dely-cycle/state/20260918T091124Z-bbc5e6-f0bd3fa8/known_hosts",
+            "-p",
+            "22",
+            "-i",
+            "<redacted:credential-path>",
+            "cycle@192.168.122.24",
+            "--",
+            "sh -c 'for prefix in \"$@\"; do   case \"$prefix\" in --) shift; break;; esac; done; for name in $(env | sed -n \"s/^\\([A-Za-z_][A-Za-z0-9_]*\\)=.*/\\1/p\"); do   case \"$name\" in ORCA_*|DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|XDG_RUNTIME_DIR|XDG_SESSION_TYPE|XDG_SESSION_ID|XDG_SESSION_DESKTOP|XDG_CURRENT_DESKTOP|DBUS_SESSION_BUS_ADDRESS|GDK_BACKEND|QT_QPA_PLATFORM|ELECTRON_OZONE_PLATFORM_HINT) unset \"$name\";;   esac; done; exec \"$@\"' cycle-isolate -- sh -c '\nset -u\nsay() { printf '\"'\"'\\n== %s ==\\n'\"'\"' \"$1\"; }\nsay \"claude --version\"\ntimeout 20 claude --version 2>&1 || printf '\"'\"'exit %s\\n'\"'\"' \"$?\"\nsay \"default routes\"\nip route show default 2>&1 || printf '\"'\"'no ip command\\n'\"'\"'\nsay \"name resolution\"\ntimeout 15 getent hosts api.anthropic.com 2>&1 || printf '\"'\"'exit %s\\n'\"'\"' \"$?\"\nsay \"reachability, either family\"\ntimeout 20 curl -sS -o /dev/null -w '\"'\"'http %{http_code} in %{time_total}s\\n'\"'\"' \\\n    https://api.anthropic.com/ 2>&1 || printf '\"'\"'exit %s\\n'\"'\"' \"$?\"\nsay \"reachability over the fourth family\"\ntimeout 20 curl -4 -sS -o /dev/null -w '\"'\"'http %{http_code} in %{time_total}s\\n'\"'\"' \\\n    https://api.anthropic.com/ 2>&1 || printf '\"'\"'exit %s\\n'\"'\"' \"$?\"\nsay \"reachability over the sixth family\"\ntimeout 20 curl -6 -sS -o /dev/null -w '\"'\"'http %{http_code} in %{time_total}s\\n'\"'\"' \\\n    https://api.anthropic.com/ 2>&1 || printf '\"'\"'exit %s\\n'\"'\"' \"$?\"\nsay \"claude auth status again, bounded\"\ntimeout 30 claude auth status --json 2>&1 || printf '\"'\"'exit %s\\n'\"'\"' \"$?\"\n\n# Rather than guess what it is waiting for, start it and look. The descendants\n# name what it reached for, and the kernel wait channel names what it is\n# blocked in.\nsay \"what it is doing while it does not answer\"\nclaude auth status --json > /tmp/cycle-hang.out 2>&1 &\nhung=$!\nsleep 25\nif kill -0 \"$hung\" 2>/dev/null; then\n    printf '\"'\"'still running after 25s as pid %s\\n'\"'\"' \"$hung\"\n    ps -o pid,ppid,stat,wchan:28,args -p \"$hung\" 2>&1 || true\n    printf -- '\"'\"'-- its descendants --\\n'\"'\"'\n    ps -eo pid,ppid,stat,wchan:28,args 2>/dev/null | awk -v root=\"$hung\" '\"'\"'\n        NR == 1 { next }\n        { parent[$1] = $2; line[$1] = $0 }\n        END {\n            for (p in parent) {\n                q = p\n                for (i = 0; i < 40 && q != 1 && q != \"\"; i++) {\n                    if (parent[q] == root) { print line[p]; break }\n                    q = parent[q]\n                }\n            }\n        }'\"'\"' || true\n    printf -- '\"'\"'-- open sockets it holds --\\n'\"'\"'\n    ls -l \"/proc/$hung/fd\" 2>/dev/null | grep -c socket || true\n    kill \"$hung\" 2>/dev/null || true\nelse\n    printf '\"'\"'it answered within 25s after all\\n'\"'\"'\nfi\ncat /tmp/cycle-hang.out 2>/dev/null | head -5\n\nsay \"claude auth status with the message bus refused rather than started\"\nDBUS_SESSION_BUS_ADDRESS=\"disabled:\" timeout 60 claude auth status --json 2>&1 \\\n    || printf '\"'\"'exit %s\\n'\"'\"' \"$?\"\n\n# The process was seen running rather than waiting, with nothing open and\n# nothing spawned, so the remaining question is whether it is stuck or merely\n# slow. This is the same command with room to finish, and the time it took.\nsay \"the processor this guest was given\"\nlscpu 2>/dev/null | grep -iE \"^(model name|vendor id|virtuali|flags)\" | cut -c1-200 || true\nsay \"claude auth status with room to finish\"\nstart=$(date +%s)\ntimeout 240 claude auth status --json > /tmp/cycle-slow.out 2>&1\nstatus=$?\nprintf '\"'\"'exit %s after %ss\\n'\"'\"' \"$status\" \"$(( $(date +%s) - start ))\"\nhead -3 /tmp/cycle-slow.out 2>/dev/null\n' auth-diagnosis"
+          ],
+          "context": "environment",
+          "elapsed_seconds": 355.791,
+          "exit_code": 0,
+          "finished_at": "2026-09-18T09:19:41Z",
+          "started_at": "2026-09-18T09:13:45Z",
+          "stderr_path": null,
+          "stdout_path": null,
+          "timed_out": false
+        }
+      ],
+      "detail": "",
+      "elapsed_seconds": 477.712,
+      "finished_at": "2026-09-18T09:19:41Z",
+      "name": "bootstrap",
+      "started_at": "2026-09-18T09:11:43Z",
+      "status": "BLOCKED"
+    },
+    {
+      "commands": [
+        {
+          "argv": [
+            "sh",
+            "-c",
+            "\nset -u\nproject_path=\"${1:-}\"\norca_command=\"${2:-orca}\"\n\nfirst_line() {\n    if [ -r \"$1\" ]; then\n        head -n 1 \"$1\" 2>/dev/null || printf ''\n    else\n        printf ''\n    fi\n}\n\nmarker=''\nif [ -f /run/.containerenv ]; then marker='containerenv'; fi\nif [ -z \"$marker\" ] && [ -f /.dockerenv ]; then marker='dockerenv'; fi\nif [ -z \"$marker\" ] && [ -f /run/.toolboxenv ]; then marker='toolboxenv'; fi\nif [ -z \"$marker\" ] && [ -n \"${container:-}\" ]; then marker=\"${container}\"; fi\n\nvirt='unknown'\nif command -v systemd-detect-virt >/dev/null 2>&1; then\n    detected=\"$(systemd-detect-virt 2>/dev/null | head -n 1)\"\n    if [ -n \"$detected\" ]; then virt=\"$detected\"; fi\nfi\n\norca_binary=\"$(command -v \"$orca_command\" 2>/dev/null || printf '')\"\norca_release=''\norca_fingerprint=''\nif [ -n \"$orca_binary\" ]; then\n    orca_release=\"$(\"$orca_binary\" --version 2>/dev/null | head -n 1 || printf '')\"\n    orca_resolved=\"$(readlink -f \"$orca_binary\" 2>/dev/null || printf '%s' \"$orca_binary\")\"\n    orca_fingerprint=\"$(stat -c '%i:%s:%Y' \"$orca_resolved\" 2>/dev/null || printf '')\"\nfi\n\nproject_resolved=''\nif [ -n \"$project_path\" ] && [ -d \"$project_path\" ]; then\n    project_resolved=\"$(cd \"$project_path\" 2>/dev/null && pwd -P || printf '')\"\nfi\n\nprintf 'hostname=%s\\n' \"$(uname -n 2>/dev/null || printf '')\"\nprintf 'machine_id=<scrubbed> \"$(first_line /etc/machine-id)\"\nprintf 'boot_id=<scrubbed> \"$(first_line /proc/sys/kernel/random/boot_id)\"\nprintf 'home=%s\\n' \"${HOME:-}\"\nprintf 'user=%s\\n' \"$(id -un 2>/dev/null || printf '')\"\nprintf 'path=%s\\n' \"${PATH:-}\"\nprintf 'pid=%s\\n' \"$$\"\nprintf 'uname=%s\\n' \"$(uname -srm 2>/dev/null || printf '')\"\nprintf 'container_marker=%s\\n' \"$marker\"\nprintf 'virt=%s\\n' \"$virt\"\nprintf 'orca_path=%s\\n' \"$orca_binary\"\nprintf 'orca_version=%s\\n' \"$orca_release\"\nprintf 'orca_fingerprint=%s\\n' \"$orca_fingerprint\"\nprintf 'project_real=%s\\n' \"$project_resolved\"\n",
+            "cycle-probe",
+            "/var/tmp/dely-cycle/project-source",
+            "orca"
+          ],
+          "context": "host",
+          "elapsed_seconds": 0.219,
+          "exit_code": 0,
+          "finished_at": "2026-09-18T09:19:41Z",
+          "started_at": "2026-09-18T09:19:41Z",
+          "stderr_path": null,
+          "stdout_path": null,
+          "timed_out": false
+        },
+        {
+          "argv": [
+            "ssh",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "UserKnownHostsFile=/var/tmp/dely-cycle/state/20260918T091124Z-bbc5e6-f0bd3fa8/known_hosts",
+            "-p",
+            "22",
+            "-i",
+            "<redacted:credential-path>",
+            "cycle@192.168.122.24",
+            "--",
+            "sh -c 'for prefix in \"$@\"; do   case \"$prefix\" in --) shift; break;; esac; done; for name in $(env | sed -n \"s/^\\([A-Za-z_][A-Za-z0-9_]*\\)=.*/\\1/p\"); do   case \"$name\" in ORCA_*|DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|XDG_RUNTIME_DIR|XDG_SESSION_TYPE|XDG_SESSION_ID|XDG_SESSION_DESKTOP|XDG_CURRENT_DESKTOP|DBUS_SESSION_BUS_ADDRESS|GDK_BACKEND|QT_QPA_PLATFORM|ELECTRON_OZONE_PLATFORM_HINT) unset \"$name\";;   esac; done; exec \"$@\"' cycle-isolate -- sh -c '\nset -u\nproject_path=\"${1:-}\"\norca_command=\"${2:-orca}\"\n\nfirst_line() {\n    if [ -r \"$1\" ]; then\n        head -n 1 \"$1\" 2>/dev/null || printf '\"'\"''\"'\"'\n    else\n        printf '\"'\"''\"'\"'\n    fi\n}\n\nmarker='\"'\"''\"'\"'\nif [ -f /run/.containerenv ]; then marker='\"'\"'containerenv'\"'\"'; fi\nif [ -z \"$marker\" ] && [ -f /.dockerenv ]; then marker='\"'\"'dockerenv'\"'\"'; fi\nif [ -z \"$marker\" ] && [ -f /run/.toolboxenv ]; then marker='\"'\"'toolboxenv'\"'\"'; fi\nif [ -z \"$marker\" ] && [ -n \"${container:-}\" ]; then marker=\"${container}\"; fi\n\nvirt='\"'\"'unknown'\"'\"'\nif command -v systemd-detect-virt >/dev/null 2>&1; then\n    detected=\"$(systemd-detect-virt 2>/dev/null | head -n 1)\"\n    if [ -n \"$detected\" ]; then virt=\"$detected\"; fi\nfi\n\norca_binary=\"$(command -v \"$orca_command\" 2>/dev/null || printf '\"'\"''\"'\"')\"\norca_release='\"'\"''\"'\"'\norca_fingerprint='\"'\"''\"'\"'\nif [ -n \"$orca_binary\" ]; then\n    orca_release=\"$(\"$orca_binary\" --version 2>/dev/null | head -n 1 || printf '\"'\"''\"'\"')\"\n    orca_resolved=\"$(readlink -f \"$orca_binary\" 2>/dev/null || printf '\"'\"'%s'\"'\"' \"$orca_binary\")\"\n    orca_fingerprint=\"$(stat -c '\"'\"'%i:%s:%Y'\"'\"' \"$orca_resolved\" 2>/dev/null || printf '\"'\"''\"'\"')\"\nfi\n\nproject_resolved='\"'\"''\"'\"'\nif [ -n \"$project_path\" ] && [ -d \"$project_path\" ]; then\n    project_resolved=\"$(cd \"$project_path\" 2>/dev/null && pwd -P || printf '\"'\"''\"'\"')\"\nfi\n\nprintf '\"'\"'hostname=%s\\n'\"'\"' \"$(uname -n 2>/dev/null || printf '\"'\"''\"'\"')\"\nprintf '\"'\"'machine_id=<scrubbed> \"$(first_line /etc/machine-id)\"\nprintf '\"'\"'boot_id=<scrubbed> \"$(first_line /proc/sys/kernel/random/boot_id)\"\nprintf '\"'\"'home=%s\\n'\"'\"' \"${HOME:-}\"\nprintf '\"'\"'user=%s\\n'\"'\"' \"$(id -un 2>/dev/null || printf '\"'\"''\"'\"')\"\nprintf '\"'\"'path=%s\\n'\"'\"' \"${PATH:-}\"\nprintf '\"'\"'pid=%s\\n'\"'\"' \"$$\"\nprintf '\"'\"'uname=%s\\n'\"'\"' \"$(uname -srm 2>/dev/null || printf '\"'\"''\"'\"')\"\nprintf '\"'\"'container_marker=%s\\n'\"'\"' \"$marker\"\nprintf '\"'\"'virt=%s\\n'\"'\"' \"$virt\"\nprintf '\"'\"'orca_path=%s\\n'\"'\"' \"$orca_binary\"\nprintf '\"'\"'orca_version=%s\\n'\"'\"' \"$orca_release\"\nprintf '\"'\"'orca_fingerprint=%s\\n'\"'\"' \"$orca_fingerprint\"\nprintf '\"'\"'project_real=%s\\n'\"'\"' \"$project_resolved\"\n' cycle-probe /home/cycle/project orca"
+          ],
+          "context": "environment",
+          "elapsed_seconds": 0.727,
+          "exit_code": 0,
+          "finished_at": "2026-09-18T09:19:42Z",
+          "started_at": "2026-09-18T09:19:41Z",
+          "stderr_path": null,
+          "stdout_path": null,
+          "timed_out": false
+        },
+        {
+          "argv": [
+            "ssh",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "UserKnownHostsFile=/var/tmp/dely-cycle/state/20260918T091124Z-bbc5e6-f0bd3fa8/known_hosts",
+            "-p",
+            "22",
+            "-i",
+            "<redacted:credential-path>",
+            "cycle@192.168.122.24",
+            "--",
+            "sh -c 'for prefix in \"$@\"; do   case \"$prefix\" in --) shift; break;; esac; done; for name in $(env | sed -n \"s/^\\([A-Za-z_][A-Za-z0-9_]*\\)=.*/\\1/p\"); do   case \"$name\" in ORCA_*|DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|XDG_RUNTIME_DIR|XDG_SESSION_TYPE|XDG_SESSION_ID|XDG_SESSION_DESKTOP|XDG_CURRENT_DESKTOP|DBUS_SESSION_BUS_ADDRESS|GDK_BACKEND|QT_QPA_PLATFORM|ELECTRON_OZONE_PLATFORM_HINT) unset \"$name\";;   esac; done; exec \"$@\"' cycle-isolate -- orca status --json"
+          ],
+          "context": "environment",
+          "elapsed_seconds": 0.445,
+          "exit_code": 0,
+          "finished_at": "2026-09-18T09:19:42Z",
+          "started_at": "2026-09-18T09:19:42Z",
+          "stderr_path": null,
+          "stdout_path": null,
+          "timed_out": false
+        },
+        {
+          "argv": [
+            "ssh",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "UserKnownHostsFile=/var/tmp/dely-cycle/state/20260918T091124Z-bbc5e6-f0bd3fa8/known_hosts",
+            "-p",
+            "22",
+            "-i",
+            "<redacted:credential-path>",
+            "cycle@192.168.122.24",
+            "--",
+            "sh -c 'for prefix in \"$@\"; do   case \"$prefix\" in --) shift; break;; esac; done; for name in $(env | sed -n \"s/^\\([A-Za-z_][A-Za-z0-9_]*\\)=.*/\\1/p\"); do   case \"$name\" in ORCA_*|DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|XDG_RUNTIME_DIR|XDG_SESSION_TYPE|XDG_SESSION_ID|XDG_SESSION_DESKTOP|XDG_CURRENT_DESKTOP|DBUS_SESSION_BUS_ADDRESS|GDK_BACKEND|QT_QPA_PLATFORM|ELECTRON_OZONE_PLATFORM_HINT) unset \"$name\";;   esac; done; exec \"$@\"' cycle-isolate -- sh -c 'export DISPLAY=\"$1\"; shift; export XDG_RUNTIME_DIR=\"$HOME/.runtime\"; mkdir -p \"$XDG_RUNTIME_DIR\"; chmod 700 \"$XDG_RUNTIME_DIR\"; export ELECTRON_OZONE_PLATFORM_HINT=x11; export GDK_BACKEND=x11; export QT_QPA_PLATFORM=xcb; unset WAYLAND_DISPLAY; waited=0; while ! xset -q >/dev/null 2>&1; do   waited=$((waited + 2));   if [ \"$waited\" -ge 120 ]; then printf \"no display after %ss\n\" \"$waited\" >&2; exit 3; fi;   sleep 2; done; printf \"display ready after %ss\n\" \"$waited\"; rm -f \"$HOME/.config/orca/SingletonLock\" \"$HOME/.config/orca/SingletonCookie\"; nohup \"$@\" > \"$HOME/orca-app.log\" 2>&1 & printf \"started %s\n\" \"$!\"' orca-start :0 /opt/Orca/orca-ide"
+          ],
+          "context": "environment",
+          "elapsed_seconds": 0.273,
+          "exit_code": 0,
+          "finished_at": "2026-09-18T09:19:43Z",
+          "started_at": "2026-09-18T09:19:43Z",
+          "stderr_path": null,
+          "stdout_path": null,
+          "timed_out": false
+        },
+        {
+          "argv": [
+            "virsh",
+            "--connect",
+            "qemu:///system",
+            "screenshot",
+            "--domain",
+            "dely-cycle-20260918t091124z-bbc5e6-f0bd3fa8",
+            "--file",
+            "/tmp/dely-cycle-screen-vw0xou5n/runtime-ready.ppm"
+          ],
+          "context": "host",
+          "elapsed_seconds": 0.116,
+          "exit_code": 0,
+          "finished_at": "2026-09-18T09:19:50Z",
+          "started_at": "2026-09-18T09:19:50Z",
+          "stderr_path": null,
+          "stdout_path": null,
+          "timed_out": false
+        }
+      ],
+      "detail": "orca runtime 23e221b1-ced8-4dda-b6bc-42ae5e494fe3 is ready and the coordinator terminal is term_6c2ea09e-0873-4758-a8fd-1b50dcd13641",
+      "elapsed_seconds": 11.859,
+      "finished_at": "2026-09-18T09:19:53Z",
+      "name": "identity",
+      "started_at": "2026-09-18T09:19:41Z",
+      "status": "OK"
+    },
+    {
+      "commands": [],
+      "detail": "the agent did not answer whether it is signed in before the deadline",
+      "elapsed_seconds": null,
+      "finished_at": null,
+      "name": "task",
+      "started_at": null,
+      "status": "SKIPPED"
+    },
+    {
+      "commands": [],
+      "detail": "the agent did not answer whether it is signed in before the deadline",
+      "elapsed_seconds": null,
+      "finished_at": null,
+      "name": "review",
+      "started_at": null,
+      "status": "SKIPPED"
+    },
+    {
+      "commands": [],
+      "detail": "the agent did not answer whether it is signed in before the deadline",
+      "elapsed_seconds": null,
+      "finished_at": null,
+      "name": "check",
+      "started_at": null,
+      "status": "SKIPPED"
+    },
+    {
+      "commands": [],
+      "detail": "0 patch line(s) collected",
+      "elapsed_seconds": 0.439,
+      "finished_at": "2026-09-18T09:19:53Z",
+      "name": "collect",
+      "started_at": "2026-09-18T09:19:53Z",
+      "status": "OK"
+    },
+    {
+      "commands": [],
+      "detail": "18 artifact(s) re-read from the host; 1 unresolved",
+      "elapsed_seconds": 0.08,
+      "finished_at": "2026-09-18T09:19:53Z",
+      "name": "export",
+      "started_at": "2026-09-18T09:19:53Z",
+      "status": "OK"
+    },
+    {
+      "commands": [],
+      "detail": "every declared per-run resource is gone, every shared one remains, and no process on the host was still holding a path of this run",
+      "elapsed_seconds": 6.772,
+      "finished_at": "2026-09-18T09:20:00Z",
+      "name": "cleanup",
+      "started_at": "2026-09-18T09:19:53Z",
+      "status": "OK"
+    },
+    {
+      "commands": [],
+      "detail": "",
+      "elapsed_seconds": null,
+      "finished_at": null,
+      "name": "close",
+      "started_at": "2026-09-18T09:20:00Z",
+      "status": "OK"
+    }
+  ],
+  "review": {
+    "detail": "not attempted",
+    "diff_lines": 0,
+    "diff_path": null,
+    "diff_reported_by_reviewer": "",
+    "diff_sha256": "",
+    "diff_sha256_after": "",
+    "reason": "",
+    "reviewer": {},
+    "same_diff": false,
+    "same_diff_detail": "",
+    "separation": {},
+    "status": "SKIPPED",
+    "verdict": ""
+  },
+  "reviewer": {
+    "agent": null,
+    "commands": [],
+    "delivery_id": null,
+    "detail": "not attempted",
+    "dispatch_id": null,
+    "effort": null,
+    "model": null,
+    "outcome": null,
+    "prompt_path": null,
+    "role": "reviewer",
+    "run_id": null,
+    "status": "SKIPPED",
+    "terminal": null
+  },
+  "run_id": "20260918T091124Z-bbc5e6-f0bd3fa8",
+  "schema_version": 1,
+  "screenshot": {
+    "captures": [
+      {
+        "artifact": "screenshots/runtime-ready.ppm",
+        "detail": "68264 byte(s) of the screen :0, taken by the hypervisor rather than by the application",
+        "display": ":0",
+        "moment": "runtime-ready",
+        "ok": true,
+        "sha256": "24262e1536cb1eda1c73da4c68aeee0203d592f8ce6f3dc4365daccee0d1613b",
+        "size_bytes": 68264,
+        "source": "hypervisor"
+      }
+    ],
+    "detail": "1 picture(s) of the screen this run created, each taken from outside the application: runtime-ready (screenshots/runtime-ready.ppm)",
+    "display": ":0",
+    "status": "OK"
+  },
+  "skills": {
+    "detail": "not attempted",
+    "findings": [],
+    "status": "SKIPPED"
+  },
+  "started_at": "2026-09-18T09:11:24Z",
+  "status": "BLOCKED",
+  "terminals": {
+    "clean": false,
+    "detail": "the plane never named a Run for this cycle, so there is no worker accounting to settle",
+    "dispositions": [],
+    "distinction_detail": "",
+    "distinguished": false,
+    "live_after": [],
+    "live_before": [],
+    "owed_after": [],
+    "owed_before": [],
+    "run_id": null,
+    "status": "SKIPPED",
+    "workers_after": [],
+    "workers_before": []
+  },
+  "tested_revision": "main",
+  "timeout_seconds": 3600,
+  "versions": {
+    "configured_revision": "main",
+    "distrobox": "distrobox: 1.8.2.5",
+    "git": "git version 2.55.0",
+    "podman": "podman version 5.8.4",
+    "project_revision": "acf9f54ed31a5038b5134f114f30524c5fce5b6a",
+    "pulumi": "v3.262.0",
+    "python": "3.14.7",
+    "qemu_img": "Copyright (c) 2003-2025 Fabrice Bellard and the QEMU Project developers",
+    "runner": "minimal-cycle",
+    "virsh": "12.0.0"
+  },
+  "worker": {
+    "agent": null,
+    "commands": [],
+    "delivery_id": null,
+    "detail": "not attempted",
+    "dispatch_id": null,
+    "effort": null,
+    "model": null,
+    "outcome": null,
+    "prompt_path": null,
+    "role": "implementer",
+    "run_id": null,
+    "status": "SKIPPED",
+    "terminal": null
+  }
+}
